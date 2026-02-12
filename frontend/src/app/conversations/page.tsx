@@ -657,7 +657,7 @@ export default function ConversationsPage() {
                   <button
                     onClick={() => {
                       const phone = selectedContact?.wa_id || '';
-                      window.dispatchEvent(new CustomEvent('cenat-call', { detail: { phone } }));
+                      window.dispatchEvent(new CustomEvent('eduflow-call', { detail: { phone } }));
                     }}
                     className="p-2 rounded-xl hover:bg-green-50 text-gray-400 hover:text-green-600 transition-all duration-200"
                     title="Ligar para o lead"
@@ -960,7 +960,7 @@ export default function ConversationsPage() {
               <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-5 shadow-sm border border-gray-100">
                 <MessageCircle className="w-9 h-9 text-gray-300" />
               </div>
-              <p className="text-lg font-semibold text-[#27273D]">Cenat Hub</p>
+              <p className="text-lg font-semibold text-[#27273D]">EduFlow</p>
               <p className="text-sm mt-1 text-gray-400">Selecione uma conversa para começar</p>
             </div>
           )}

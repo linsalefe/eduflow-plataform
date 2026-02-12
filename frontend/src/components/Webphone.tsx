@@ -42,8 +42,10 @@ export default function Webphone() {
         if (!deviceReady && !initStartedRef.current) initDevice();
       }
     };
-    window.addEventListener('cenat-call', handler);
-    return () => window.removeEventListener('cenat-call', handler);
+    // Troca 1
+    window.addEventListener('eduflow-call', handler);
+    // Troca 2
+    return () => window.removeEventListener('eduflow-call', handler);
   }, [deviceReady]);
 
   const initDevice = useCallback(async () => {
@@ -61,7 +63,8 @@ export default function Webphone() {
         return;
       }
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://hub.cenatdata.online/api';
+      // Troca 3
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
       const res = await fetch(`${API_URL}/twilio/token`, {
         headers: { Authorization: `Bearer ${token}` },
       });

@@ -73,7 +73,7 @@ export default function Sidebar() {
         >
           <Image
             src="/logo-icon-white.png"
-            alt="Cenat"
+            alt="EduFlow"
             width={34}
             height={34}
             className="object-contain flex-shrink-0"
@@ -81,7 +81,7 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col">
               <span className="text-white font-semibold text-[15px] tracking-widest uppercase leading-tight">
-                Cenat
+                EduFlow
               </span>
               <span className="text-[10px] text-gray-500 font-medium tracking-wide">
                 Hub

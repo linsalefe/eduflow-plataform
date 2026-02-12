@@ -10,7 +10,7 @@ CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "..", "google-credent
 CALENDARS = {
     "victoria": {
         "name": "Victória Amorim",
-        "calendar_id": "comercialcenat@gmail.com",
+        "calendar_id": "",
     },
 }
 

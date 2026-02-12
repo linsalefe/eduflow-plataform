@@ -47,7 +47,8 @@ export default function AgendaPage() {
             </div>
             <div>
               <h1 className="text-lg font-semibold text-gray-800">Agenda</h1>
-              <p className="text-xs text-gray-500">Pré Vendas - CENAT</p>
+              {/* Troca 1 */}
+              <p className="text-xs text-gray-500">Pré Vendas</p>
             </div>
           </div>
 
@@ -88,7 +89,8 @@ export default function AgendaPage() {
           {view === 'agenda' ? (
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm h-full">
               <iframe
-                src="https://calendar.google.com/calendar/embed?src=comercialcenat%40gmail.com&ctz=America%2FSao_Paulo"
+                /* Troca 2 */
+                src=""
                 style={{ border: 0 }}
                 width="100%"
                 height="100%"

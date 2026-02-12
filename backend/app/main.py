@@ -60,11 +60,11 @@ async def lifespan(app: FastAPI):
     cleanup_task.cancel()
 
 
-app = FastAPI(title="Cenat WhatsApp API", lifespan=lifespan)
+app = FastAPI(title="EduFlow API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "https://hub.cenatdata.online"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

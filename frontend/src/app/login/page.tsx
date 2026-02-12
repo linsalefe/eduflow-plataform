@@ -64,9 +64,11 @@ export default function LoginPage() {
         <div className={`relative z-10 max-w-lg transition-all duration-1000 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           {/* Logo */}
           <div className="flex items-center gap-3 mb-10">
-            <img src="/logo-icon-white.png" alt="Cenat" className="w-12 h-12 object-contain" />
+            {/* Troca 1 */}
+            <img src="/logo-icon-white.png" alt="EduFlow" className="w-12 h-12 object-contain" />
             <div>
-              <span className="text-2xl font-bold text-white tracking-tight">Cenat</span>
+              {/* Troca 2 */}
+              <span className="text-2xl font-bold text-white tracking-tight">EduFlow</span>
               <span className="text-2xl font-light text-[#4d9fd4] ml-1.5">Hub</span>
             </div>
           </div>
@@ -116,8 +118,10 @@ export default function LoginPage() {
         >
           {/* Logo mobile */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <img src="/logo-icon-white.png" alt="Cenat" className="w-10 h-10 object-contain" />
-            <span className="text-2xl font-bold text-white">Cenat Hub</span>
+            {/* Troca 3 */}
+            <img src="/logo-icon-white.png" alt="EduFlow" className="w-10 h-10 object-contain" />
+            {/* Troca 4 */}
+            <span className="text-2xl font-bold text-white">EduFlow</span>
           </div>
 
           <div className="bg-white rounded-2xl p-8 shadow-2xl shadow-black/25">
@@ -193,8 +197,9 @@ export default function LoginPage() {
             </form>
           </div>
 
+          {/* Troca 5 */}
           <p className="text-center text-[11px] text-gray-600 mt-6">
-            Cenat Hub © {new Date().getFullYear()} — Todos os direitos reservados
+            EduFlow © {new Date().getFullYear()} — Todos os direitos reservados
           </p>
         </div>
       </div>

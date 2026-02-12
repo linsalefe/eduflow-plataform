@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://localhost:5432/cenat_whatsapp")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://localhost:5432/eduflow_db")
 
 engine = create_async_engine(DATABASE_URL, echo=True)
 

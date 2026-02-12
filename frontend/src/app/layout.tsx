@@ -6,7 +6,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Cenat Hub",
+  title: "EduFlow",
   description: "Central de Atendimento Integrado",
   icons: {
     icon: "/logo-icon-color.png",

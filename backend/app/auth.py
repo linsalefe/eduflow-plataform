@@ -14,7 +14,7 @@ from app.models import User
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET", "cenat-whatsapp-secret-2024")
+SECRET_KEY = os.getenv("JWT_SECRET", "eduflow-secret-2025")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 

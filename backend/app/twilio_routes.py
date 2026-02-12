@@ -78,10 +78,13 @@ async def make_call(data: CallRequest, current_user=Depends(get_current_user)):
     call = client.calls.create(
         to=to_number,
         from_=TWILIO_PHONE_NUMBER,
-        url=f"https://hub.cenatdata.online/api/twilio/voice-outbound?identity={identity}",
+        # Troca 1
+        url=f"http://localhost:8001/api/twilio/voice-outbound?identity={identity}",
         record=True,
-        recording_status_callback="https://hub.cenatdata.online/api/twilio/recording-status",
-        status_callback="https://hub.cenatdata.online/api/twilio/call-status",
+        # Troca 2
+        recording_status_callback="http://localhost:8001/api/twilio/recording-status",
+        # Troca 3
+        status_callback="http://localhost:8001/api/twilio/call-status",
         status_callback_event=["initiated", "ringing", "answered", "completed"],
     )
 
@@ -104,11 +107,13 @@ async def voice_twiml(request: "Request"):
         dial = Dial(
             caller_id=TWILIO_PHONE_NUMBER,
             record="record-from-answer",
-            recording_status_callback="https://hub.cenatdata.online/api/twilio/recording-status",
+            # Troca 4
+            recording_status_callback="http://localhost:8001/api/twilio/recording-status",
         )
         dial.number(
             to,
-            status_callback="https://hub.cenatdata.online/api/twilio/call-status",
+            # Troca 5
+            status_callback="http://localhost:8001/api/twilio/call-status",
             status_callback_event="initiated ringing answered completed",
         )
         response.append(dial)
@@ -301,7 +306,8 @@ async def post_call_to_exact_spotter(call_log):
     drive_info = f"\n🔗 Gravação: {call_log.drive_file_url}" if call_log.drive_file_url else ""
 
     text = (
-        f"📞 LIGAÇÃO VIA CENAT HUB\n"
+        # Troca 6
+        f"📞 LIGAÇÃO VIA EduFlow\n"
         f"📅 Data: {call_log.created_at.strftime('%d/%m/%Y %H:%M') if call_log.created_at else 'N/A'}\n"
         f"📱 Direção: {'Saída' if call_log.direction == 'outbound' else 'Entrada'}\n"
         f"👤 Atendente: {call_log.user_name or 'N/A'}\n"
@@ -338,7 +344,8 @@ async def voice_incoming_twiml(request: "Request"):
     
     dial = Dial(
         record="record-from-answer",
-        recording_status_callback="https://hub.cenatdata.online/api/twilio/recording-status",
+        # Troca 7
+        recording_status_callback="http://localhost:8001/api/twilio/recording-status",
         timeout=30,
     )
     # Toca em todos os clients conectados (usuários logados)

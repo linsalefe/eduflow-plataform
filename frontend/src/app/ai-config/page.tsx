@@ -309,7 +309,7 @@ export default function AIConfigPage() {
                   value={config.system_prompt}
                   onChange={e => setConfig({ ...config, system_prompt: e.target.value })}
                   rows={10}
-                  placeholder="Ex: Você é a Nat, assistente virtual do CENAT. Seja cordial, profissional e objetiva..."
+                  placeholder="Ex: Você é a assistente virtual da instituição. Seja cordial, profissional e objetiva..."
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 text-[13px] text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 resize-none leading-relaxed"
                 />
                 <div className="text-right text-[11px] text-gray-400">
