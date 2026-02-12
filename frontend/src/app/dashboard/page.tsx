@@ -88,7 +88,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
-        <Loader2 className="w-8 h-8 text-[#2A658F] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" />
       </div>
     );
   }
@@ -163,8 +163,8 @@ export default function DashboardPage() {
                   <span className="font-semibold text-[#27273D]">{stats.messages_week}</span> nos últimos 7 dias
                 </p>
               </div>
-              <div className="w-9 h-9 bg-[#2A658F]/8 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-[#2A658F]" />
+              <div className="w-9 h-9 bg-[#6366f1]/8 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-[#6366f1]" />
               </div>
             </div>
 
@@ -183,7 +183,7 @@ export default function DashboardPage() {
                   >
                     {/* Tooltip valor */}
                     <span className={`text-xs font-semibold tabular-nums transition-all duration-200 ${
-                      isHovered ? 'text-[#2A658F]' : 'text-gray-400'
+                      isHovered ? 'text-[#6366f1]' : 'text-gray-400'
                     }`}>
                       {day.count}
                     </span>
@@ -193,10 +193,10 @@ export default function DashboardPage() {
                       <div
                         className={`w-full rounded-lg transition-all duration-500 ease-out ${
                           isToday
-                            ? 'bg-[#2A658F]'
+                            ? 'bg-[#6366f1]'
                             : isHovered
-                              ? 'bg-[#2A658F]/70'
-                              : 'bg-[#2A658F]/25'
+                              ? 'bg-[#6366f1]/70'
+                              : 'bg-[#6366f1]/25'
                         }`}
                         style={{
                           height: `${Math.max(pct, day.count > 0 ? 6 : 2)}%`,
@@ -207,7 +207,7 @@ export default function DashboardPage() {
 
                     {/* Label dia */}
                     <span className={`text-[11px] font-medium transition-colors duration-200 ${
-                      isToday ? 'text-[#2A658F]' : 'text-gray-400'
+                      isToday ? 'text-[#6366f1]' : 'text-gray-400'
                     }`}>
                       {day.day}
                     </span>
@@ -268,7 +268,7 @@ export default function DashboardPage() {
         {/* ── Resumo rodapé ── */}
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ease-out delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
-            { label: 'Mensagens hoje', value: stats.messages_today, icon: MessageSquare, color: 'text-[#2A658F]', bg: 'bg-[#2A658F]/8' },
+            { label: 'Mensagens hoje', value: stats.messages_today, icon: MessageSquare, color: 'text-[#6366f1]', bg: 'bg-[#6366f1]/8' },
             { label: 'Convertidos', value: stats.status_counts['convertido'] || 0, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Negociando', value: stats.status_counts['negociando'] || 0, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'Qualificados', value: stats.status_counts['qualificado'] || 0, icon: Activity, color: 'text-purple-600', bg: 'bg-purple-50' },

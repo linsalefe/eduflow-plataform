@@ -221,7 +221,7 @@ export default function AITestPage() {
                   <div
                     className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap ${
                       msg.role === 'user'
-                        ? 'bg-[#2A658F] text-white rounded-br-md'
+                        ? 'bg-[#6366f1] text-white rounded-br-md'
                         : 'bg-white border border-gray-200 text-[#374151] rounded-bl-md shadow-sm'
                     }`}
                   >

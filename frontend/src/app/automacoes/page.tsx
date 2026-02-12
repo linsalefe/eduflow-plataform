@@ -223,7 +223,7 @@ export default function AutomacoesPage() {
 
   const hasActiveFilters = search || stageFilter || subSourceFilter || sdrFilter;
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]"><Loader2 className="w-8 h-8 text-[#2A658F] animate-spin" /></div>;
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]"><Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" /></div>;
   if (!user) return null;
 
   if (loading) {
@@ -266,7 +266,7 @@ export default function AutomacoesPage() {
               <select
                 value={activeChannelId}
                 onChange={(e) => { setActiveChannelId(Number(e.target.value)); setTemplates([]); setSelectedTemplate(null); }}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] focus:bg-white transition-all cursor-pointer"
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] focus:bg-white transition-all cursor-pointer"
               >
                 {channels.map(ch => (
                   <option key={ch.id} value={ch.id}>{ch.name}</option>
@@ -278,9 +278,9 @@ export default function AutomacoesPage() {
             <div className="bg-white rounded-2xl p-4 border border-gray-100">
               <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">Template</h3>
               {loadingTemplates ? (
-                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#2A658F] animate-spin" /></div>
+                <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#6366f1] animate-spin" /></div>
               ) : templates.length === 0 ? (
-                <button onClick={loadTemplates} className="w-full py-3 border border-dashed border-gray-200 rounded-xl text-[13px] text-gray-400 hover:border-[#2A658F] hover:text-[#2A658F] hover:bg-[#2A658F]/5 transition-all">
+                <button onClick={loadTemplates} className="w-full py-3 border border-dashed border-gray-200 rounded-xl text-[13px] text-gray-400 hover:border-[#6366f1] hover:text-[#6366f1] hover:bg-[#6366f1]/5 transition-all">
                   Carregar templates
                 </button>
               ) : (
@@ -291,7 +291,7 @@ export default function AutomacoesPage() {
                       onClick={() => selectTemplate(t)}
                       className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
                         selectedTemplate?.name === t.name
-                          ? 'border-[#2A658F] bg-[#2A658F]/5 text-[#2A658F]'
+                          ? 'border-[#6366f1] bg-[#6366f1]/5 text-[#6366f1]'
                           : 'border-gray-50 text-gray-700 hover:bg-gray-50 hover:border-gray-100'
                       }`}
                     >
@@ -313,7 +313,7 @@ export default function AutomacoesPage() {
                         value={templateParams[i] || ''}
                         onChange={e => updateParam(i, e.target.value)}
                         placeholder={`Valor para ${p}`}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#2A658F] focus:bg-white transition-all"
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#6366f1] focus:bg-white transition-all"
                       />
                     </div>
                   ))}
@@ -333,7 +333,7 @@ export default function AutomacoesPage() {
               <button
                 onClick={() => setShowConfirm(true)}
                 disabled={sending}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-[#2A658F] text-white font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100"
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {sending ? 'Enviando...' : `Enviar para ${selectedIds.size} leads`}
@@ -382,20 +382,20 @@ export default function AutomacoesPage() {
                     placeholder="Buscar lead..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] focus:bg-white transition-all"
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] focus:bg-white transition-all"
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-gray-400" />
-                  <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] transition-all cursor-pointer">
+                  <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] transition-all cursor-pointer">
                     <option value="">Todos estágios</option>
                     {stages.map(s => <option key={s} value={s}>{s} ({stats?.by_stage[s]})</option>)}
                   </select>
-                  <select value={subSourceFilter} onChange={(e) => setSubSourceFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] transition-all cursor-pointer">
+                  <select value={subSourceFilter} onChange={(e) => setSubSourceFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] transition-all cursor-pointer">
                     <option value="">Todos cursos</option>
                     {subSources.map(s => <option key={s} value={s}>{s} ({stats?.by_sub_source[s]})</option>)}
                   </select>
-                  <select value={sdrFilter} onChange={(e) => setSdrFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] transition-all cursor-pointer">
+                  <select value={sdrFilter} onChange={(e) => setSdrFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] transition-all cursor-pointer">
                     <option value="">Todos SDRs</option>
                     {sdrs.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -418,7 +418,7 @@ export default function AutomacoesPage() {
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/50">
                       <th className="px-4 py-3 w-10">
-                        <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-[#2A658F] focus:ring-[#2A658F]" />
+                        <input type="checkbox" checked={selectAll} onChange={toggleSelectAll} className="w-4 h-4 rounded border-gray-300 text-[#6366f1] focus:ring-[#6366f1]" />
                       </th>
                       <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Nome</th>
                       <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-4 py-3">Telefone</th>
@@ -430,13 +430,13 @@ export default function AutomacoesPage() {
                   </thead>
                   <tbody>
                     {filteredLeads.map((lead) => (
-                      <tr key={lead.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors ${selectedIds.has(lead.id) ? 'bg-[#2A658F]/[0.03]' : ''}`}>
+                      <tr key={lead.id} className={`border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors ${selectedIds.has(lead.id) ? 'bg-[#6366f1]/[0.03]' : ''}`}>
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(lead.id)}
                             onChange={() => toggleSelect(lead.id)}
-                            className="w-4 h-4 rounded border-gray-300 text-[#2A658F] focus:ring-[#2A658F]"
+                            className="w-4 h-4 rounded border-gray-300 text-[#6366f1] focus:ring-[#6366f1]"
                           />
                         </td>
                         <td className="px-4 py-3">
@@ -461,7 +461,7 @@ export default function AutomacoesPage() {
                             <button
                               onClick={() => handleSingleSend(lead)}
                               disabled={sending || !lead.phone1}
-                              className="text-[11px] px-3 py-1.5 bg-[#2A658F] text-white rounded-lg hover:bg-[#1f5375] disabled:opacity-30 transition-all active:scale-95"
+                              className="text-[11px] px-3 py-1.5 bg-[#6366f1] text-white rounded-lg hover:bg-[#4f46e5] disabled:opacity-30 transition-all active:scale-95"
                             >
                               Enviar
                             </button>
@@ -483,7 +483,7 @@ export default function AutomacoesPage() {
                   {filteredLeads.length} leads • {selectedIds.size} selecionados
                 </span>
                 {hasActiveFilters && (
-                  <span className="text-[12px] text-[#2A658F] font-medium">Filtros ativos</span>
+                  <span className="text-[12px] text-[#6366f1] font-medium">Filtros ativos</span>
                 )}
               </div>
             </div>
@@ -524,7 +524,7 @@ export default function AutomacoesPage() {
               <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
-              <button onClick={handleBulkSend} className="flex-1 py-2.5 bg-[#2A658F] text-white rounded-xl text-[13px] font-medium hover:bg-[#1f5375] active:scale-[0.98] transition-all">
+              <button onClick={handleBulkSend} className="flex-1 py-2.5 bg-[#6366f1] text-white rounded-xl text-[13px] font-medium hover:bg-[#4f46e5] active:scale-[0.98] transition-all">
                 Confirmar envio
               </button>
             </div>

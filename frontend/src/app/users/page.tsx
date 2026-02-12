@@ -105,7 +105,7 @@ export default function UsersPage() {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#2A658F] text-white text-[13px] font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white text-[13px] font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
           >
             <UserPlus className="w-4 h-4" />
             Novo usuário
@@ -147,7 +147,7 @@ export default function UsersPage() {
         <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-700 ease-out delay-150 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {loading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#2A658F] animate-spin" />
+              <Loader2 className="w-6 h-6 text-[#6366f1] animate-spin" />
             </div>
           ) : users.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
@@ -252,7 +252,7 @@ export default function UsersPage() {
                       value={newName}
                       onChange={e => setNewName(e.target.value)}
                       placeholder="Nome completo"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -265,7 +265,7 @@ export default function UsersPage() {
                       value={newEmail}
                       onChange={e => setNewEmail(e.target.value)}
                       placeholder="email@exemplo.com"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -278,7 +278,7 @@ export default function UsersPage() {
                       value={newPassword}
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="Mínimo 6 caracteres"
-                      className="w-full pl-10 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white outline-none transition-all"
+                      className="w-full pl-10 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -291,7 +291,7 @@ export default function UsersPage() {
                     <button
                       onClick={() => setNewRole('atendente')}
                       className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium border transition-all ${
-                        newRole === 'atendente' ? 'border-[#2A658F] bg-[#2A658F]/5 text-[#2A658F]' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
+                        newRole === 'atendente' ? 'border-[#6366f1] bg-[#6366f1]/5 text-[#6366f1]' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
                       }`}
                     >
                       Atendente
@@ -311,7 +311,7 @@ export default function UsersPage() {
               <button
                 onClick={handleCreate}
                 disabled={creating || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
-                className="w-full mt-6 py-3 bg-[#2A658F] text-white font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+                className="w-full mt-6 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
               >
                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
                 {creating ? 'Criando...' : 'Criar usuário'}

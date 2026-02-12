@@ -422,8 +422,8 @@ export default function ConversationsPage() {
                 className="w-full flex items-center justify-between px-3 py-2.5 bg-[#0f1b2d] rounded-xl text-left transition-all hover:bg-[#162538]"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-[#2A658F]/30 rounded-lg flex items-center justify-center">
-                    <Radio className="w-3.5 h-3.5 text-[#4d9fd4]" />
+                  <div className="w-8 h-8 bg-[#6366f1]/30 rounded-lg flex items-center justify-center">
+                    <Radio className="w-3.5 h-3.5 text-[#818cf8]" />
                   </div>
                   <div>
                     <p className="text-[13px] font-medium text-white leading-tight">{activeChannel?.name || 'Selecionar canal'}</p>
@@ -441,9 +441,9 @@ export default function ConversationsPage() {
                     <button
                       key={ch.id}
                       onClick={() => { setActiveChannel(ch); setShowChannelMenu(false); setSelectedContact(null); setLoading(true); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left ${activeChannel?.id === ch.id ? 'bg-[#2A658F]/5' : ''}`}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left ${activeChannel?.id === ch.id ? 'bg-[#6366f1]/5' : ''}`}
                     >
-                      <div className={`w-2 h-2 rounded-full ${activeChannel?.id === ch.id ? 'bg-[#2A658F]' : 'bg-gray-300'}`} />
+                      <div className={`w-2 h-2 rounded-full ${activeChannel?.id === ch.id ? 'bg-[#6366f1]' : 'bg-gray-300'}`} />
                       <div>
                         <p className="text-sm font-medium text-gray-800">{ch.name}</p>
                         <p className="text-[11px] text-gray-400">+{ch.phone_number}</p>
@@ -465,7 +465,7 @@ export default function ConversationsPage() {
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => { if (exactLeadResults.length > 0) setShowLeadSuggestions(true); }}
                   onBlur={() => setTimeout(() => setShowLeadSuggestions(false), 200)}
-                  className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white transition-all outline-none"
+                  className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
                 />
                 {search && (
                   <button onClick={() => { setSearch(''); setExactLeadResults([]); setShowLeadSuggestions(false); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
@@ -502,7 +502,7 @@ export default function ConversationsPage() {
 
               <button
                 onClick={() => setShowNewChat(true)}
-                className="flex items-center justify-center w-10 h-10 bg-[#2A658F] text-white rounded-xl hover:bg-[#1f5375] active:scale-95 transition-all flex-shrink-0"
+                className="flex items-center justify-center w-10 h-10 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] active:scale-95 transition-all flex-shrink-0"
                 title="Nova conversa"
               >
                 <Plus className="w-4 h-4" />
@@ -573,7 +573,7 @@ export default function ConversationsPage() {
                       onClick={() => setSelectedContact(contact)}
                       className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-150 mb-0.5 ${
                         isSelected
-                          ? 'bg-[#2A658F]/8 border border-[#2A658F]/10'
+                          ? 'bg-[#6366f1]/8 border border-[#6366f1]/10'
                           : 'hover:bg-gray-50 border border-transparent'
                       }`}
                     >
@@ -586,7 +586,7 @@ export default function ConversationsPage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <p className={`font-medium text-[13px] truncate ${isSelected ? 'text-[#2A658F]' : 'text-[#27273D]'}`}>
+                          <p className={`font-medium text-[13px] truncate ${isSelected ? 'text-[#6366f1]' : 'text-[#27273D]'}`}>
                             {contact.ai_active && "🤖 "}{contact.name || contact.wa_id}
                           </p>
                           {contact.last_message_time && (
@@ -613,7 +613,7 @@ export default function ConversationsPage() {
                       </div>
 
                       {contact.unread > 0 && (
-                        <span className="min-w-[20px] h-5 px-1 bg-[#2A658F] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="min-w-[20px] h-5 px-1 bg-[#6366f1] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
                           {contact.unread}
                         </span>
                       )}
@@ -669,7 +669,7 @@ export default function ConversationsPage() {
                     onClick={() => setShowCRM(!showCRM)}
                     className={`p-2 rounded-xl transition-all duration-200 ${
                       showCRM
-                        ? 'bg-[#2A658F]/10 text-[#2A658F]'
+                        ? 'bg-[#6366f1]/10 text-[#6366f1]'
                         : 'hover:bg-gray-100 text-gray-400'
                     }`}
                     title="Painel CRM"
@@ -696,7 +696,7 @@ export default function ConversationsPage() {
                           <div key={msg.id} className={`flex mb-1.5 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[70%] px-3.5 py-2 shadow-sm ${
                               msg.direction === 'outbound'
-                                ? 'bg-[#2A658F] text-white rounded-2xl rounded-br-md'
+                                ? 'bg-[#6366f1] text-white rounded-2xl rounded-br-md'
                                 : 'bg-white text-gray-800 rounded-2xl rounded-bl-md'
                             }`}>
                               {msg.type === 'image' && msg.content.startsWith('media:') ? (
@@ -725,7 +725,7 @@ export default function ConversationsPage() {
                                   href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-white/90' : 'text-[#2A658F]'} underline text-sm`}
+                                  className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-white/90' : 'text-[#6366f1]'} underline text-sm`}
                                 >
                                   📄 {msg.content.split('|')[2] || 'Documento'}
                                 </a>
@@ -755,12 +755,12 @@ export default function ConversationsPage() {
                         onKeyDown={handleKeyPress}
                         placeholder="Digite uma mensagem..."
                         rows={1}
-                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 resize-none focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white transition-all outline-none"
+                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 resize-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
                       />
                       <button
                         onClick={handleSend}
                         disabled={!newMessage.trim() || sending}
-                        className="flex items-center justify-center w-10 h-10 bg-[#2A658F] rounded-xl text-white hover:bg-[#1f5375] active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100 flex-shrink-0"
+                        className="flex items-center justify-center w-10 h-10 bg-[#6366f1] rounded-xl text-white hover:bg-[#4f46e5] active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100 flex-shrink-0"
                       >
                         {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                       </button>
@@ -866,7 +866,7 @@ export default function ConversationsPage() {
                           })}
                         </div>
 
-                        <button onClick={() => setShowTagMenu(!showTagMenu)} className="flex items-center gap-1 text-[12px] text-[#2A658F] hover:text-[#1a4a6e] font-medium transition-colors">
+                        <button onClick={() => setShowTagMenu(!showTagMenu)} className="flex items-center gap-1 text-[12px] text-[#6366f1] hover:text-[#1a4a6e] font-medium transition-colors">
                           <Plus className="w-3.5 h-3.5" /> Adicionar tag
                         </button>
 
@@ -891,21 +891,21 @@ export default function ConversationsPage() {
                                 value={newTagName}
                                 onChange={(e) => setNewTagName(e.target.value)}
                                 placeholder="Nome da tag"
-                                className="w-full px-2.5 py-1.5 text-[12px] text-gray-800 bg-white border border-gray-200 rounded-lg outline-none focus:border-[#2A658F] transition-colors"
+                                className="w-full px-2.5 py-1.5 text-[12px] text-gray-800 bg-white border border-gray-200 rounded-lg outline-none focus:border-[#6366f1] transition-colors"
                               />
                               <div className="flex gap-1.5 mt-2">
                                 {tagColors.map(c => (
                                   <button
                                     key={c.value}
                                     onClick={() => setNewTagColor(c.value)}
-                                    className={`w-5 h-5 rounded-full ${c.bg} transition-all ${newTagColor === c.value ? 'ring-2 ring-offset-1 ring-[#2A658F] scale-110' : 'hover:scale-105'}`}
+                                    className={`w-5 h-5 rounded-full ${c.bg} transition-all ${newTagColor === c.value ? 'ring-2 ring-offset-1 ring-[#6366f1] scale-110' : 'hover:scale-105'}`}
                                   />
                                 ))}
                               </div>
                               <button
                                 onClick={() => { createTag(); setShowTagMenu(false); }}
                                 disabled={!newTagName.trim()}
-                                className="w-full mt-2.5 px-2.5 py-1.5 bg-[#2A658F] text-white text-[11px] font-medium rounded-lg disabled:opacity-40 hover:bg-[#1f5375] transition-colors"
+                                className="w-full mt-2.5 px-2.5 py-1.5 bg-[#6366f1] text-white text-[11px] font-medium rounded-lg disabled:opacity-40 hover:bg-[#4f46e5] transition-colors"
                               >
                                 Criar tag
                               </button>
@@ -919,7 +919,7 @@ export default function ConversationsPage() {
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Notas</p>
                           {!editingNotes && (
-                            <button onClick={() => setEditingNotes(true)} className="text-[12px] text-[#2A658F] font-medium hover:text-[#1a4a6e] transition-colors">
+                            <button onClick={() => setEditingNotes(true)} className="text-[12px] text-[#6366f1] font-medium hover:text-[#1a4a6e] transition-colors">
                               Editar
                             </button>
                           )}
@@ -931,11 +931,11 @@ export default function ConversationsPage() {
                               value={notesValue}
                               onChange={(e) => setNotesValue(e.target.value)}
                               rows={4}
-                              className="w-full px-3 py-2.5 text-[13px] text-gray-800 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#2A658F] focus:bg-white resize-none transition-all"
+                              className="w-full px-3 py-2.5 text-[13px] text-gray-800 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#6366f1] focus:bg-white resize-none transition-all"
                               placeholder="Adicione notas sobre este lead..."
                             />
                             <div className="flex gap-2 mt-2">
-                              <button onClick={saveNotes} className="px-3.5 py-1.5 bg-[#2A658F] text-white text-[11px] font-medium rounded-lg hover:bg-[#1f5375] transition-colors">
+                              <button onClick={saveNotes} className="px-3.5 py-1.5 bg-[#6366f1] text-white text-[11px] font-medium rounded-lg hover:bg-[#4f46e5] transition-colors">
                                 Salvar
                               </button>
                               <button onClick={() => { setEditingNotes(false); setNotesValue(selectedContact.notes || ''); }} className="px-3.5 py-1.5 text-gray-500 text-[11px] font-medium rounded-lg hover:bg-gray-100 transition-colors">
@@ -985,7 +985,7 @@ export default function ConversationsPage() {
                     value={newChatPhone}
                     onChange={e => setNewChatPhone(e.target.value)}
                     placeholder="5583988001234"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">DDD + número com 9 (sem espaços)</p>
                 </div>
@@ -997,7 +997,7 @@ export default function ConversationsPage() {
                     value={newChatName}
                     onChange={e => setNewChatName(e.target.value)}
                     placeholder="Maria Silva"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-2 focus:ring-[#2A658F]/10 focus:bg-white outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
                   />
                 </div>
 
@@ -1006,12 +1006,12 @@ export default function ConversationsPage() {
                   <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Template da mensagem</label>
                   {loadingTemplates ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 text-[#2A658F] animate-spin" />
+                      <Loader2 className="w-5 h-5 text-[#6366f1] animate-spin" />
                     </div>
                   ) : templates.length === 0 ? (
                     <button
                       onClick={loadTemplates}
-                      className="w-full py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:border-[#2A658F] hover:text-[#2A658F] transition-colors"
+                      className="w-full py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:border-[#6366f1] hover:text-[#6366f1] transition-colors"
                     >
                       Carregar templates disponíveis
                     </button>
@@ -1023,7 +1023,7 @@ export default function ConversationsPage() {
                           onClick={() => selectTemplate(t)}
                           className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
                             selectedTemplate?.name === t.name
-                              ? 'border-[#2A658F] bg-[#2A658F]/5 text-[#2A658F]'
+                              ? 'border-[#6366f1] bg-[#6366f1]/5 text-[#6366f1]'
                               : 'border-gray-100 text-gray-700 hover:border-gray-200 hover:bg-gray-50'
                           }`}
                         >
@@ -1047,7 +1047,7 @@ export default function ConversationsPage() {
                           value={templateParams[i] || ''}
                           onChange={e => updateParam(i, e.target.value)}
                           placeholder={`Valor para ${p}`}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:bg-white outline-none transition-all"
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:bg-white outline-none transition-all"
                         />
                       </div>
                     ))}
@@ -1068,7 +1068,7 @@ export default function ConversationsPage() {
               <button
                 onClick={handleNewChat}
                 disabled={sendingTemplate || !newChatPhone.trim() || !newChatName.trim() || !selectedTemplate}
-                className="w-full mt-6 py-3 bg-[#2A658F] text-white font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+                className="w-full mt-6 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
               >
                 {sendingTemplate ? (
                   <>

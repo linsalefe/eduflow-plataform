@@ -35,7 +35,7 @@ export default function LoginPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f1b2d]">
-        <Loader2 className="w-8 h-8 text-[#2A658F] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" />
       </div>
     );
   }
@@ -48,9 +48,9 @@ export default function LoginPage() {
       {/* ── Lado esquerdo — Branding ── */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-16 relative overflow-hidden">
         {/* Background layers */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#2A658F]/15 via-transparent to-[#4d9fd4]/5" />
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#2A658F]/8 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#4d9fd4]/8 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/15 via-transparent to-[#818cf8]/5" />
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#6366f1]/8 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#818cf8]/8 rounded-full blur-3xl" />
 
         {/* Subtle grid */}
         <div
@@ -69,27 +69,27 @@ export default function LoginPage() {
             <div>
               {/* Troca 2 */}
               <span className="text-2xl font-bold text-white tracking-tight">EduFlow</span>
-              <span className="text-2xl font-light text-[#4d9fd4] ml-1.5">Hub</span>
+              <span className="text-2xl font-light text-[#818cf8] ml-1.5">Hub</span>
             </div>
           </div>
 
           {/* Headline */}
           <h1 className="text-4xl font-bold text-white leading-tight mb-3">
-            Central de Atendimento
+            Captação de Alunos
             <br />
-            <span className="text-[#4d9fd4]">Integrado</span>
+            <span className="text-[#818cf8]">Inteligente</span>
           </h1>
           <p className="text-base text-gray-400 leading-relaxed max-w-md">
-            Gerencie leads, acompanhe conversas e converta mais clientes com
-            multiatendimento via WhatsApp Business API.
+            Gerencie leads, qualifique com IA e converta mais alunos com
+            atendimento automatizado via WhatsApp.
           </p>
 
           {/* Feature pills */}
           <div className="flex flex-wrap gap-3 mt-10">
             {[
-              { icon: MessageCircle, label: 'Multi-números' },
-              { icon: Users, label: 'Equipe em tempo real' },
-              { icon: BarChart3, label: 'CRM integrado' },
+              { icon: MessageCircle, label: 'WhatsApp IA' },
+              { icon: Users, label: 'Qualificação automática' },
+              { icon: BarChart3, label: 'Funil de matrículas' },
             ].map((feat, i) => (
               <div
                 key={feat.label}
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 }`}
                 style={{ transitionDelay: `${800 + i * 150}ms` }}
               >
-                <feat.icon className="w-4 h-4 text-[#4d9fd4]" />
+                <feat.icon className="w-4 h-4 text-[#818cf8]" />
                 <span className="text-sm text-gray-300 font-medium">{feat.label}</span>
               </div>
             ))}
@@ -151,7 +151,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com"
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-4 focus:ring-[#2A658F]/10 focus:bg-white transition-all outline-none"
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-4 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
                   />
                 </div>
               </div>
@@ -167,7 +167,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#2A658F] focus:ring-4 focus:ring-[#2A658F]/10 focus:bg-white transition-all outline-none"
+                    className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-4 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
                   />
                   <button
                     type="button"
@@ -183,7 +183,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#2A658F] text-white font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/25 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2 mt-1"
+                className="w-full py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/25 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:hover:shadow-none disabled:active:scale-100 flex items-center justify-center gap-2 mt-1"
               >
                 {loading ? (
                   <>

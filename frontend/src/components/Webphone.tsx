@@ -267,14 +267,14 @@ export default function Webphone() {
   // Em chamada
   if (status === 'in-call' || status === 'connecting' || status === 'ringing') {
     return (
-      <div className="fixed bottom-6 right-6 z-50 bg-[#0f1b2d] border border-[#2A658F]/30 rounded-2xl p-4 shadow-2xl w-[280px]">
+      <div className="fixed bottom-6 right-6 z-50 bg-[#0f1b2d] border border-[#6366f1]/30 rounded-2xl p-4 shadow-2xl w-[280px]">
         <div className="text-center">
           <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">
             {status === 'connecting' ? 'Conectando...' : status === 'ringing' ? 'Chamando...' : 'Em chamada'}
           </p>
           <p className="text-white font-semibold">{phoneNumber}</p>
           {status === 'in-call' && (
-            <p className="text-[#4d9fd4] text-2xl font-mono mt-2">{formatDuration(callDuration)}</p>
+            <p className="text-[#818cf8] text-2xl font-mono mt-2">{formatDuration(callDuration)}</p>
           )}
           <div className="flex gap-3 mt-4 justify-center">
             <button
@@ -303,7 +303,7 @@ export default function Webphone() {
       <button
         onClick={handleDialerToggle}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 ${
-          deviceReady ? 'bg-[#2A658F] hover:bg-[#347aab]' : 'bg-gray-400 hover:bg-gray-500'
+          deviceReady ? 'bg-[#6366f1] hover:bg-[#347aab]' : 'bg-gray-400 hover:bg-gray-500'
         }`}
       >
         {showDialer ? <X className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
@@ -333,7 +333,7 @@ export default function Webphone() {
             placeholder="(00) 00000-0000"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-lg font-mono placeholder-gray-600 focus:outline-none focus:border-[#2A658F]/50 mb-3"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-lg font-mono placeholder-gray-600 focus:outline-none focus:border-[#6366f1]/50 mb-3"
           />
 
           <div className="grid grid-cols-3 gap-2 mb-4">

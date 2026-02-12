@@ -175,7 +175,7 @@ export default function LeadsPosPage() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
-        <Loader2 className="w-8 h-8 text-[#2A658F] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" />
       </div>
     );
   }
@@ -219,7 +219,7 @@ export default function LeadsPosPage() {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#2A658F] text-white rounded-xl text-[13px] font-medium hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl text-[13px] font-medium hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Sincronizando...' : 'Sincronizar'}
@@ -278,7 +278,7 @@ export default function LeadsPosPage() {
                 placeholder="Buscar por nome ou telefone..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] focus:bg-white transition-all"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] focus:bg-white transition-all"
               />
             </div>
             <div className="flex items-center gap-2">
@@ -286,7 +286,7 @@ export default function LeadsPosPage() {
               <select
                 value={stageFilter}
                 onChange={(e) => setStageFilter(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] transition-all appearance-none cursor-pointer"
+                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] transition-all appearance-none cursor-pointer"
               >
                 <option value="">Todos os estágios</option>
                 {stages.map((s) => (
@@ -296,7 +296,7 @@ export default function LeadsPosPage() {
               <select
                 value={subSourceFilter}
                 onChange={(e) => setSubSourceFilter(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#2A658F]/10 focus:border-[#2A658F] transition-all appearance-none cursor-pointer"
+                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/10 focus:border-[#6366f1] transition-all appearance-none cursor-pointer"
               >
                 <option value="">Todos os cursos</option>
                 {subSources.map((s) => (
@@ -337,7 +337,7 @@ export default function LeadsPosPage() {
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarColor(lead.name)} flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity`}>
                           {getInitials(lead.name)}
                         </div>
-                        <p className="text-[13px] font-medium text-[#27273D] group-hover:text-[#2A658F] transition-colors">{lead.name}</p>
+                        <p className="text-[13px] font-medium text-[#27273D] group-hover:text-[#6366f1] transition-colors">{lead.name}</p>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
@@ -376,7 +376,7 @@ export default function LeadsPosPage() {
               {filteredLeads.length} de {leads.length} leads
             </span>
             {hasActiveFilters && (
-              <span className="text-[12px] text-[#2A658F] font-medium">Filtros ativos</span>
+              <span className="text-[12px] text-[#6366f1] font-medium">Filtros ativos</span>
             )}
           </div>
         </div>
@@ -406,7 +406,7 @@ export default function LeadsPosPage() {
               </div>
               <div className="flex items-center gap-2">
                 {leadDetails?.lead?.public_link && (
-                  <a href={leadDetails.lead.public_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#2A658F] bg-[#2A658F]/8 rounded-xl hover:bg-[#2A658F]/15 transition-colors">
+                  <a href={leadDetails.lead.public_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 px-3 py-2 text-[12px] font-medium text-[#6366f1] bg-[#6366f1]/8 rounded-xl hover:bg-[#6366f1]/15 transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" /> Exact
                   </a>
                 )}
@@ -420,7 +420,7 @@ export default function LeadsPosPage() {
             <div className="flex-1 overflow-y-auto p-6">
               {loadingDetails ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-[#2A658F] animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" />
                 </div>
               ) : leadDetails ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -493,7 +493,7 @@ export default function LeadsPosPage() {
                         <div className="space-y-3">
                           {leadDetails.qualifications.map((q, i) => (
                             <div key={i} className="relative pl-6 pb-3 border-l-2 border-gray-200 last:border-l-0 last:pb-0">
-                              <div className="absolute left-[-5px] top-1.5 w-2 h-2 rounded-full bg-[#2A658F]" />
+                              <div className="absolute left-[-5px] top-1.5 w-2 h-2 rounded-full bg-[#6366f1]" />
                               <div className="bg-white rounded-xl p-3 border border-gray-100">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-[12px] font-medium text-gray-800">
@@ -526,7 +526,7 @@ export default function LeadsPosPage() {
             <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0">
               <button
                 onClick={() => { closeLeadPopup(); window.location.href = '/conversations'; }}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-[#2A658F] text-white font-medium rounded-xl hover:bg-[#1f5375] hover:shadow-lg hover:shadow-[#2A658F]/20 active:scale-[0.98] transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
               >
                 <MessageCircle className="w-4 h-4" />
                 Iniciar conversa WhatsApp

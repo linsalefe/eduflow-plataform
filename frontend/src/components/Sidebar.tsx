@@ -113,19 +113,19 @@ export default function Sidebar() {
                   transition-all duration-200
                   ${
                     isActive
-                      ? 'bg-[#2A658F]/20 text-white'
+                      ? 'bg-[#6366f1]/20 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
                   }
                   ${collapsed ? 'justify-center' : ''}
                 `}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#2A658F] rounded-r-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#6366f1] rounded-r-full" />
                 )}
 
                 <Icon
                   className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${
-                    isActive ? 'text-[#4d9fd4]' : 'text-gray-500 group-hover:text-gray-300'
+                    isActive ? 'text-[#818cf8]' : 'text-gray-500 group-hover:text-gray-300'
                   }`}
                 />
                 {!collapsed && <span>{item.label}</span>}
@@ -146,7 +146,7 @@ export default function Sidebar() {
       <div className="px-3 pb-4 space-y-2 border-t border-white/[0.06] pt-4">
         {user && !collapsed && (
           <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/[0.03]">
-            <div className="w-9 h-9 rounded-lg bg-[#2A658F]/30 flex items-center justify-center text-[#4d9fd4] text-xs font-bold flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-xs font-bold flex-shrink-0">
               {getInitials(user.name)}
             </div>
             <div className="min-w-0 flex-1">
@@ -162,7 +162,7 @@ export default function Sidebar() {
 
         {user && collapsed && (
           <div className="relative group flex justify-center">
-            <div className="w-9 h-9 rounded-lg bg-[#2A658F]/30 flex items-center justify-center text-[#4d9fd4] text-xs font-bold cursor-default">
+            <div className="w-9 h-9 rounded-lg bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-xs font-bold cursor-default">
               {getInitials(user.name)}
             </div>
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#1a2d42] text-white text-xs font-medium rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 border border-white/[0.06]">

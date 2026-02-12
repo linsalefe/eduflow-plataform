@@ -19,7 +19,7 @@ export default function AppLayout({ children, fullWidth = false }: { children: R
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f9fb]">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-7 h-7 text-[#2A658F] animate-spin" />
+          <Loader2 className="w-7 h-7 text-[#6366f1] animate-spin" />
           <p className="text-sm text-gray-400 animate-pulse">Carregando...</p>
         </div>
       </div>
