@@ -12,26 +12,20 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  GraduationCap,
   Zap,
   Bot,
   Columns3,
   FlaskConical,
-  Calendar as CalendarIcon,
-  Phone,
 } from 'lucide-react';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/conversations', label: 'Conversas', icon: MessageCircle },
   { href: '/users', label: 'Usuários', icon: Users },
-  { href: '/leads-pos', label: 'Leads Pós', icon: GraduationCap },
   { href: '/automacoes', label: 'Automações', icon: Zap },
   { href: '/ai-config', label: 'Config IA', icon: Bot },
   { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
   { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
-  { href: '/calls', label: 'Ligações', icon: Phone },
-  { href: '/agenda', label: 'Agenda', icon: CalendarIcon },
 ];
 
 export default function Sidebar() {
