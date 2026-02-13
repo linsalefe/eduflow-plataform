@@ -117,7 +117,80 @@ async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), u
         select(func.count(FormSubmission.id)).where(FormSubmission.landing_page_id == page_id)
     )
     return {"total_submissions": total.scalar() or 0}
+# === Dashboard ROI ===
 
+@router.get("/dashboard/roi")
+async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+    from sqlalchemy import case, distinct
+
+    # Total de submissions
+    total_leads = await db.execute(select(func.count(FormSubmission.id)))
+
+    # Leads por origem (utm_source)
+    leads_by_source = await db.execute(
+        select(
+            FormSubmission.utm_source,
+            func.count(FormSubmission.id).label("total")
+        ).where(FormSubmission.utm_source != None, FormSubmission.utm_source != "")
+        .group_by(FormSubmission.utm_source)
+        .order_by(func.count(FormSubmission.id).desc())
+    )
+
+    # Leads por campanha
+    leads_by_campaign = await db.execute(
+        select(
+            FormSubmission.utm_campaign,
+            func.count(FormSubmission.id).label("total")
+        ).where(FormSubmission.utm_campaign != None, FormSubmission.utm_campaign != "")
+        .group_by(FormSubmission.utm_campaign)
+        .order_by(func.count(FormSubmission.id).desc())
+    )
+
+    # Leads por landing page
+    leads_by_page = await db.execute(
+        select(
+            LandingPage.title,
+            LandingPage.slug,
+            func.count(FormSubmission.id).label("total")
+        ).join(LandingPage, FormSubmission.landing_page_id == LandingPage.id)
+        .group_by(LandingPage.title, LandingPage.slug)
+        .order_by(func.count(FormSubmission.id).desc())
+    )
+
+    # Leads por dia (últimos 30 dias)
+    from datetime import datetime, timedelta
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    day_trunc = func.date_trunc('day', FormSubmission.created_at)
+    leads_by_day = await db.execute(
+        select(
+            day_trunc.label("day"),
+            func.count(FormSubmission.id).label("total")
+        ).where(FormSubmission.created_at >= thirty_days_ago)
+        .group_by(day_trunc)
+        .order_by(day_trunc)
+    )
+
+    # Status dos contatos vindos de LPs
+    from sqlalchemy import exists
+    contacts_from_lp = await db.execute(
+        select(
+            Contact.lead_status,
+            func.count(Contact.id).label("total")
+        ).where(
+            Contact.wa_id.in_(
+                select(distinct(FormSubmission.phone))
+            )
+        ).group_by(Contact.lead_status)
+    )
+
+    return {
+        "total_leads": total_leads.scalar() or 0,
+        "by_source": [{"source": r[0] or "direto", "total": r[1]} for r in leads_by_source.all()],
+        "by_campaign": [{"campaign": r[0] or "sem campanha", "total": r[1]} for r in leads_by_campaign.all()],
+        "by_page": [{"title": r[0], "slug": r[1], "total": r[2]} for r in leads_by_page.all()],
+        "by_day": [{"day": str(r[0])[:10], "total": r[1]} for r in leads_by_day.all()],
+        "funnel": {r[0]: r[1] for r in contacts_from_lp.all()},
+    }
 
 # === Rota Pública (sem auth) ===
 

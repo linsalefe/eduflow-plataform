@@ -16,6 +16,7 @@ import {
   Bot,
   Columns3,
   FileText,
+  BarChart3,
   FlaskConical,
 } from 'lucide-react';
 
@@ -25,7 +26,7 @@ const menuItems = [
   { href: '/users', label: 'Usuários', icon: Users },
   { href: '/automacoes', label: 'Automações', icon: Zap },
   { href: '/landing-pages', label: 'Landing Pages', icon: FileText },  { href: '/ai-config', label: 'Config IA', icon: Bot },
-  { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
+  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },  { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
   { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
 ];
 
