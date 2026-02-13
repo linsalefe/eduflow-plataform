@@ -15,6 +15,7 @@ import {
   Zap,
   Bot,
   Columns3,
+  FileText,
   FlaskConical,
 } from 'lucide-react';
 
@@ -23,7 +24,7 @@ const menuItems = [
   { href: '/conversations', label: 'Conversas', icon: MessageCircle },
   { href: '/users', label: 'Usuários', icon: Users },
   { href: '/automacoes', label: 'Automações', icon: Zap },
-  { href: '/ai-config', label: 'Config IA', icon: Bot },
+  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },  { href: '/ai-config', label: 'Config IA', icon: Bot },
   { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
   { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
 ];
