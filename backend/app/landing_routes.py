@@ -117,3 +117,68 @@ async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), u
         select(func.count(FormSubmission.id)).where(FormSubmission.landing_page_id == page_id)
     )
     return {"total_submissions": total.scalar() or 0}
+
+
+# === Rota Pública (sem auth) ===
+
+public_router = APIRouter(prefix="/lp", tags=["Landing Pages Públicas"])
+
+
+@public_router.get("/{slug}")
+async def get_public_landing_page(slug: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(LandingPage).where(LandingPage.slug == slug, LandingPage.is_active == True)
+    )
+    page = result.scalar_one_or_none()
+    if not page:
+        raise HTTPException(status_code=404, detail="Página não encontrada")
+    return {
+        "title": page.title,
+        "template": page.template,
+        "config": json.loads(page.config) if page.config else {},
+    }
+
+
+@public_router.post("/{slug}/submit")
+async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(LandingPage).where(LandingPage.slug == slug, LandingPage.is_active == True)
+    )
+    page = result.scalar_one_or_none()
+    if not page:
+        raise HTTPException(status_code=404, detail="Página não encontrada")
+
+    submission = FormSubmission(
+        landing_page_id=page.id,
+        channel_id=page.channel_id,
+        name=data.get("name", ""),
+        phone=data.get("phone", ""),
+        email=data.get("email"),
+        course=data.get("course"),
+        utm_source=data.get("utm_source"),
+        utm_medium=data.get("utm_medium"),
+        utm_campaign=data.get("utm_campaign"),
+        utm_content=data.get("utm_content"),
+    )
+    db.add(submission)
+
+    phone_clean = data.get("phone", "").replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+    if phone_clean and not phone_clean.startswith("55"):
+        phone_clean = "55" + phone_clean
+
+    existing_contact = await db.execute(
+        select(Contact).where(Contact.wa_id == phone_clean)
+    )
+    contact = existing_contact.scalar_one_or_none()
+
+    if not contact:
+        contact = Contact(
+            wa_id=phone_clean,
+            name=data.get("name", ""),
+            lead_status="novo",
+            channel_id=page.channel_id,
+        )
+        db.add(contact)
+
+    await db.commit()
+    return {"message": "Inscrição recebida com sucesso", "contact_wa_id": phone_clean}

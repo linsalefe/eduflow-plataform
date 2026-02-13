@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
 from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
+from app.landing_routes import public_router as landing_public_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -80,6 +81,7 @@ app.include_router(calendar_router)
 VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN")
 app.include_router(twilio_router)
 app.include_router(landing_router)
+app.include_router(landing_public_router)
 
 
 @app.get("/webhook")
