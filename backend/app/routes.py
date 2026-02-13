@@ -44,12 +44,19 @@ class TagRequest(BaseModel):
 
 class ChannelRequest(BaseModel):
     name: str
-    phone_number: str
-    phone_number_id: str
-    whatsapp_token: str
+    type: str = "whatsapp"  # whatsapp, instagram, messenger
+    provider: str = "official"  # official, evolution
+    phone_number: Optional[str] = None
+    phone_number_id: Optional[str] = None
+    whatsapp_token: Optional[str] = None
     waba_id: Optional[str] = None
+    instance_name: Optional[str] = None
+    instance_token: Optional[str] = None
+    page_id: Optional[str] = None
+    instagram_id: Optional[str] = None
+    access_token: Optional[str] = None
 
-
+# === Channels ===
 # === Channels ===
 
 @router.get("/channels")
@@ -64,6 +71,12 @@ async def list_channels(db: AsyncSession = Depends(get_db)):
             "phone_number_id": c.phone_number_id,
             "waba_id": c.waba_id,
             "is_active": c.is_active,
+            "type": c.type or "whatsapp",
+            "provider": c.provider or "official",
+            "is_connected": c.is_connected or False,
+            "instance_name": c.instance_name,
+            "page_id": c.page_id,
+            "instagram_id": c.instagram_id,
         }
         for c in channels
     ]
@@ -72,6 +85,13 @@ async def list_channels(db: AsyncSession = Depends(get_db)):
 @router.post("/channels")
 async def create_channel(req: ChannelRequest, db: AsyncSession = Depends(get_db)):
     channel = Channel(
+        type=req.type,
+        provider=req.provider,
+        instance_name=req.instance_name,
+        instance_token=req.instance_token,
+        page_id=req.page_id,
+        instagram_id=req.instagram_id,
+        access_token=req.access_token,
         name=req.name,
         phone_number=req.phone_number,
         phone_number_id=req.phone_number_id,
