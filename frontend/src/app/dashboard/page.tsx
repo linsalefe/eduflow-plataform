@@ -22,11 +22,11 @@ interface Stats {
 }
 
 const statusLabels: Record<string, string> = {
-  novo: 'Novos',
-  em_contato: 'Em contato',
+  novo: 'Novos Leads',
+  em_contato: 'Em Contato',
   qualificado: 'Qualificados',
-  negociando: 'Negociando',
-  convertido: 'Convertidos',
+  negociando: 'Em Matrícula',
+  convertido: 'Matriculados',
   perdido: 'Perdidos',
 };
 
@@ -217,11 +217,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Funil de leads */}
+          {/* Funil de Matrículas */}
           <div className="bg-white rounded-2xl p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-[15px] font-semibold text-[#27273D]">Funil de leads</h2>
+                <h2 className="text-[15px] font-semibold text-[#27273D]">Funil de Matrículas</h2>
                 <p className="text-sm text-gray-400 mt-0.5">
                   <span className="font-semibold text-[#27273D]">{stats.total_contacts}</span> contatos
                 </p>
@@ -269,8 +269,8 @@ export default function DashboardPage() {
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ease-out delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { label: 'Mensagens hoje', value: stats.messages_today, icon: MessageSquare, color: 'text-[#6366f1]', bg: 'bg-[#6366f1]/8' },
-            { label: 'Convertidos', value: stats.status_counts['convertido'] || 0, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Negociando', value: stats.status_counts['negociando'] || 0, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Matriculados', value: stats.status_counts['convertido'] || 0, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Em Matrícula', value: stats.status_counts['negociando'] || 0, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'Qualificados', value: stats.status_counts['qualificado'] || 0, icon: Activity, color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map((item) => {
             const Icon = item.icon;
