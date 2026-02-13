@@ -179,3 +179,38 @@ class CallLog(Base):
 
     user = relationship("User", backref="call_logs")
     channel = relationship("Channel", backref="call_logs")
+class LandingPage(Base):
+    __tablename__ = "landing_pages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False, index=True)
+    title = Column(String(255), nullable=False)
+    template = Column(String(50), nullable=False, default="curso")
+    config = Column(Text, nullable=False)  # JSON com textos, imagens, cores
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    channel = relationship("Channel", backref="landing_pages")
+    submissions = relationship("FormSubmission", back_populates="landing_page")
+
+
+class FormSubmission(Base):
+    __tablename__ = "form_submissions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    landing_page_id = Column(Integer, ForeignKey("landing_pages.id"), nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    phone = Column(String(30), nullable=False)
+    email = Column(String(255), nullable=True)
+    course = Column(String(255), nullable=True)
+    utm_source = Column(String(100), nullable=True)
+    utm_medium = Column(String(100), nullable=True)
+    utm_campaign = Column(String(100), nullable=True)
+    utm_content = Column(String(100), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    landing_page = relationship("LandingPage", back_populates="submissions")
+    channel = relationship("Channel", backref="form_submissions")
