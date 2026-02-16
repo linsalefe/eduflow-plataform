@@ -12,6 +12,7 @@ from app.kanban_routes import router as kanban_router
 from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
 from app.landing_routes import public_router as landing_public_router
+from app.oauth_routes import router as oauth_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -66,7 +67,7 @@ app = FastAPI(title="EduFlow API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "https://ff4e-177-37-145-33.ngrok-free.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,7 +83,7 @@ VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN")
 app.include_router(twilio_router)
 app.include_router(landing_router)
 app.include_router(landing_public_router)
-
+app.include_router(oauth_router)
 
 @app.get("/webhook")
 async def verify_webhook(

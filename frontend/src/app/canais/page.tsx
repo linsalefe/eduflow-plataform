@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import {
   MessageSquare, Plus, Loader2, Trash2, Wifi, WifiOff, Phone,
-  QrCode, ExternalLink, X
+  QrCode, X
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
@@ -115,9 +115,6 @@ export default function ChannelsPage() {
   const [formWabaId, setFormWabaId] = useState('');
   const [formInstanceName, setFormInstanceName] = useState('');
   const [formInstanceToken, setFormInstanceToken] = useState('');
-  const [formPageId, setFormPageId] = useState('');
-  const [formInstagramId, setFormInstagramId] = useState('');
-  const [formAccessToken, setFormAccessToken] = useState('');
 
   const loadChannels = async () => {
     try {
@@ -140,9 +137,6 @@ export default function ChannelsPage() {
     setFormWabaId('');
     setFormInstanceName('');
     setFormInstanceToken('');
-    setFormPageId('');
-    setFormInstagramId('');
-    setFormAccessToken('');
   };
 
   const selectChannelType = (ct: typeof channelTypes[0]) => {
@@ -167,9 +161,6 @@ export default function ChannelsPage() {
         waba_id: formWabaId || null,
         instance_name: formInstanceName || null,
         instance_token: formInstanceToken || null,
-        page_id: formPageId || null,
-        instagram_id: formInstagramId || null,
-        access_token: formAccessToken || null,
       });
       setShowConfigModal(false);
       resetForm();
@@ -326,10 +317,7 @@ export default function ChannelsPage() {
                       onClick={() => selectChannelType(ct)}
                       className={`relative p-5 rounded-xl border-2 ${ct.border} ${ct.bg} text-left hover:shadow-md transition-all group`}
                     >
-                      {/* Logo em vez de Emoji */}
                       <div className="mb-3">{ct.logo}</div>
-
-                      {/* Label */}
                       <h3 className="text-[14px] font-bold text-gray-900 mb-1">{ct.label}</h3>
                       <p className="text-[11px] text-gray-500 leading-relaxed">{ct.subtitle}</p>
                     </button>
@@ -345,7 +333,6 @@ export default function ChannelsPage() {
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowConfigModal(false)}>
             <div className="bg-white rounded-2xl w-[480px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="p-6 space-y-5">
-                {/* Header Centralizado com Logo SVG */}
                 <div className="text-center">
                   <div className="flex justify-center mb-3">{selectedType.logo}</div>
                   <h2 className="text-lg font-bold text-gray-900">Configurar {selectedType.label}</h2>
@@ -440,100 +427,100 @@ export default function ChannelsPage() {
                   </>
                 )}
 
-                {/* Instagram fields */}
+                {/* Instagram OAuth */}
                 {selectedType.type === 'instagram' && (
                   <>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Page ID (Facebook)</label>
-                      <input
-                        value={formPageId}
-                        onChange={e => setFormPageId(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="ID da Página do Facebook"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Instagram Business ID</label>
-                      <input
-                        value={formInstagramId}
-                        onChange={e => setFormInstagramId(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="ID do Instagram Business"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Access Token</label>
-                      <input
-                        value={formAccessToken}
-                        onChange={e => setFormAccessToken(e.target.value)}
-                        type="password"
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="Token da Graph API"
-                      />
-                    </div>
-                    <div className="bg-pink-50 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ExternalLink className="w-4 h-4 text-pink-600" />
-                        <span className="text-[12px] font-semibold text-pink-700">Conectar com Instagram</span>
+                    <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl p-6 text-center">
+                      <div className="mb-4">
+                        <svg viewBox="0 0 32 32" className="w-16 h-16 mx-auto">
+                          <defs>
+                            <linearGradient id="ig2" x1="0%" y1="100%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#FFC107"/>
+                              <stop offset="50%" stopColor="#F44336"/>
+                              <stop offset="100%" stopColor="#9C27B0"/>
+                            </linearGradient>
+                          </defs>
+                          <rect width="32" height="32" rx="8" fill="url(#ig2)"/>
+                          <rect x="7" y="7" width="18" height="18" rx="5" stroke="white" strokeWidth="1.8" fill="none"/>
+                          <circle cx="16" cy="16" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
+                          <circle cx="22" cy="10" r="1.3" fill="white"/>
+                        </svg>
                       </div>
-                      <p className="text-[11px] text-pink-600">
-                        Em breve: botão de login OAuth para conectar automaticamente sem preencher campos.
-                      </p>
+                      <h3 className="text-[14px] font-bold text-gray-900 mb-1">Conectar com Instagram</h3>
+                      <p className="text-[12px] text-gray-500 mb-4">Faça login na sua conta do Instagram para conectar automaticamente</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.get('/oauth/meta/url?channel_type=instagram');
+                            window.location.href = res.data.url;
+                          } catch (err) {
+                            alert('Erro ao gerar URL de login');
+                          }
+                        }}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white text-[13px] font-semibold hover:opacity-90 transition-all"
+                      >
+                        Entrar com Instagram
+                      </button>
                     </div>
                   </>
                 )}
 
-                {/* Messenger fields */}
+                {/* Messenger OAuth */}
                 {selectedType.type === 'messenger' && (
                   <>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Page ID (Facebook)</label>
-                      <input
-                        value={formPageId}
-                        onChange={e => setFormPageId(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="ID da Página do Facebook"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Access Token</label>
-                      <input
-                        value={formAccessToken}
-                        onChange={e => setFormAccessToken(e.target.value)}
-                        type="password"
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="Page Access Token"
-                      />
-                    </div>
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ExternalLink className="w-4 h-4 text-blue-600" />
-                        <span className="text-[12px] font-semibold text-blue-700">Conectar com Messenger</span>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 text-center">
+                      <div className="mb-4">
+                        <svg viewBox="0 0 32 32" className="w-16 h-16 mx-auto">
+                          <circle cx="16" cy="16" r="16" fill="#0084FF"/>
+                          <path d="M16 7C11 7 7 10.7 7 15.3c0 2.6 1.3 4.9 3.3 6.4v3.3l3.1-1.7c.8.2 1.7.3 2.6.3 5 0 9-3.7 9-8.3S21 7 16 7zm.9 11.2l-2.3-2.5-4.5 2.5 5-5.3 2.4 2.5 4.4-2.5-4.9 5.3z" fill="white"/>
+                        </svg>
                       </div>
-                      <p className="text-[11px] text-blue-600">
-                        Em breve: botão de login OAuth para conectar automaticamente sem preencher campos.
-                      </p>
+                      <h3 className="text-[14px] font-bold text-gray-900 mb-1">Conectar com Messenger</h3>
+                      <p className="text-[12px] text-gray-500 mb-4">Faça login no Facebook para conectar o Messenger da sua Página</p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.get('/oauth/meta/url?channel_type=messenger');
+                            window.location.href = res.data.url;
+                          } catch (err) {
+                            alert('Erro ao gerar URL de login');
+                          }
+                        }}
+                        className="w-full py-3 rounded-xl bg-[#0084FF] text-white text-[13px] font-semibold hover:bg-[#006AFF] transition-all"
+                      >
+                        Entrar com Facebook
+                      </button>
                     </div>
                   </>
                 )}
 
                 {/* Actions */}
-                <div className="flex gap-3 pt-2">
+                {selectedType.type === 'whatsapp' && (
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => { setShowConfigModal(false); resetForm(); }}
+                      className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveChannel}
+                      disabled={saving || !formName}
+                      className="flex-1 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      {saving ? 'Salvando...' : 'Conectar Canal'}
+                    </button>
+                  </div>
+                )}
+                {selectedType.type !== 'whatsapp' && (
                   <button
                     onClick={() => { setShowConfigModal(false); resetForm(); }}
-                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-all"
+                    className="w-full py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-all"
                   >
                     Cancelar
                   </button>
-                  <button
-                    onClick={saveChannel}
-                    disabled={saving || !formName}
-                    className="flex-1 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                    {saving ? 'Salvando...' : 'Conectar Canal'}
-                  </button>
-                </div>
+                )}
               </div>
             </div>
           </div>
