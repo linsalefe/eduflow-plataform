@@ -1,10 +1,11 @@
 'use client';
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import api from '@/lib/api';
 
-export default function OAuthCallbackPage() {
+function CallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -12,7 +13,7 @@ export default function OAuthCallbackPage() {
 
   useEffect(() => {
     const code = searchParams.get('code');
-    const state = searchParams.get('state'); // instagram ou messenger
+    const state = searchParams.get('state');
     const error = searchParams.get('error');
 
     if (error) {
@@ -44,8 +45,8 @@ export default function OAuthCallbackPage() {
           setTimeout(() => router.push('/canais'), 2000);
         }
       } catch (err: any) {
-        setStatus('error');
         const detail = err?.response?.data?.detail || 'Erro ao conectar. Tente novamente.';
+        setStatus('error');
         setMessage(detail);
       }
     };
@@ -86,5 +87,13 @@ export default function OAuthCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#6366f1] animate-spin" /></div>}>
+      <CallbackContent />
+    </Suspense>
   );
 }
