@@ -224,7 +224,7 @@ export default function PipelinePage() {
                           ? 'bg-opacity-100 ring-2 ring-offset-1'
                           : 'bg-white/50'
                       }`}
-                      style={isDropping ? { ringColor: col.color, backgroundColor: `${col.color}08` } : {}}
+                      style={isDropping ? { boxShadow: `0 0 0 2px ${col.color}`, backgroundColor: `${col.color}08` } : {}}
                       onDragOver={(e) => handleDragOver(e, col.key)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDrop(e, col.key)}
