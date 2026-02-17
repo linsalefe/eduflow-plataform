@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, case
 
 from app.database import get_db, async_session
 from app.auth import get_current_user
@@ -559,16 +559,19 @@ async def get_dashboard(
     )).scalar() or 0
 
     # Por dia
+    from sqlalchemy import text as sa_text
     daily = (await db.execute(
-        select(
-            func.date_trunc('day', AICall.created_at).label("day"),
-            func.count(AICall.id).label("total"),
-            func.count(AICall.id).filter(AICall.outcome == "scheduled").label("scheduled"),
-            func.count(AICall.id).filter(AICall.outcome == "qualified").label("qualified"),
-        )
-        .where(AICall.created_at >= since)
-        .group_by(func.date_trunc('day', AICall.created_at))
-        .order_by(func.date_trunc('day', AICall.created_at))
+        sa_text("""
+            SELECT date_trunc('day', created_at) AS day,
+                   count(id) AS total,
+                   sum(CASE WHEN outcome = 'scheduled' THEN 1 ELSE 0 END) AS scheduled,
+                   sum(CASE WHEN outcome = 'qualified' THEN 1 ELSE 0 END) AS qualified
+            FROM ai_calls
+            WHERE created_at >= :since
+            GROUP BY date_trunc('day', created_at)
+            ORDER BY date_trunc('day', created_at)
+        """),
+        {"since": since}
     )).all()
 
     # Por curso
