@@ -2242,6 +2242,284 @@ curl https://hub.cenatdata.online/api/twilio/recording/RE_RECORDING_SID --output
 
 ---
 
+
+
+---
+
+## 🎯 ETAPA 13 — Landing Pages de Captação
+
+### 13.1 — Visão Geral
+
+O EduFlow permite criar Landing Pages de alta conversão diretamente pela plataforma. Cada LP possui:
+
+- 8 seções otimizadas para conversão (hero, stats, curso, público-alvo, diferenciais, depoimentos, FAQ, CTA)
+- Formulário integrado que cria contato automaticamente no CRM
+- Rastreamento UTM completo (source, medium, campaign)
+- URL pública acessível sem login (`/lp/[slug]`)
+
+### 13.2 — Como Funciona
+
+1. Acesse **Landing Pages** no menu lateral
+2. Clique em **Nova Landing Page**
+3. Preencha: título, slug, descrição, cor principal
+4. A LP é criada com template padrão de 8 seções
+5. Acesse via `https://seu-dominio.com/lp/[slug]`
+6. Leads que preenchem o formulário entram automaticamente no Pipeline
+
+### 13.3 — UTM Tracking
+
+As LPs capturam automaticamente parâmetros UTM da URL:
+
+```
+https://seu-dominio.com/lp/pos-ia?utm_source=meta&utm_medium=cpc&utm_campaign=pos-ia-fev
+```
+
+Dados capturados e salvos junto ao lead:
+- `utm_source` — Origem (meta, google, instagram)
+- `utm_medium` — Mídia (cpc, organic, email)
+- `utm_campaign` — Campanha específica
+
+### 13.4 — Endpoints
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/landing-pages` | Listar LPs |
+| POST | `/api/landing-pages` | Criar LP |
+| PUT | `/api/landing-pages/{id}` | Atualizar LP |
+| DELETE | `/api/landing-pages/{id}` | Excluir LP |
+| GET | `/api/lp/{slug}` | LP pública (sem auth) |
+| POST | `/api/lp/{slug}/submit` | Envio do formulário (sem auth) |
+| GET | `/api/landing-pages/dashboard/roi` | Dashboard de ROI |
+
+### 13.5 — Tabelas
+
+#### `landing_pages`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| title | VARCHAR(255) | Título da LP |
+| slug | VARCHAR(100) UNIQUE | URL amigável |
+| description | TEXT | Descrição/subtítulo |
+| primary_color | VARCHAR(7) | Cor principal (hex) |
+| is_active | BOOLEAN | Se está publicada |
+| created_at | TIMESTAMP | Data de criação |
+
+#### `form_submissions`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| landing_page_id | INTEGER FK | LP de origem |
+| name | VARCHAR(255) | Nome do lead |
+| phone | VARCHAR(20) | Telefone |
+| email | VARCHAR(255) | Email |
+| utm_source | VARCHAR(100) | Origem UTM |
+| utm_medium | VARCHAR(100) | Mídia UTM |
+| utm_campaign | VARCHAR(100) | Campanha UTM |
+| created_at | TIMESTAMP | Data de envio |
+
+---
+
+## 📊 ETAPA 14 — Pipeline Kanban de Matrículas
+
+### 14.1 — Visão Geral
+
+O Pipeline é um Kanban visual com 6 colunas representando o funil de matrículas educacional. Suporta drag-and-drop nativo (HTML5) para mover leads entre etapas.
+
+### 14.2 — Colunas do Funil
+
+| Coluna | Status | Cor | Descrição |
+|--------|--------|-----|-----------|
+| Novos Leads | `novo` | Indigo | Lead acabou de entrar |
+| Em Contato | `em_contato` | Âmbar | Primeiro contato realizado |
+| Qualificados | `qualificado` | Roxo | Lead qualificado com interesse real |
+| Em Matrícula | `negociando` | Ciano | Processo de matrícula em andamento |
+| Matriculados | `convertido` | Verde | Matrícula confirmada |
+| Perdidos | `perdido` | Vermelho | Lead não convertido |
+
+### 14.3 — Funcionalidades
+
+- Drag-and-drop nativo entre colunas (sem bibliotecas externas)
+- Update otimista (move instantâneo, reverte se API falhar)
+- Modal de detalhes do lead (info, tags, notas, status)
+- Busca por nome ou telefone
+- Auto-refresh a cada 15 segundos
+- Botões de ação: abrir conversa, abrir WhatsApp
+- Stats pills com contagem por coluna
+
+### 14.4 — Arquivos
+
+- **Frontend:** `frontend/src/app/pipeline/page.tsx`
+- **Backend:** Usa rota existente `PATCH /api/contacts/{wa_id}` com `{ lead_status: "novo_status" }`
+
+---
+
+## 📈 ETAPA 15 — Dashboard de Campanhas (ROI)
+
+### 15.1 — Visão Geral
+
+Dashboard dedicado para acompanhar o ROI de campanhas de captação. Mostra de onde vêm os leads, quais campanhas convertem mais e quais Landing Pages performam melhor.
+
+### 15.2 — Métricas
+
+- **Total de Leads** — Todos os leads capturados via formulário
+- **Por Origem** (utm_source) — Meta, Google, Instagram, etc.
+- **Por Campanha** (utm_campaign) — Campanha específica com volume
+- **Por Landing Page** — Qual LP gerou mais leads
+- **Por Dia** — Gráfico de barras dos últimos 30 dias
+- **Funil** — Distribuição de leads por status (novo → matriculado)
+
+### 15.3 — Endpoint
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/landing-pages/dashboard/roi` | Retorna todas as métricas agregadas |
+
+**Resposta:**
+```json
+{
+  "total_leads": 150,
+  "by_source": [{"source": "meta", "total": 80}],
+  "by_campaign": [{"campaign": "pos-ia-fev", "total": 45}],
+  "by_page": [{"title": "Pós IA", "slug": "pos-ia", "total": 60}],
+  "by_day": [{"day": "2026-02-12", "total": 8}],
+  "funnel": [{"status": "novo", "total": 50}]
+}
+```
+
+### 15.4 — Arquivo
+
+- **Frontend:** `frontend/src/app/dashboard-roi/page.tsx`
+- **Menu:** "Campanhas" no Sidebar com ícone BarChart3
+
+---
+
+## 🔗 ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)
+
+### 16.1 — Visão Geral
+
+O EduFlow suporta múltiplos canais de comunicação em um único CRM:
+
+| Canal | Provider | Conexão |
+|-------|----------|---------|
+| WhatsApp (QR Code) | Evolution API | Escanear QR Code |
+| WhatsApp (Oficial) | Meta Cloud API | Token + Phone ID |
+| Instagram Direct | Meta Graph API | OAuth (login do cliente) |
+| Messenger | Meta Graph API | OAuth (login do cliente) |
+
+### 16.2 — Fluxo OAuth (Instagram / Messenger)
+
+1. Gestor clica "Novo Canal" → escolhe Instagram ou Messenger
+2. Clica "Entrar com Instagram" → abre login da Meta
+3. Cliente autoriza o app → Meta redireciona com code
+4. Backend troca code por token de longa duração (60 dias)
+5. Backend busca Page ID e Instagram Business ID automaticamente
+6. Canal criado como "Conectado" no CRM
+
+### 16.3 — Configuração do App Meta
+
+O OAuth requer **um único app Meta** configurado uma vez:
+
+1. Criar app em developers.facebook.com (tipo Negócio)
+2. Adicionar produtos: Instagram, Login do Facebook
+3. Configurar URI de redirecionamento: `https://seu-dominio.com/canais/callback`
+4. Submeter para verificação da Meta
+
+**Credenciais necessárias (variáveis de ambiente):**
+
+```env
+META_APP_ID=886462874541479
+META_APP_SECRET=sua_chave_secreta
+FRONTEND_URL=https://seu-dominio.com
+```
+
+### 16.4 — Scopes OAuth
+
+| Canal | Permissões solicitadas |
+|-------|----------------------|
+| Instagram | instagram_basic, instagram_manage_messages, pages_show_list, pages_messaging, pages_manage_metadata |
+| Messenger | pages_show_list, pages_messaging, pages_manage_metadata |
+
+### 16.5 — Tabela `channels` (atualizada)
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| name | VARCHAR(100) | Nome do canal |
+| type | VARCHAR(20) | whatsapp, instagram, messenger |
+| provider | VARCHAR(20) | official, evolution, meta |
+| phone_number | VARCHAR(20) NULL | Número (só WhatsApp) |
+| phone_number_id | VARCHAR(50) NULL | ID Meta (só WhatsApp oficial) |
+| whatsapp_token | TEXT NULL | Token (só WhatsApp oficial) |
+| waba_id | VARCHAR(50) NULL | WABA ID |
+| instance_name | VARCHAR(100) NULL | Instância Evolution API |
+| instance_token | TEXT NULL | Token Evolution |
+| page_id | VARCHAR(50) NULL | Page ID Facebook |
+| instagram_id | VARCHAR(50) NULL | Instagram Business ID |
+| access_token | TEXT NULL | Token OAuth Meta |
+| is_connected | BOOLEAN | Status da conexão |
+| is_active | BOOLEAN | Se o canal está ativo |
+| created_at | TIMESTAMP | Data de criação |
+
+### 16.6 — Endpoints OAuth
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/oauth/meta/url?channel_type=instagram` | Gera URL de login OAuth |
+| POST | `/api/oauth/meta/callback` | Troca code por token e cria canal |
+
+### 16.7 — Página de Canais (`/canais`)
+
+- Grid de canais conectados com status (Conectado/Desconectado)
+- Modal "Novo Canal" com 4 opções (WhatsApp, WhatsApp Business, Instagram, Messenger)
+- Logos oficiais SVG para cada canal
+- Instagram/Messenger: botão de OAuth direto (sem campos manuais)
+- WhatsApp: formulário com campos específicos (token, phone ID ou instância Evolution)
+
+### 16.8 — Arquivos
+
+| Arquivo | Descrição |
+|---------|-----------|
+| `backend/app/oauth_routes.py` | Rotas OAuth Meta (URL + callback) |
+| `frontend/src/app/canais/page.tsx` | Página de gerenciamento de canais |
+| `frontend/src/app/canais/callback/page.tsx` | Callback OAuth (troca code por token) |
+
+---
+
+## 📁 Estrutura de Pastas (Atualizada)
+
+Novas pastas e arquivos adicionados ao projeto:
+
+```
+eduflow-plataform/
+├── backend/
+│   ├── app/
+│   │   ├── ...arquivos existentes...
+│   │   ├── landing_routes.py        # Rotas: Landing Pages, formulário, dashboard ROI
+│   │   └── oauth_routes.py          # Rotas: OAuth Meta (Instagram/Messenger)
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── ...páginas existentes...
+│   │   │   ├── landing-pages/
+│   │   │   │   └── page.tsx         # CRUD de Landing Pages
+│   │   │   ├── lp/
+│   │   │   │   └── [slug]/
+│   │   │   │       └── page.tsx     # LP pública (8 seções + formulário)
+│   │   │   ├── pipeline/
+│   │   │   │   └── page.tsx         # Pipeline Kanban com drag-and-drop
+│   │   │   ├── dashboard-roi/
+│   │   │   │   └── page.tsx         # Dashboard de campanhas (ROI)
+│   │   │   ├── canais/
+│   │   │   │   ├── page.tsx         # Gerenciamento de canais
+│   │   │   │   └── callback/
+│   │   │   │       └── page.tsx     # Callback OAuth Meta
+│   │   │   └── ...
+```
+
+
 ## 📄 Licença
 
 Projeto proprietário — CENAT © 2026. Todos os direitos reservados.
