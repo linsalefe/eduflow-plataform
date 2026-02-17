@@ -13,6 +13,7 @@ from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
 from app.landing_routes import public_router as landing_public_router
 from app.oauth_routes import router as oauth_router
+from app.voice_ai.routes import router as voice_ai_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -84,6 +85,7 @@ app.include_router(twilio_router)
 app.include_router(landing_router)
 app.include_router(landing_public_router)
 app.include_router(oauth_router)
+app.include_router(voice_ai_router)
 
 @app.get("/webhook")
 async def verify_webhook(

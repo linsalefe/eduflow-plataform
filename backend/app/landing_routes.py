@@ -254,4 +254,27 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         db.add(contact)
 
     await db.commit()
+    # === VOICE AI: Disparar ligação automática para o lead ===
+    try:
+        from app.voice_ai.routes import receive_new_lead, NewLeadRequest
+        from app.database import async_session as voice_session
+        
+        # Verificar se Voice AI está habilitada (variável de ambiente)
+        import os
+        if os.getenv("VOICE_AI_ENABLED", "false").lower() == "true":
+            async with voice_session() as voice_db:
+                await receive_new_lead(
+                    NewLeadRequest(
+                        name=data.get("name", ""),
+                        phone=phone_clean,
+                        course=data.get("course", ""),
+                        source=data.get("utm_source", "landing_page"),
+                        campaign=data.get("utm_campaign", ""),
+                        channel_id=page.channel_id,
+                    ),
+                    db=voice_db,
+                )
+            print(f"📞 Voice AI: Chamada disparada para {data.get('name', '')} ({phone_clean})")
+    except Exception as e:
+        print(f"⚠️ Voice AI indisponível: {e}")
     return {"message": "Inscrição recebida com sucesso", "contact_wa_id": phone_clean}

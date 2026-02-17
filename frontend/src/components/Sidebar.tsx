@@ -20,6 +20,7 @@ import {
   FileText,
   BarChart3,
   FlaskConical,
+  PhoneCall,
 } from 'lucide-react';
 
 const menuItems = [
@@ -27,10 +28,15 @@ const menuItems = [
   { href: '/conversations', label: 'Conversas', icon: MessageCircle },
   { href: '/users', label: 'Usuários', icon: Users },
   { href: '/automacoes', label: 'Automações', icon: Zap },
-  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },  { href: '/ai-config', label: 'Config IA', icon: Bot },
-  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },  { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
-  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },  { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
-  { href: '/canais', label: 'Canais', icon: Radio },];
+  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
+  { href: '/ai-config', label: 'Config IA', icon: Bot },
+  { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
+  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
+  { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
+  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+  { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
+  { href: '/canais', label: 'Canais', icon: Radio },
+];
 
 export default function Sidebar() {
   const pathname = usePathname();
