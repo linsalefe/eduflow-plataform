@@ -68,55 +68,66 @@ class VoicePipeline:
     # ENTRY POINT
     # --------------------------------------------------------
 
-    async def handle_websocket(self, twilio_ws):
-        """
-        Handler principal. Conecta ao OpenAI Realtime e faz relay bidirecional.
-        """
-        self.twilio_ws = twilio_ws
-        self.call_start_time = time.time()
-        self.session.started_at = datetime.utcnow()
-
+    async def pre_connect(self):
+        """Pre-conecta ao OpenAI Realtime API para reduzir latência."""
         url = f"wss://api.openai.com/v1/realtime?model={REALTIME_MODEL}"
         headers = {
             "Authorization": f"Bearer {OPENAI_API_KEY}",
             "OpenAI-Beta": "realtime=v1",
         }
-
         try:
-            async with websockets.connect(
+            self.openai_ws = await websockets.connect(
                 url,
                 additional_headers=headers,
-            ) as openai_ws:
-                self.openai_ws = openai_ws
-                print(f"✅ Conectado ao OpenAI Realtime API ({REALTIME_MODEL})")
+            )
+            print(f"✅ Conectado ao OpenAI Realtime API ({REALTIME_MODEL})")
+            await self._configure_session()
+            await self._trigger_greeting()
+        except Exception as e:
+            print(f"❌ Erro no pre_connect: {e}")
+            traceback.print_exc()
 
-                # 1. Configurar sessão
-                await self._configure_session()
+    async def handle_websocket(self, twilio_ws):
+        """
+        Handler principal. Faz relay bidirecional.
+        OpenAI já deve estar conectado via pre_connect().
+        """
+        self.twilio_ws = twilio_ws
+        self.call_start_time = time.time()
+        self.session.started_at = datetime.utcnow()
 
-                # 2. Enviar greeting (a IA fala a saudação)
-                await self._trigger_greeting()
+        try:
+            if not self.openai_ws:
+                await self.pre_connect()
 
-                # 3. Relay bidirecional
-                twilio_task = asyncio.create_task(self._relay_twilio_to_openai())
-                openai_task = asyncio.create_task(self._relay_openai_to_twilio())
+            if not self.openai_ws:
+                print("❌ Falha ao conectar ao OpenAI")
+                return
 
-                done, pending = await asyncio.wait(
-                    [twilio_task, openai_task],
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
+            twilio_task = asyncio.create_task(self._relay_twilio_to_openai())
+            openai_task = asyncio.create_task(self._relay_openai_to_twilio())
 
-                # Cancelar a task que ainda está rodando
-                for task in pending:
-                    task.cancel()
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        pass
+            done, pending = await asyncio.wait(
+                [twilio_task, openai_task],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
         except Exception as e:
             print(f"❌ Erro na conexão Realtime: {e}")
             traceback.print_exc()
         finally:
+            if self.openai_ws:
+                try:
+                    await self.openai_ws.close()
+                except Exception:
+                    pass
             await self._finalize_call()
 
     # --------------------------------------------------------
@@ -467,7 +478,7 @@ DADOS DO LEAD:
             for obj, resp in self.script.objection_responses.items():
                 objection_responses += f"- Se disser '{obj}': {resp}\n"
 
-        return f"""Você é Nat, consultora de atendimento de uma instituição de ensino.
+        return f"""Você é Nat, consultora de atendimento do CENAT.
 Você está em uma LIGAÇÃO TELEFÔNICA em tempo real com um lead.
 
 {lead_info}
