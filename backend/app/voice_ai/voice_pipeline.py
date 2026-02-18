@@ -244,12 +244,15 @@ class VoicePipeline:
         except Exception as e:
             print(f"❌ Relay Twilio→OpenAI erro: {e}")
 
+
+
     # --------------------------------------------------------
     # RELAY: OPENAI → TWILIO
     # --------------------------------------------------------
 
     async def _relay_openai_to_twilio(self):
         """Encaminha áudio do OpenAI para o Twilio + processa eventos."""
+        audio_chunks_sent = 0
         try:
             async for message in self.openai_ws:
                 if self._call_ended:
@@ -257,6 +260,36 @@ class VoicePipeline:
 
                 event = json.loads(message)
                 etype = event.get("type", "")
+
+                # ====== LOG VERBOSO DE TODOS OS EVENTOS ======
+                if etype == "response.audio.delta":
+                    audio_chunks_sent += 1
+                    if audio_chunks_sent % 50 == 1:
+                        print(f"🔊 [OPENAI] audio delta (chunk #{audio_chunks_sent})")
+                else:
+                    # Loga TODOS os eventos que não são audio delta
+                    print(f"📡 [OPENAI] {etype}")
+                    if etype == "error":
+                        print(f"   ❌ Detalhe: {json.dumps(event.get('error', {}), ensure_ascii=False)}")
+                    elif etype == "response.done":
+                        resp = event.get("response", {})
+                        outputs = resp.get("output", [])
+                        status = resp.get("status", "?")
+                        print(f"   📋 status={status}, outputs={len(outputs)}")
+                        for i, out in enumerate(outputs):
+                            print(f"   📋 output[{i}]: type={out.get('type')}, role={out.get('role', '-')}")
+                    elif etype == "input_audio_buffer.speech_started":
+                        print(f"   🗣️ Lead começou a falar!")
+                    elif etype == "input_audio_buffer.speech_stopped":
+                        print(f"   🤐 Lead parou de falar")
+                    elif etype == "input_audio_buffer.committed":
+                        print(f"   ✅ Buffer de áudio commitado")
+                    elif etype == "response.created":
+                        print(f"   🆕 Nova response criada")
+                    elif etype == "conversation.item.created":
+                        item = event.get("item", {})
+                        print(f"   📎 item type={item.get('type')}, role={item.get('role', '-')}")
+                # ====== FIM DO LOG VERBOSO ======
 
                 # ------- ÁUDIO: IA → Twilio -------
                 if etype == "response.audio.delta":
