@@ -330,6 +330,9 @@ async def websocket_media_stream(websocket: WebSocket):
 
                 register_pipeline(call_sid, pipeline)
 
+                # Passar stream_sid para o pipeline
+                pipeline.stream_sid = data.get("start", {}).get("streamSid")
+
                 # Atualizar status
                 async with async_session() as db:
                     result = await db.execute(
