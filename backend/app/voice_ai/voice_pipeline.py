@@ -155,9 +155,9 @@ class VoicePipeline:
                 },
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
+                    "threshold": 0.8,
                     "prefix_padding_ms": 300,
-                    "silence_duration_ms": 700,
+                    "silence_duration_ms": 800,
                 },
                 "tools": tools,
                 "tool_choice": "auto",
@@ -179,29 +179,6 @@ class VoicePipeline:
                     break
         except Exception as e:
             print(f"❌ Erro aguardando configuração: {e}")
-
-    async def _trigger_greeting(self):
-        """
-        Dispara o greeting: cria uma mensagem de sistema e pede
-        para a IA se apresentar. A IA fala com voz natural.
-        """
-        create_msg = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "[A chamada foi atendida. Faça sua saudação inicial.]",
-                    }
-                ],
-            },
-        }
-        await self._send_to_openai(create_msg)
-        await self._send_to_openai({"type": "response.create"})
-        print("🎙️ Greeting solicitado ao Realtime API")
-
     # --------------------------------------------------------
     # RELAY: TWILIO → OPENAI
     # --------------------------------------------------------

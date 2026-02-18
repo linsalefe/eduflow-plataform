@@ -295,17 +295,25 @@ async def websocket_media_stream(websocket: WebSocket):
                         campaign=ai_call.campaign or "",
                     )
 
-                    # Buscar RAG snippets se tiver curso
+                    # Buscar RAG snippets se tiver curso (com timeout de 3s)
                     rag_snippets = []
                     if ai_call.course:
-                        from app.ai_engine import search_knowledge
-                        # Buscar em algum channel_id disponível
-                        result2 = await db.execute(select(Channel).limit(1))
-                        channel = result2.scalar_one_or_none()
-                        if channel:
-                            rag_snippets = await search_knowledge(
-                                ai_call.course, channel.id, db, top_k=5
-                            )
+                        try:
+                            from app.ai_engine import search_knowledge
+                            result2 = await db.execute(select(Channel).limit(1))
+                            channel = result2.scalar_one_or_none()
+                            if channel:
+                                rag_snippets = await asyncio.wait_for(
+                                    search_knowledge(ai_call.course, channel.id, db, top_k=3),
+                                    timeout=3.0,
+                                )
+                                print(f"📚 RAG: {len(rag_snippets)} snippets carregados")
+                        except asyncio.TimeoutError:
+                            print("⚠️ RAG timeout (3s) — seguindo sem snippets")
+                            rag_snippets = []
+                        except Exception as e:
+                            print(f"⚠️ RAG erro: {e} — seguindo sem snippets")
+                            rag_snippets = []
 
                     # Buscar script ativo
                     script = None
