@@ -12,6 +12,8 @@ WebSocket com a API Realtime do GPT-4o, que faz tudo integrado:
 Sem conversão de formato! Relay direto entre os dois WebSockets.
 
 Function calling: Coleta de dados e controle de FSM via tools.
+
+v3.1: Compatível com websockets v13+ (ClientConnection API)
 """
 import asyncio
 import json
@@ -84,9 +86,6 @@ class VoicePipeline:
             async with websockets.connect(
                 url,
                 additional_headers=headers,
-                ping_interval=20,
-                ping_timeout=10,
-                close_timeout=5,
             ) as openai_ws:
                 self.openai_ws = openai_ws
                 print(f"✅ Conectado ao OpenAI Realtime API ({REALTIME_MODEL})")
@@ -114,14 +113,25 @@ class VoicePipeline:
                     except asyncio.CancelledError:
                         pass
 
-        except websockets.exceptions.InvalidStatusCode as e:
-            print(f"❌ OpenAI Realtime rejeitou conexão: {e}")
-            print("   Verifique: OPENAI_API_KEY válida e modelo Realtime habilitado na conta")
         except Exception as e:
             print(f"❌ Erro na conexão Realtime: {e}")
             traceback.print_exc()
         finally:
             await self._finalize_call()
+
+    # --------------------------------------------------------
+    # HELPER: enviar para OpenAI de forma segura (websockets v13+)
+    # --------------------------------------------------------
+
+    async def _send_to_openai(self, data: dict) -> bool:
+        """Envia JSON para o OpenAI WS. Retorna False se falhou."""
+        if not self.openai_ws:
+            return False
+        try:
+            await self.openai_ws.send(json.dumps(data))
+            return True
+        except Exception:
+            return False
 
     # --------------------------------------------------------
     # CONFIGURAÇÃO DA SESSÃO
@@ -155,24 +165,26 @@ class VoicePipeline:
                 "max_response_output_tokens": 200,
             },
         }
-        await self.openai_ws.send(json.dumps(config))
+        await self._send_to_openai(config)
 
         # Esperar confirmação
-        async for msg in self.openai_ws:
-            event = json.loads(msg)
-            if event["type"] == "session.updated":
-                print("✅ Sessão Realtime configurada")
-                break
-            elif event["type"] == "error":
-                print(f"❌ Erro na configuração: {event.get('error', {})}")
-                break
+        try:
+            async for msg in self.openai_ws:
+                event = json.loads(msg)
+                if event["type"] == "session.updated":
+                    print("✅ Sessão Realtime configurada")
+                    break
+                elif event["type"] == "error":
+                    print(f"❌ Erro na configuração: {event.get('error', {})}")
+                    break
+        except Exception as e:
+            print(f"❌ Erro aguardando configuração: {e}")
 
     async def _trigger_greeting(self):
         """
         Dispara o greeting: cria uma mensagem de sistema e pede
         para a IA se apresentar. A IA fala com voz natural.
         """
-        # Mensagem que instrui a IA a iniciar a conversa
         create_msg = {
             "type": "conversation.item.create",
             "item": {
@@ -186,8 +198,8 @@ class VoicePipeline:
                 ],
             },
         }
-        await self.openai_ws.send(json.dumps(create_msg))
-        await self.openai_ws.send(json.dumps({"type": "response.create"}))
+        await self._send_to_openai(create_msg)
+        await self._send_to_openai({"type": "response.create"})
         print("🎙️ Greeting solicitado ao Realtime API")
 
     # --------------------------------------------------------
@@ -205,13 +217,11 @@ class VoicePipeline:
                 event = data.get("event")
 
                 if event == "media":
-                    # Encaminhar áudio direto (ambos usam g711_ulaw 8kHz)
                     audio_msg = {
                         "type": "input_audio_buffer.append",
                         "audio": data["media"]["payload"],
                     }
-                    if self.openai_ws and self.openai_ws.open:
-                        await self.openai_ws.send(json.dumps(audio_msg))
+                    await self._send_to_openai(audio_msg)
 
                 elif event == "start":
                     info = data.get("start", {})
@@ -282,7 +292,6 @@ class VoicePipeline:
                 # ------- RESPOSTA COMPLETA -------
                 elif etype == "response.done":
                     response = event.get("response", {})
-                    # Verificar se houve end_call
                     for item in response.get("output", []):
                         if (
                             item.get("type") == "function_call"
@@ -295,7 +304,6 @@ class VoicePipeline:
 
                 # ------- BARGE-IN (lead interrompeu) -------
                 elif etype == "input_audio_buffer.speech_started":
-                    # Limpar buffer do Twilio para parar playback
                     if self.stream_sid and self.twilio_ws:
                         clear_msg = {
                             "event": "clear",
@@ -310,7 +318,6 @@ class VoicePipeline:
                 elif etype == "error":
                     err = event.get("error", {})
                     print(f"❌ OpenAI Realtime erro: {err.get('type')}: {err.get('message')}")
-                    # Não quebrar o loop por erros transientes
 
         except websockets.exceptions.ConnectionClosed:
             print("🔌 OpenAI Realtime desconectou")
@@ -336,7 +343,6 @@ class VoicePipeline:
         result = {"success": True}
 
         if fn_name == "update_lead_fields":
-            # Atualizar campos coletados
             for key, value in args.items():
                 if value and value.strip():
                     self.session.collected_fields[key] = value
@@ -387,10 +393,9 @@ class VoicePipeline:
                 "output": json.dumps(result, ensure_ascii=False),
             },
         }
-        if self.openai_ws and self.openai_ws.open:
-            await self.openai_ws.send(json.dumps(fn_output))
-            # Triggerar próxima resposta
-            await self.openai_ws.send(json.dumps({"type": "response.create"}))
+        sent = await self._send_to_openai(fn_output)
+        if sent:
+            await self._send_to_openai({"type": "response.create"})
 
     # --------------------------------------------------------
     # SYSTEM PROMPT
@@ -420,7 +425,6 @@ DADOS DO LEAD:
             for k, v in self.policies.items():
                 policy_text += f"- {k}: {v}\n"
 
-        # Se tiver script personalizado, usar
         script_override = ""
         if self.script and self.script.system_prompt_override:
             script_override = f"\nINSTRUÇÕES DO SCRIPT:\n{self.script.system_prompt_override}\n"
@@ -622,7 +626,7 @@ COMECE se apresentando ao lead de forma calorosa e natural.
             "tags": self.session.tags,
             "summary": summary,
             "total_turns": self.session.turn_count,
-            "avg_latency_ms": 0,  # Realtime API gerencia latência internamente
+            "avg_latency_ms": 0,
             "duration_seconds": duration,
             "handoff_type": self._get_handoff_type(),
         }
