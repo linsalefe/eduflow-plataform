@@ -201,53 +201,14 @@ async def twilio_status_callback(request: Request):
 async def twilio_answer_twiml(request: Request):
     """
     TwiML retornado quando a chamada é atendida.
-    FIX #5: Greeting instantâneo via TwiML <Say> antes do Stream.
+    v3: Só conecta o Media Stream. Greeting via Realtime API.
     """
     from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
     form = await request.form()
     call_sid = form.get("CallSid", "")
 
-    # Buscar nome do lead para personalizar o greeting
-    lead_name = "tudo bem"
-    greeting_course = ""
-    try:
-        async with async_session() as db:
-            result = await db.execute(
-                select(AICall).where(AICall.twilio_call_sid == call_sid)
-            )
-            ai_call = result.scalar_one_or_none()
-            if ai_call:
-                lead_name = ai_call.lead_name or "tudo bem"
-                greeting_course = ai_call.course or ""
-    except Exception as e:
-        print(f"⚠️ Não conseguiu buscar nome do lead: {e}")
-
-    # Montar greeting personalizado
-    if greeting_course:
-        greeting = (
-            f"Oi, {lead_name}! Tudo bem? Aqui é a Nat. "
-            f"Vi que você se interessou pelo curso de {greeting_course}. "
-            f"Posso falar rapidinho com você?"
-        )
-    else:
-        greeting = (
-            f"Oi, {lead_name}! Tudo bem? Aqui é a Nat. "
-            f"Vi que você se interessou pelo nosso curso. "
-            f"Posso falar rapidinho com você?"
-        )
-
     response = VoiceResponse()
-
-    # Greeting INSTANTÂNEO via Twilio TTS (Polly.Camila)
-    response.say(
-        greeting,
-        language="pt-BR",
-        voice="Polly.Camila",
-    )
-
-    # Pausa natural
-    response.pause(length=1)
 
     # Conectar Media Stream bidirecional
     connect = Connect()
@@ -259,7 +220,7 @@ async def twilio_answer_twiml(request: Request):
     connect.append(stream)
     response.append(connect)
 
-    print(f"📞 TwiML para {call_sid}: Say greeting + Connect Stream")
+    print(f"📞 TwiML: Connect Stream para {call_sid}")
     return Response(content=str(response), media_type="application/xml")
 
 @router.post("/twilio/recording-status")

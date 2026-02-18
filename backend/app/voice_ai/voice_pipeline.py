@@ -1,119 +1,53 @@
 """
-Pipeline de Voz em Tempo Real (v2 - CORRIGIDO).
+Pipeline de Voz — OpenAI Realtime API.
 
-CORREÇÕES v2 (baseadas nos logs de produção):
-- FIX #5: Greeting agora é via TwiML <Say> (instantâneo) → pipeline NÃO gera greeting próprio
-- FIX #6: Barge-in desabilitado nos primeiros 3s após TTS iniciar (evita "alô" matar a fala)
-- FIX #7: Após barge-in, buffer é limpo e lead's utterance é processada na próxima janela
-- FIX #1-4: Mantidos da v1
+Substitui completamente a cadeia STT→LLM→TTS por uma ÚNICA conexão
+WebSocket com a API Realtime do GPT-4o, que faz tudo integrado:
+  - STT nativo (server-side VAD)
+  - LLM nativo (GPT-4o)  
+  - TTS nativo (voz neural, ~500ms de latência)
+  - Barge-in nativo (interrupção automática)
+
+Áudio: Twilio envia g711_ulaw 8kHz → OpenAI aceita g711_ulaw 8kHz.
+Sem conversão de formato! Relay direto entre os dois WebSockets.
+
+Function calling: Coleta de dados e controle de FSM via tools.
 """
 import asyncio
-import base64
 import json
 import time
-import io
-import struct
 import traceback
 from typing import Optional
 from datetime import datetime
 
-from openai import AsyncOpenAI
+import websockets
+
 from app.voice_ai.config import (
-    OPENAI_API_KEY, STT_MODEL, TTS_MODEL, TTS_VOICE,
-    FSM_BARGE_IN_THRESHOLD_MS, FSM_SILENCE_TIMEOUT_SEC,
-    FSM_MAX_CALL_DURATION_SEC, DEEPGRAM_API_KEY, STT_PROVIDER, TTS_PROVIDER,
+    OPENAI_API_KEY,
+    FSM_MAX_CALL_DURATION_SEC,
+    REALTIME_MODEL,
+    REALTIME_VOICE,
 )
 from app.voice_ai.fsm import FSMEngine, CallSession, State
-from app.voice_ai.llm_contract import call_llm, generate_call_summary
-
-openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+from app.voice_ai.llm_contract import generate_call_summary
 
 
-class AudioBuffer:
-    """
-    Acumula áudio do lead para enviar ao STT em chunks.
-    VAD baseado em ENERGIA do áudio (não em tempo entre pacotes).
-    """
-
-    def __init__(self, silence_threshold_ms: int = 800, energy_threshold: int = 10):
-        self.buffer = bytearray()
-        self.last_speech_ts = time.time()
-        self.silence_threshold = silence_threshold_ms / 1000
-        self.energy_threshold = energy_threshold
-        self.is_speaking = False
-        self.has_speech_data = False
-
-        # Janela deslizante para suavizar detecção de energia
-        self._energy_window = []
-        self._window_size = 5
-
-    def add_audio(self, payload: bytes):
-        """Adiciona chunk de áudio ao buffer."""
-        self.buffer.extend(payload)
-
-        if len(payload) > 0:
-            energy = sum(abs(b - 128) for b in payload) / len(payload)
-
-            self._energy_window.append(energy)
-            if len(self._energy_window) > self._window_size:
-                self._energy_window.pop(0)
-            avg_energy = sum(self._energy_window) / len(self._energy_window)
-
-            was_speaking = self.is_speaking
-            self.is_speaking = avg_energy > self.energy_threshold
-
-            if self.is_speaking:
-                self.last_speech_ts = time.time()
-                self.has_speech_data = True
-
-            if self.is_speaking and not was_speaking:
-                print(f"🎤 Lead começou a falar (energia={avg_energy:.1f})")
-            elif not self.is_speaking and was_speaking:
-                print(f"🔇 Lead parou de falar (energia={avg_energy:.1f})")
-
-    def is_silence_after_speech(self) -> bool:
-        """Retorna True quando tinha fala e agora está em silêncio."""
-        if not self.has_speech_data:
-            return False
-        if self.is_speaking:
-            return False
-        return (time.time() - self.last_speech_ts) > self.silence_threshold
-
-    def get_and_clear(self) -> bytes:
-        """Retorna o áudio acumulado e limpa o buffer."""
-        data = bytes(self.buffer)
-        self.buffer = bytearray()
-        self.has_speech_data = False
-        self._energy_window.clear()
-        return data
-
-    def clear(self):
-        """Limpa o buffer sem retornar dados."""
-        self.buffer = bytearray()
-        self.has_speech_data = False
-        self._energy_window.clear()
-
+# ============================================================
+# PIPELINE PRINCIPAL
+# ============================================================
 
 class VoicePipeline:
     """
-    Pipeline de voz em tempo real para uma chamada.
-    Cada chamada ativa tem uma instância desta classe.
+    Pipeline de voz usando OpenAI Realtime API.
+    Atua como relay bidirecional entre Twilio e OpenAI.
     """
 
     def __init__(self, session: CallSession, fsm: FSMEngine):
         self.session = session
         self.fsm = fsm
-        self.audio_buffer = AudioBuffer()
         self.stream_sid: Optional[str] = None
-        self.websocket = None
-
-        # Controle de barge-in
-        self.is_speaking_tts = False
-        self.tts_task: Optional[asyncio.Task] = None
-
-        # FIX #6: Proteção contra barge-in nos primeiros segundos do TTS
-        self._tts_start_time: float = 0
-        self._barge_in_grace_period: float = 2.5  # segundos de proteção
+        self.twilio_ws = None
+        self.openai_ws = None
 
         # Métricas
         self.call_start_time = time.time()
@@ -122,316 +56,562 @@ class VoicePipeline:
         # RAG & Policies (injetados externamente)
         self.rag_snippets = []
         self.policies = {}
+        self.script = None
 
-        # FIX #5: Greeting agora é via TwiML <Say>, não precisa de task separada
-        self._greeting_sent_via_twiml = True  # TwiML cuida do greeting
-        self._first_response = True  # Flag para a primeira resposta da IA
+        # Controle interno
+        self._finalized = False
+        self._call_ended = False
 
-        # Lock para evitar processamento simultâneo
-        self._processing_lock = asyncio.Lock()
+    # --------------------------------------------------------
+    # ENTRY POINT
+    # --------------------------------------------------------
 
-    async def handle_websocket(self, websocket):
+    async def handle_websocket(self, twilio_ws):
         """
-        Handler principal do WebSocket do Twilio Media Streams.
-        
-        FIX #5: NÃO envia greeting via TTS - o TwiML <Say> já fez isso.
-        O pipeline começa direto esperando o lead falar.
+        Handler principal. Conecta ao OpenAI Realtime e faz relay bidirecional.
         """
-        self.websocket = websocket
+        self.twilio_ws = twilio_ws
         self.call_start_time = time.time()
         self.session.started_at = datetime.utcnow()
 
-        # Registrar o greeting do TwiML no histórico (para o LLM ter contexto)
-        greeting = self._build_greeting_text()
-        self.fsm.add_turn("assistant", greeting)
+        url = f"wss://api.openai.com/v1/realtime?model={REALTIME_MODEL}"
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "OpenAI-Beta": "realtime=v1",
+        }
 
-        print(f"🎙️ Pipeline pronto - aguardando lead falar...")
-
-        # Loop principal de processamento
         try:
-            async for message in websocket.iter_text():
+            async with websockets.connect(
+                url,
+                additional_headers=headers,
+                ping_interval=20,
+                ping_timeout=10,
+                close_timeout=5,
+            ) as openai_ws:
+                self.openai_ws = openai_ws
+                print(f"✅ Conectado ao OpenAI Realtime API ({REALTIME_MODEL})")
+
+                # 1. Configurar sessão
+                await self._configure_session()
+
+                # 2. Enviar greeting (a IA fala a saudação)
+                await self._trigger_greeting()
+
+                # 3. Relay bidirecional
+                twilio_task = asyncio.create_task(self._relay_twilio_to_openai())
+                openai_task = asyncio.create_task(self._relay_openai_to_twilio())
+
+                done, pending = await asyncio.wait(
+                    [twilio_task, openai_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                # Cancelar a task que ainda está rodando
+                for task in pending:
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+
+        except websockets.exceptions.InvalidStatusCode as e:
+            print(f"❌ OpenAI Realtime rejeitou conexão: {e}")
+            print("   Verifique: OPENAI_API_KEY válida e modelo Realtime habilitado na conta")
+        except Exception as e:
+            print(f"❌ Erro na conexão Realtime: {e}")
+            traceback.print_exc()
+        finally:
+            await self._finalize_call()
+
+    # --------------------------------------------------------
+    # CONFIGURAÇÃO DA SESSÃO
+    # --------------------------------------------------------
+
+    async def _configure_session(self):
+        """Envia configuração da sessão para o OpenAI Realtime."""
+        system_prompt = self._build_system_prompt()
+        tools = self._build_tools()
+
+        config = {
+            "type": "session.update",
+            "session": {
+                "modalities": ["text", "audio"],
+                "instructions": system_prompt,
+                "voice": REALTIME_VOICE,
+                "input_audio_format": "g711_ulaw",
+                "output_audio_format": "g711_ulaw",
+                "input_audio_transcription": {
+                    "model": "whisper-1",
+                },
+                "turn_detection": {
+                    "type": "server_vad",
+                    "threshold": 0.5,
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 700,
+                },
+                "tools": tools,
+                "tool_choice": "auto",
+                "temperature": 0.7,
+                "max_response_output_tokens": 200,
+            },
+        }
+        await self.openai_ws.send(json.dumps(config))
+
+        # Esperar confirmação
+        async for msg in self.openai_ws:
+            event = json.loads(msg)
+            if event["type"] == "session.updated":
+                print("✅ Sessão Realtime configurada")
+                break
+            elif event["type"] == "error":
+                print(f"❌ Erro na configuração: {event.get('error', {})}")
+                break
+
+    async def _trigger_greeting(self):
+        """
+        Dispara o greeting: cria uma mensagem de sistema e pede
+        para a IA se apresentar. A IA fala com voz natural.
+        """
+        # Mensagem que instrui a IA a iniciar a conversa
+        create_msg = {
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message",
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "[A chamada foi atendida. Faça sua saudação inicial.]",
+                    }
+                ],
+            },
+        }
+        await self.openai_ws.send(json.dumps(create_msg))
+        await self.openai_ws.send(json.dumps({"type": "response.create"}))
+        print("🎙️ Greeting solicitado ao Realtime API")
+
+    # --------------------------------------------------------
+    # RELAY: TWILIO → OPENAI
+    # --------------------------------------------------------
+
+    async def _relay_twilio_to_openai(self):
+        """Encaminha áudio do Twilio para o OpenAI Realtime."""
+        try:
+            async for message in self.twilio_ws.iter_text():
+                if self._call_ended:
+                    break
+
                 data = json.loads(message)
                 event = data.get("event")
 
-                if event == "connected":
-                    print(f"🔌 Media Stream conectado: {data.get('streamSid')}")
-                    if not self.stream_sid and data.get("streamSid"):
-                        self.stream_sid = data.get("streamSid")
+                if event == "media":
+                    # Encaminhar áudio direto (ambos usam g711_ulaw 8kHz)
+                    audio_msg = {
+                        "type": "input_audio_buffer.append",
+                        "audio": data["media"]["payload"],
+                    }
+                    if self.openai_ws and self.openai_ws.open:
+                        await self.openai_ws.send(json.dumps(audio_msg))
 
                 elif event == "start":
-                    start_info = data.get("start", {})
-                    print(f"▶️ Stream iniciado: {start_info.get('callSid')}")
-                    if start_info.get("streamSid"):
-                        self.stream_sid = start_info["streamSid"]
+                    info = data.get("start", {})
+                    self.stream_sid = info.get("streamSid")
+                    print(f"▶️ Stream Twilio iniciado: {self.stream_sid}")
 
-                elif event == "media":
-                    await self._handle_incoming_audio(data["media"])
+                elif event == "connected":
+                    if data.get("streamSid"):
+                        self.stream_sid = data["streamSid"]
 
                 elif event == "stop":
-                    print(f"⏹️ Stream parado")
+                    print("⏹️ Stream Twilio parado (lead desligou)")
+                    break
+
+                # Verificar timeout
+                if time.time() - self.call_start_time > FSM_MAX_CALL_DURATION_SEC:
+                    print("⏰ Timeout da chamada")
                     break
 
         except Exception as e:
-            print(f"❌ Erro no WebSocket: {e}")
-            traceback.print_exc()
-        finally:
-            await self._finalize_call()
+            print(f"❌ Relay Twilio→OpenAI erro: {e}")
 
-    def _build_greeting_text(self) -> str:
-        """Monta o texto do greeting (mesmo que foi falado via TwiML)."""
-        greeting = (
-            f"Oi, {self.session.lead_name}! Tudo bem? Aqui é a Nat. "
-            f"Vi que você se interessou pelo nosso curso. Posso falar rapidinho com você?"
-        )
-        if hasattr(self, 'script') and self.script and self.script.opening_text:
-            greeting = self.script.opening_text.replace(
-                "{nome}", self.session.lead_name
-            ).replace(
-                "{curso}", self.session.course
-            )
-        return greeting
+    # --------------------------------------------------------
+    # RELAY: OPENAI → TWILIO
+    # --------------------------------------------------------
 
-    async def _handle_incoming_audio(self, media_data: dict):
-        """Processa áudio recebido do lead."""
-        payload = base64.b64decode(media_data["payload"])
-        self.audio_buffer.add_audio(payload)
-
-        # FIX #6: Barge-in com grace period
-        if self.is_speaking_tts and self.audio_buffer.is_speaking:
-            elapsed_since_tts = time.time() - self._tts_start_time
-            if elapsed_since_tts > self._barge_in_grace_period:
-                await self._handle_barge_in()
-            # Se ainda está no grace period, ignora o barge-in
-            # (o lead provavelmente está dizendo "alô" ou "sim")
-
-        # Verificar timeout da chamada
-        elapsed = time.time() - self.call_start_time
-        if elapsed > FSM_MAX_CALL_DURATION_SEC:
-            await self._timeout_call()
-            return
-
-        # Quando detectar silêncio após fala, processar
-        if self.audio_buffer.is_silence_after_speech():
-            if not self.is_speaking_tts:
-                async with self._processing_lock:
-                    await self._process_utterance()
-
-    async def _process_utterance(self):
-        """Processa a fala completa do lead: STT → LLM → TTS."""
-        audio_data = self.audio_buffer.get_and_clear()
-        if len(audio_data) < 1600:  # Menos que 100ms, ignorar
-            return
-
-        t_start = time.time()
-
-        # === 1. STT: áudio → texto ===
-        t_stt_start = time.time()
-        text = await self._speech_to_text(audio_data)
-        stt_latency = int((time.time() - t_stt_start) * 1000)
-
-        if not text or text.strip() == "":
-            print("⚠️ STT retornou vazio, ignorando turno")
-            return
-
-        # Filtrar falas muito curtas / noise
-        clean_text = text.strip().lower()
-        noise_phrases = {"", ".", "...", "hum", "uh", "ah"}
-        if clean_text in noise_phrases:
-            print(f"⚠️ STT noise filtrado: '{text}'")
-            return
-
-        print(f"🎙️ Lead disse: {text}")
-
-        # Registrar turno do lead
-        self.fsm.add_turn("user", text)
-
-        # === 2. LLM: texto → decisão + resposta ===
-        t_llm_start = time.time()
-        llm_response = await call_llm(
-            self.session, text,
-            rag_snippets=self.rag_snippets,
-            policies=self.policies,
-        )
-        llm_latency = int((time.time() - t_llm_start) * 1000)
-
-        say_text = llm_response["say"]
-        if llm_response.get("ask"):
-            say_text += f" {llm_response['ask']}"
-
-        print(f"🤖 IA: action={llm_response['action']}, say={say_text[:80]}...")
-
-        # === 3. Processar ação do LLM ===
-        await self._process_llm_action(llm_response)
-
-        # === 4. TTS: texto → áudio ===
-        t_tts_start = time.time()
-        await self._text_to_speech(say_text)
-        tts_latency = int((time.time() - t_tts_start) * 1000)
-
-        # Registrar turno da IA
-        self.fsm.add_turn("assistant", say_text)
-
-        # Métricas
-        total_latency = int((time.time() - t_start) * 1000)
-        self.latencies.append({
-            "stt": stt_latency,
-            "llm": llm_latency,
-            "tts": tts_latency,
-            "total": total_latency,
-        })
-        print(f"⏱️ Latência: STT={stt_latency}ms LLM={llm_latency}ms TTS={tts_latency}ms Total={total_latency}ms")
-
-        # Se a ação é encerrar, fechar
-        if llm_response["action"] == "end_call":
-            await asyncio.sleep(2)
-            await self._finalize_call()
-
-    async def _process_llm_action(self, llm_response: dict):
-        """Processa a ação decidida pelo LLM e atualiza a FSM."""
-        action = llm_response["action"]
-
-        if llm_response.get("fields_update"):
-            self.fsm.update_fields(llm_response["fields_update"])
-
-        if llm_response.get("objection_detected"):
-            self.fsm.add_objection(llm_response["objection_detected"])
-
-        if action != "continue":
-            target_state = self.fsm.get_next_action(action)
-            if target_state != self.session.state:
-                self.fsm.transition(target_state)
-                print(f"🔄 FSM: {self.session.previous_state} → {self.session.state}")
-
-    async def _speech_to_text(self, audio_data: bytes) -> str:
-        """Converte áudio (mulaw 8kHz) para texto usando STT."""
+    async def _relay_openai_to_twilio(self):
+        """Encaminha áudio do OpenAI para o Twilio + processa eventos."""
         try:
-            wav_data = self._mulaw_to_wav(audio_data)
-            audio_file = io.BytesIO(wav_data)
-            audio_file.name = "audio.wav"
+            async for message in self.openai_ws:
+                if self._call_ended:
+                    break
 
-            response = await openai_client.audio.transcriptions.create(
-                model=STT_MODEL,
-                file=audio_file,
-                language="pt",
-                response_format="text",
-            )
-            return response.strip() if response else ""
+                event = json.loads(message)
+                etype = event.get("type", "")
 
+                # ------- ÁUDIO: IA → Twilio -------
+                if etype == "response.audio.delta":
+                    if self.stream_sid and self.twilio_ws:
+                        media_msg = {
+                            "event": "media",
+                            "streamSid": self.stream_sid,
+                            "media": {"payload": event["delta"]},
+                        }
+                        try:
+                            await self.twilio_ws.send_text(json.dumps(media_msg))
+                        except Exception:
+                            break
+
+                # ------- TRANSCRIÇÃO DA IA -------
+                elif etype == "response.audio_transcript.done":
+                    transcript = event.get("transcript", "")
+                    if transcript:
+                        print(f"🤖 IA disse: {transcript[:100]}")
+                        self.fsm.add_turn("assistant", transcript)
+
+                # ------- TRANSCRIÇÃO DO LEAD -------
+                elif etype == "conversation.item.input_audio_transcription.completed":
+                    transcript = event.get("transcript", "")
+                    if transcript:
+                        print(f"🎙️ Lead disse: {transcript}")
+                        self.fsm.add_turn("user", transcript)
+
+                # ------- FUNCTION CALL -------
+                elif etype == "response.function_call_arguments.done":
+                    await self._handle_function_call(event)
+
+                # ------- RESPOSTA COMPLETA -------
+                elif etype == "response.done":
+                    response = event.get("response", {})
+                    # Verificar se houve end_call
+                    for item in response.get("output", []):
+                        if (
+                            item.get("type") == "function_call"
+                            and item.get("name") == "end_call"
+                        ):
+                            print("📞 IA solicitou encerramento")
+                            await asyncio.sleep(1.5)
+                            self._call_ended = True
+                            return
+
+                # ------- BARGE-IN (lead interrompeu) -------
+                elif etype == "input_audio_buffer.speech_started":
+                    # Limpar buffer do Twilio para parar playback
+                    if self.stream_sid and self.twilio_ws:
+                        clear_msg = {
+                            "event": "clear",
+                            "streamSid": self.stream_sid,
+                        }
+                        try:
+                            await self.twilio_ws.send_text(json.dumps(clear_msg))
+                        except Exception:
+                            pass
+
+                # ------- ERROS -------
+                elif etype == "error":
+                    err = event.get("error", {})
+                    print(f"❌ OpenAI Realtime erro: {err.get('type')}: {err.get('message')}")
+                    # Não quebrar o loop por erros transientes
+
+        except websockets.exceptions.ConnectionClosed:
+            print("🔌 OpenAI Realtime desconectou")
         except Exception as e:
-            print(f"❌ Erro STT: {e}")
+            print(f"❌ Relay OpenAI→Twilio erro: {e}")
             traceback.print_exc()
-            return ""
 
-    async def _text_to_speech(self, text: str):
-        """Converte texto para áudio e envia via WebSocket."""
-        if not text:
-            print("⚠️ TTS: texto vazio")
-            return
-        if not self.websocket:
-            print("⚠️ TTS: websocket não conectado")
-            return
-        if not self.stream_sid:
-            print("⚠️ TTS: stream_sid não definido")
-            return
+    # --------------------------------------------------------
+    # FUNCTION CALLING (coleta de dados / controle de FSM)
+    # --------------------------------------------------------
 
-        self.is_speaking_tts = True
-        self._tts_start_time = time.time()  # FIX #6: Marca início para grace period
+    async def _handle_function_call(self, event: dict):
+        """Processa function calls do Realtime API."""
+        fn_name = event.get("name", "")
+        call_id = event.get("call_id", "")
+        args_str = event.get("arguments", "{}")
 
         try:
-            response = await openai_client.audio.speech.create(
-                model=TTS_MODEL,
-                voice=TTS_VOICE,
-                input=text,
-                response_format="pcm",
-                speed=1.0,
-            )
+            args = json.loads(args_str)
+        except json.JSONDecodeError:
+            args = {}
 
-            pcm_data = response.content
-            if not pcm_data or len(pcm_data) == 0:
-                print("⚠️ TTS: OpenAI retornou áudio vazio")
-                return
+        result = {"success": True}
 
-            mulaw_data = self._pcm_to_mulaw(pcm_data)
-            duration_s = len(mulaw_data) / 8000
-            print(f"🔊 TTS: Enviando {len(mulaw_data)} bytes ({duration_s:.1f}s)")
+        if fn_name == "update_lead_fields":
+            # Atualizar campos coletados
+            for key, value in args.items():
+                if value and value.strip():
+                    self.session.collected_fields[key] = value
+            collected = list(self.session.collected_fields.keys())
+            result["collected"] = collected
+            print(f"📝 Campos atualizados: {args} → Total: {collected}")
 
-            # Enviar em chunks de 20ms (160 bytes em mulaw 8kHz)
-            chunk_size = 160
-            for i in range(0, len(mulaw_data), chunk_size):
-                if not self.is_speaking_tts:
-                    print("🛑 TTS interrompido por barge-in")
-                    break
-
-                chunk = mulaw_data[i:i + chunk_size]
-                payload = base64.b64encode(chunk).decode("utf-8")
-
-                media_message = {
-                    "event": "media",
-                    "streamSid": self.stream_sid,
-                    "media": {"payload": payload},
-                }
-
-                try:
-                    await self.websocket.send_text(json.dumps(media_message))
-                except Exception as send_err:
-                    print(f"❌ Erro ao enviar chunk: {send_err}")
-                    break
-
-                await asyncio.sleep(0.02)
-
-        except Exception as e:
-            print(f"❌ Erro TTS: {e}")
-            traceback.print_exc()
-        finally:
-            self.is_speaking_tts = False
-
-    async def _handle_barge_in(self):
-        """Interrompe o TTS quando o lead começa a falar."""
-        print("🛑 Barge-in detectado! Interrompendo TTS...")
-        self.is_speaking_tts = False
-
-        if self.websocket and self.stream_sid:
-            clear_message = {
-                "event": "clear",
-                "streamSid": self.stream_sid,
-            }
+        elif fn_name == "change_state":
+            new_state_str = args.get("new_state", "")
+            reason = args.get("reason", "")
             try:
-                await self.websocket.send_text(json.dumps(clear_message))
-            except Exception as e:
-                print(f"⚠️ Erro ao enviar clear: {e}")
+                new_state = State(new_state_str)
+                old_state = self.session.state
+                self.fsm.transition(new_state)
+                result["transitioned"] = f"{old_state.value} → {new_state.value}"
+                print(f"🔄 FSM: {old_state.value} → {new_state.value} ({reason})")
+            except (ValueError, KeyError):
+                result["success"] = False
+                result["error"] = f"Estado inválido: {new_state_str}"
 
-    async def _timeout_call(self):
-        """Encerra a chamada por timeout."""
-        timeout_msg = (
-            f"Obrigada pelo seu tempo, {self.session.lead_name}! "
-            f"Vou te enviar mais informações por WhatsApp. Até mais!"
-        )
-        self.fsm.add_turn("assistant", timeout_msg)
-        await self._text_to_speech(timeout_msg)
-        self.fsm.transition(State.CLOSE)
-        self.session.tags.append("timeout")
+        elif fn_name == "register_objection":
+            objection = args.get("objection", "")
+            if objection:
+                self.fsm.add_objection(objection)
+                print(f"⚠️ Objeção registrada: {objection}")
+
+        elif fn_name == "end_call":
+            reason = args.get("reason", "encerramento normal")
+            self.fsm.transition(State.CLOSE)
+            self._call_ended = True
+            print(f"📞 Chamada encerrada: {reason}")
+
+        elif fn_name == "schedule_meeting":
+            date = args.get("date", "")
+            time_str = args.get("time", "")
+            self.session.collected_fields["data_agendamento"] = date
+            self.session.collected_fields["hora_agendamento"] = time_str
+            self.fsm.transition(State.SCHEDULE)
+            result["scheduled"] = f"{date} às {time_str}"
+            print(f"📅 Reunião agendada: {date} às {time_str}")
+
+        # Enviar resultado de volta ao OpenAI
+        fn_output = {
+            "type": "conversation.item.create",
+            "item": {
+                "type": "function_call_output",
+                "call_id": call_id,
+                "output": json.dumps(result, ensure_ascii=False),
+            },
+        }
+        if self.openai_ws and self.openai_ws.open:
+            await self.openai_ws.send(json.dumps(fn_output))
+            # Triggerar próxima resposta
+            await self.openai_ws.send(json.dumps({"type": "response.create"}))
+
+    # --------------------------------------------------------
+    # SYSTEM PROMPT
+    # --------------------------------------------------------
+
+    def _build_system_prompt(self) -> str:
+        """Monta o system prompt completo para o Realtime API."""
+
+        lead_info = f"""
+DADOS DO LEAD:
+- Nome: {self.session.lead_name}
+- Telefone: {self.session.lead_phone}
+- Curso de interesse: {self.session.course or 'não especificado'}
+- Origem: {self.session.source or 'site'}
+- Campanha: {self.session.campaign or 'orgânico'}
+"""
+
+        rag_context = ""
+        if self.rag_snippets:
+            rag_context = "\nBASE DE CONHECIMENTO (use para responder perguntas):\n"
+            for s in self.rag_snippets:
+                rag_context += f"- {s.get('title', '')}: {s.get('content', '')}\n"
+
+        policy_text = ""
+        if self.policies:
+            policy_text = "\nPOLÍTICAS (respeite rigorosamente):\n"
+            for k, v in self.policies.items():
+                policy_text += f"- {k}: {v}\n"
+
+        # Se tiver script personalizado, usar
+        script_override = ""
+        if self.script and self.script.system_prompt_override:
+            script_override = f"\nINSTRUÇÕES DO SCRIPT:\n{self.script.system_prompt_override}\n"
+
+        objection_responses = ""
+        if self.script and self.script.objection_responses:
+            objection_responses = "\nRESPOSTAS PARA OBJEÇÕES:\n"
+            for obj, resp in self.script.objection_responses.items():
+                objection_responses += f"- Se disser '{obj}': {resp}\n"
+
+        return f"""Você é Nat, consultora de atendimento de uma instituição de ensino.
+Você está em uma LIGAÇÃO TELEFÔNICA em tempo real com um lead.
+
+{lead_info}
+
+PERSONALIDADE:
+- Simpática, animada mas profissional
+- Fala como brasileira natural, com expressões coloquiais
+- Usa "né", "tá", "beleza", "massa" naturalmente
+- Ri quando apropriado, faz comentários empáticos
+- Tom de voz caloroso, como uma amiga que quer ajudar
+
+REGRAS ABSOLUTAS:
+1. FRASES CURTÍSSIMAS. Máximo 1-2 frases por vez. É uma ligação, não um texto.
+2. Fale naturalmente. Use contrações: "tá", "pra", "pro", "vc", "né"
+3. NUNCA invente preços, datas ou informações. Se não souber, diga que vai verificar.
+4. NUNCA diga que é uma IA ou robô. Se perguntarem: "Sou da equipe de atendimento!"
+5. Se o lead estiver ocupado: "Sem problema! Qual horário fica melhor pra eu te ligar?"
+6. Colete informações NATURALMENTE. Nunca pareça um formulário.
+7. Se detectar objeção: EMPATIA PRIMEIRO. "Entendo total..." depois argumente.
+
+FLUXO DA CONVERSA:
+1. SAUDAÇÃO → Se apresente, pergunte se pode falar sobre o curso
+2. CONTEXTO → Confirme o interesse: "É no curso de [X], né?"
+3. QUALIFICAÇÃO → Colete naturalmente: objetivo, prazo, disponibilidade, forma de pagamento
+4. OBJEÇÃO → Se tiver, trate com empatia
+5. AGENDAMENTO → "Posso marcar uma conversa com nossa consultora pra te explicar tudo?"
+6. ENCERRAMENTO → Agradeça e despeça-se
+
+FUNÇÕES DISPONÍVEIS:
+- Use update_lead_fields() quando extrair informações do lead
+- Use change_state() para avançar no fluxo
+- Use register_objection() quando detectar objeção
+- Use schedule_meeting() quando o lead aceitar agendar
+- Use end_call() APENAS após a despedida completa
+
+COMECE se apresentando ao lead de forma calorosa e natural.
+{script_override}{rag_context}{policy_text}{objection_responses}"""
+
+    # --------------------------------------------------------
+    # TOOLS DEFINITION
+    # --------------------------------------------------------
+
+    def _build_tools(self) -> list:
+        """Define as funções disponíveis para o Realtime API."""
+        return [
+            {
+                "type": "function",
+                "name": "update_lead_fields",
+                "description": (
+                    "Atualizar dados coletados do lead. "
+                    "Chame sempre que extrair informações da conversa."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "confirmed_interest": {
+                            "type": "string",
+                            "description": "Lead confirmou interesse? (sim/não)",
+                        },
+                        "objetivo": {
+                            "type": "string",
+                            "description": "Objetivo do lead com o curso",
+                        },
+                        "prazo": {
+                            "type": "string",
+                            "description": "Prazo para começar (ex: mês que vem, 3 meses)",
+                        },
+                        "disponibilidade": {
+                            "type": "string",
+                            "description": "Disponibilidade de horário do lead",
+                        },
+                        "forma_pagamento": {
+                            "type": "string",
+                            "description": "Preferência de pagamento",
+                        },
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "name": "change_state",
+                "description": "Mudar o estado da conversa quando avançar no fluxo.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "new_state": {
+                            "type": "string",
+                            "enum": [
+                                "OPENING", "CONTEXT", "QUALIFY",
+                                "HANDLE_OBJECTION", "SCHEDULE",
+                                "WARM_TRANSFER", "FOLLOW_UP", "CLOSE",
+                            ],
+                            "description": "Novo estado da conversa",
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Motivo da mudança de estado",
+                        },
+                    },
+                    "required": ["new_state"],
+                },
+            },
+            {
+                "type": "function",
+                "name": "register_objection",
+                "description": "Registrar quando o lead expressar uma objeção.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "objection": {
+                            "type": "string",
+                            "description": "Objeção expressa pelo lead (ex: preço alto, sem tempo)",
+                        },
+                    },
+                    "required": ["objection"],
+                },
+            },
+            {
+                "type": "function",
+                "name": "schedule_meeting",
+                "description": "Agendar reunião quando o lead aceitar.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Data combinada (DD/MM/AAAA)",
+                        },
+                        "time": {
+                            "type": "string",
+                            "description": "Hora combinada (HH:MM)",
+                        },
+                    },
+                    "required": ["date", "time"],
+                },
+            },
+            {
+                "type": "function",
+                "name": "end_call",
+                "description": "Encerrar a chamada. Use APENAS depois de se despedir.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reason": {
+                            "type": "string",
+                            "description": "Motivo (despedida, lead desligou, ocupado)",
+                        },
+                    },
+                    "required": ["reason"],
+                },
+            },
+        ]
+
+    # --------------------------------------------------------
+    # FINALIZAÇÃO
+    # --------------------------------------------------------
 
     async def _finalize_call(self):
         """Finaliza a chamada: gera resumo, calcula score, prepara dados."""
-        if not self.session.is_active:
-            return  # Já foi finalizada
+        if self._finalized:
+            return
+        self._finalized = True
         self.session.is_active = False
 
-        avg_latency = 0
-        if self.latencies:
-            avg_latency = int(sum(l["total"] for l in self.latencies) / len(self.latencies))
-
+        # Gerar resumo
         summary = ""
         try:
             summary = await generate_call_summary(self.session)
         except Exception as e:
             print(f"⚠️ Erro ao gerar resumo: {e}")
-            summary = f"Erro ao gerar resumo: {e}"
+            summary = f"Erro: {e}"
 
         outcome = self.fsm.determine_outcome()
         score, breakdown = self.session.calculate_score()
 
-        print(f"📋 Chamada finalizada: outcome={outcome}, score={score}, turnos={self.session.turn_count}")
+        duration = int(time.time() - self.call_start_time)
+        print(
+            f"📋 Chamada finalizada: outcome={outcome}, "
+            f"score={score}, turnos={self.session.turn_count}, duração={duration}s"
+        )
 
         self.final_data = {
             "outcome": outcome,
@@ -442,8 +622,8 @@ class VoicePipeline:
             "tags": self.session.tags,
             "summary": summary,
             "total_turns": self.session.turn_count,
-            "avg_latency_ms": avg_latency,
-            "duration_seconds": int(time.time() - self.call_start_time),
+            "avg_latency_ms": 0,  # Realtime API gerencia latência internamente
+            "duration_seconds": duration,
             "handoff_type": self._get_handoff_type(),
         }
 
@@ -455,65 +635,11 @@ class VoicePipeline:
         }
         return state_to_handoff.get(self.session.state)
 
-    @staticmethod
-    def _mulaw_to_wav(mulaw_data: bytes) -> bytes:
-        """Converte áudio mulaw 8kHz mono para WAV."""
-        num_channels = 1
-        sample_rate = 8000
-        bits_per_sample = 8
-        data_size = len(mulaw_data)
 
-        wav_buffer = io.BytesIO()
-        wav_buffer.write(b'RIFF')
-        wav_buffer.write(struct.pack('<I', 36 + data_size))
-        wav_buffer.write(b'WAVE')
-        wav_buffer.write(b'fmt ')
-        wav_buffer.write(struct.pack('<I', 16))
-        wav_buffer.write(struct.pack('<H', 7))   # mulaw
-        wav_buffer.write(struct.pack('<H', num_channels))
-        wav_buffer.write(struct.pack('<I', sample_rate))
-        wav_buffer.write(struct.pack('<I', sample_rate * num_channels * bits_per_sample // 8))
-        wav_buffer.write(struct.pack('<H', num_channels * bits_per_sample // 8))
-        wav_buffer.write(struct.pack('<H', bits_per_sample))
-        wav_buffer.write(b'data')
-        wav_buffer.write(struct.pack('<I', data_size))
-        wav_buffer.write(mulaw_data)
+# ============================================================
+# STORE GLOBAL DE SESSÕES ATIVAS
+# ============================================================
 
-        return wav_buffer.getvalue()
-
-    @staticmethod
-    def _pcm_to_mulaw(pcm_data: bytes, input_rate: int = 24000, output_rate: int = 8000) -> bytes:
-        """Converte PCM 24kHz 16-bit para mulaw 8kHz para Twilio."""
-        ratio = input_rate // output_rate
-        samples = []
-        for i in range(0, len(pcm_data) - 1, 2 * ratio):
-            if i + 1 < len(pcm_data):
-                sample = struct.unpack('<h', pcm_data[i:i+2])[0]
-                samples.append(sample)
-
-        MULAW_MAX = 0x1FFF
-        MULAW_BIAS = 33
-        mulaw_bytes = bytearray()
-
-        for sample in samples:
-            sign = 0x80 if sample < 0 else 0
-            sample = min(abs(sample), MULAW_MAX)
-            sample += MULAW_BIAS
-
-            exponent = 7
-            for exp_val in [0x4000, 0x2000, 0x1000, 0x800, 0x400, 0x200, 0x100]:
-                if sample >= exp_val:
-                    break
-                exponent -= 1
-
-            mantissa = (sample >> (exponent + 3)) & 0x0F
-            mulaw_byte = ~(sign | (exponent << 4) | mantissa) & 0xFF
-            mulaw_bytes.append(mulaw_byte)
-
-        return bytes(mulaw_bytes)
-
-
-# === Store global de sessões ativas ===
 active_pipelines: dict[str, VoicePipeline] = {}
 
 
