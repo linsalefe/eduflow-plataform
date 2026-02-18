@@ -1,6 +1,8 @@
 """
 CRM Adapter - Integra o Voice AI com o CRM existente (Exact Spotter + interno).
 Responsável por: criar/atualizar leads, notas, etapa do funil, score.
+
+FIX #8: channel_id NULL → busca o primeiro channel disponível como fallback
 """
 import httpx
 import os
@@ -8,7 +10,7 @@ from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.models import Contact, ExactLead, AIConversationSummary
+from app.models import Contact, ExactLead, AIConversationSummary, Channel
 from app.voice_ai.models import AICall
 
 
@@ -23,6 +25,8 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
     2. Posta na timeline do Exact Spotter
     3. Move no funil se necessário
     """
+    contact = None
+
     # === 1. Atualizar Contact interno ===
     if call.contact_wa_id:
         result = await db.execute(
@@ -66,25 +70,47 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
         summary = result.scalar_one_or_none()
 
         if not summary:
-            summary = AIConversationSummary(
-                contact_wa_id=call.contact_wa_id,
-                channel_id=None,  # será corrigido abaixo
-                status=_outcome_to_kanban_status(call.outcome),
-                summary=call.summary,
-                lead_name=call.lead_name,
-                lead_course=call.course,
-                ai_messages_count=call.total_turns,
-            )
-            # Tentar associar channel_id
+            # FIX #8: Determinar channel_id de forma robusta
+            channel_id = None
+
+            # Prioridade 1: channel_id do contato
             if contact and contact.channel_id:
-                summary.channel_id = contact.channel_id
-            db.add(summary)
+                channel_id = contact.channel_id
+
+            # Prioridade 2: buscar primeiro channel ativo como fallback
+            if not channel_id:
+                ch_result = await db.execute(
+                    select(Channel.id).where(Channel.is_active == True).limit(1)
+                )
+                first_channel = ch_result.scalar_one_or_none()
+                if first_channel:
+                    channel_id = first_channel
+                    print(f"⚠️ CRM: Usando channel_id fallback={channel_id} para {call.contact_wa_id}")
+
+            # Se AINDA não tem channel_id, não cria o summary (evita crash)
+            if not channel_id:
+                print(f"❌ CRM: Sem channel_id disponível — pulando AIConversationSummary para {call.contact_wa_id}")
+            else:
+                summary = AIConversationSummary(
+                    contact_wa_id=call.contact_wa_id,
+                    channel_id=channel_id,
+                    status=_outcome_to_kanban_status(call.outcome),
+                    summary=call.summary,
+                    lead_name=call.lead_name,
+                    lead_course=call.course,
+                    ai_messages_count=call.total_turns,
+                )
+                db.add(summary)
         else:
             summary.status = _outcome_to_kanban_status(call.outcome)
             summary.summary = call.summary
             summary.ai_messages_count = (summary.ai_messages_count or 0) + call.total_turns
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception as e:
+        print(f"❌ CRM commit error: {e}")
+        await db.rollback()
 
     # === 3. Postar no Exact Spotter ===
     if call.lead_id:
@@ -96,8 +122,6 @@ async def _post_to_exact_timeline(call: AICall):
     if not EXACT_TOKEN:
         return
 
-    # Buscar exact_id
-    # O call.lead_id aponta para exact_leads.id
     text = f"""📞 LIGAÇÃO IA (Nat)
 📅 {datetime.now().strftime('%d/%m/%Y %H:%M')}
 👤 Lead: {call.lead_name or 'N/A'}
