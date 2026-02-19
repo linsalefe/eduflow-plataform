@@ -17,51 +17,59 @@ Sistema de ligações automáticas com IA para qualificação de leads, integrad
 | Dashboard `/api/voice-ai/dashboard` | ✅ Operacional | Métricas e KPIs |
 | Twilio (disparo de chamadas) | ✅ Operacional | Número +553122980172 |
 | Twilio Webhooks | ✅ Operacional | answer, status, recording |
-| OpenAI Realtime API | ✅ Conecta | Sessão configurada com sucesso |
+| OpenAI Realtime API | ✅ Conecta + Funciona | gpt-4o-realtime-preview-2024-12-17 |
 | Greeting (saudação inicial) | ✅ Funciona | IA fala com voz natural (coral) |
+| Conversa bidirecional | ✅ Funciona | Lead fala ↔ IA responde em tempo real |
+| Transcrição em tempo real | ✅ Funciona | input_audio_transcription funcionando |
+| Function Calling | ✅ Funciona | update_lead_fields, change_state, end_call |
+| FSM (Máquina de Estados) | ✅ Funciona | OPENING→CONTEXT→QUALIFY→SCHEDULE→CLOSE |
+| Score de qualificação | ✅ Funciona | Score 0-100 calculado automaticamente |
+| Resumo automático | ✅ Funciona | Gerado ao final da chamada |
+| Atualização CRM | ✅ Funciona | Status e resumo atualizados no banco |
 | CRM Adapter | ✅ Corrigido | Fix channel_id NULL |
 | Pipeline websockets v13 | ✅ Corrigido | Compatível com v13+ |
+| RAG (snippets de contexto) | ✅ Funciona | Com fallback se quota excedida |
+| VAD (Voice Activity Detection) | ✅ Funciona | threshold 0.8, silence 800ms |
+| Barge-in | ✅ Funciona | IA para quando lead interrompe |
 
 ---
 
 ## ❌ O que falta concluir
 
-### 🔴 Prioridade Alta — Conversa Bidirecional
+### 🔴 Prioridade Alta — Latência do Greeting
 
-A IA **fala o greeting** mas **trava após a primeira fala do lead**. A conversa não avança.
+A IA **funciona completamente** mas há um **delay de ~10-16 segundos** entre o lead atender e a IA começar a falar.
 
-**Diagnóstico provável:**
-- O relay Twilio→OpenAI está enviando áudio, mas o Realtime API pode não estar processando corretamente os turnos após o greeting
-- Possível conflito entre o `response.create` do greeting e o VAD do server-side
-- O `_relay_openai_to_twilio` pode estar perdendo eventos de resposta
+**Diagnóstico:**
+- Media Stream conecta em T+0s
+- Queries no banco (AICall, CallSession, VoiceScript, RAG) levam ~8-12s
+- Conexão OpenAI Realtime API leva ~2-3s (sequencial após DB)
+- Greeting só dispara após tudo completar
 
-**Arquivos envolvidos:**
-- `backend/app/voice_ai/voice_pipeline.py` → relay bidirecional
-- `backend/app/voice_ai/routes.py` → websocket handler
+**Tentativas já feitas:**
+- ❌ Conexão OpenAI em paralelo com DB → greeting disparava antes do relay estar ativo, áudio se perdia
+- ❌ Greeting após relay → áudio acumulado do Twilio ativava VAD e cancelava greeting
+- ❌ `input_audio_buffer.clear` antes do greeting → não resolveu
+- ❌ Modelo `gpt-4o-mini-realtime-preview` → qualidade muito inferior, descartado
 
-**O que testar:**
-1. Ativar logs verbosos no `_relay_openai_to_twilio` para ver TODOS os eventos recebidos
-2. Verificar se o `input_audio_buffer.append` está sendo recebido pelo OpenAI
-3. Verificar se o server VAD detecta a fala do lead (`input_audio_buffer.speech_started`)
-4. Verificar se o `response.done` do greeting finaliza antes do lead falar
-
-**Possíveis soluções:**
-- Adicionar `await asyncio.sleep(0.5)` entre `response.create` do greeting e início do relay
-- Verificar se o `message` do websocket vem como `str` ou `bytes` (websockets v13 pode mudar)
-- Logar todos os `etype` recebidos do OpenAI para mapear o fluxo real
+**Próximas abordagens a testar:**
+1. Otimizar queries do banco (índices, cache, reduzir JOINs)
+2. Enviar `input_audio_buffer.clear` + desabilitar VAD temporariamente durante greeting
+3. Usar `asyncio.gather()` para paralelizar todas as queries DB
+4. Conectar OpenAI primeiro, iniciar relay, só depois fazer DB queries em background
+5. Pre-conectar OpenAI no boot da aplicação (connection pool)
 
 ---
 
 ### 🟡 Prioridade Média
 
-| Tarefa | Descrição | Arquivo |
-|--------|-----------|---------|
-| Voz em Português | Forçar idioma pt-BR no Realtime API (pode responder em inglês) | `voice_pipeline.py` |
-| Barge-in robusto | Testar se o `clear` do Twilio realmente para o áudio | `voice_pipeline.py` |
-| Function Calling | Validar se `update_lead_fields`, `change_state`, `end_call` funcionam | `voice_pipeline.py` |
-| Timeout da chamada | Verificar se FSM_MAX_CALL_DURATION_SEC (300s) está sendo respeitado | `voice_pipeline.py` |
-| Retry automático | Testar se re-tentativas (5min, 30min, 120min) disparam corretamente | `routes.py` |
-| Gravação | Verificar se recording_url está sendo salva após a chamada | `routes.py` |
+| Tarefa | Status | Descrição |
+|--------|--------|-----------|
+| Voz em Português | ⚠️ Funciona parcial | Responde em PT-BR mas pode misturar inglês em edge cases |
+| Timeout da chamada | 🔲 Não testado | FSM_MAX_CALL_DURATION_SEC (300s) |
+| Retry automático | 🔲 Não testado | Re-tentativas (5min, 30min, 120min) |
+| Gravação | 🔲 Não testado | recording_url após chamada |
+| Auto recharge OpenAI | ✅ Configurado | Evitar interrupção por falta de créditos |
 
 ---
 
@@ -114,6 +122,65 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
 9. Function calls: coleta dados, muda estado FSM
 10. Chamada encerra → gera resumo, score, atualiza CRM
 ```
+
+---
+
+## Exemplo de Chamada Completa (18/02/2026)
+
+```
+🎙️ IA: "Oi, Teste Debug! Tudo bom? Aqui é a Nat, da equipe de atendimento do CENAT. Pode falar rapidinho?"
+🗣️ Lead: "Posso ser."
+🎙️ IA: "É rapidinho! Então, vi aqui que você demonstrou interesse no curso de Administração, né? Queria saber o que te motivou?"
+🗣️ Lead: "Olha, tem uma empresa e eu gostaria de gerir ela melhor."
+🎙️ IA: "Entendi, super bacana! E você tá pensando em começar quando?"
+🗣️ Lead: "Olha, o negócio vai começar a partir do mês que vem."
+🎙️ IA: "Massa! E você tem alguma preferência de horário pra estudar?"
+🗣️ Lead: "Eu preferia a noite."
+🎙️ IA: "Beleza, anotado! Sobre o pagamento, você prefere parcelar, pagar à vista?"
+🗣️ Lead: "Gosto de... no Pix."
+🎙️ IA: "Perfeito! Posso marcar uma conversa com nossa consultora?"
+🗣️ Lead: "Pode ser amanhã, às 10 da manhã."
+🎙️ IA: "Agendado! Amanhã, às 10h. A nossa consultora vai te ligar!"
+
+📊 Score: 100/100 | Status: qualified | Duração: 135s
+```
+
+---
+
+## Custos por Chamada (dados reais)
+
+### Preços Oficiais (Fev/2026)
+
+**OpenAI Realtime API — gpt-4o-realtime-preview (por 1M tokens):**
+
+| Tipo | Input | Output |
+|------|-------|--------|
+| Audio | $40.00 | $80.00 |
+| Text | $5.00 | $20.00 |
+
+**Twilio Voice — Brasil:**
+
+| Tipo | Custo |
+|------|-------|
+| Chamada para celular BR | ~$0.14/min |
+| Número local BR | ~$2-5/mês |
+
+### Estimativa por Minuto
+
+| Componente | Custo/min |
+|------------|-----------|
+| Twilio (chamada BR) | ~$0.14 |
+| OpenAI (áudio in+out+text) | ~$0.20 |
+| **Total** | **~$0.34/min** |
+
+### Estimativa por Chamada (3 min média)
+
+| Cenário | Custo/chamada | Custo/dia (100 chamadas) |
+|---------|---------------|--------------------------|
+| Modelo atual (gpt-4o-realtime) | ~$1.02 (~R$6) | ~$102 (~R$612) |
+| Modelo mini (descartado — baixa qualidade) | ~$0.57 (~R$3.40) | ~$57 (~R$342) |
+
+> ⚠️ `gpt-4o-mini-realtime-preview` foi testado e descartado por perda significativa de qualidade na voz e inteligência da conversa.
 
 ---
 
@@ -178,78 +245,12 @@ VOICE_AI_REALTIME_VOICE=coral
 
 ---
 
-## Credenciais
-
-| Serviço | Credencial |
-|---------|------------|
-| **Admin Login** | linsalefe@gmail.com / SUA_SENHA_ADMIN |
-| **PostgreSQL** | eduflow / SUA_SENHA_DB |
-| **Twilio Phone** | +553122980172 (São José do Rio Preto, SP) |
-
----
-
-## Custos por Chamada (estimativa v3)
-
-| Item | Custo |
-|------|-------|
-| Twilio voz (BR) | ~R$ 0,15/min |
-| OpenAI Realtime (input áudio) | ~$0.06/min |
-| OpenAI Realtime (output áudio) | ~$0.24/min |
-| OpenAI GPT-4o-mini (resumo) | ~$0.01/chamada |
-| **Total por chamada de 3min** | **~$1.00 (~R$ 5,50)** |
-
-> Para reduzir custo, trocar para `gpt-4o-mini-realtime-preview-2024-12-17`.
-
----
-
-## Histórico de Bugs Corrigidos
-
-| # | Bug | Causa | Fix |
-|---|-----|-------|-----|
-| 1 | Dashboard 500 error | `func.count().filter()` incompatível com PostgreSQL GROUP BY | Trocado por `func.sum(case(...))`, depois por raw SQL |
-| 2 | channel_id NULL crash | `AIConversationSummary` criado sem channel_id (NOT NULL) | Fallback para primeiro Channel ativo |
-| 3 | TypeScript build error | CSS property `ringColor` inválida no pipeline/page.tsx | Trocado por `boxShadow` |
-| 4 | Suspense boundary | `useSearchParams()` sem `<Suspense>` no callback/page.tsx | Adicionado wrapper |
-| 5 | IA muda (11s silêncio) | OpenAI TTS demorava 11s; barge-in cortava o greeting | Migrado para Realtime API (v3) |
-| 6 | websockets v13 crash | `ClientConnection.open` não existe no websockets v13+ | Substituído por try/except helper |
-| 7 | from_number como integer | `call.from_number` (string) inserido em campo integer | Corrigido para `channel_id=None` com fallback |
-
----
-
-## Como Debugar
-
-### Logs do Backend
-```bash
-sudo journalctl -u eduflow-backend -f | grep -i "realtime\|pipeline\|lead\|greeting\|fsm\|error\|❌\|✅\|🎙️\|🤖\|📝\|🔄\|📞"
-```
-
-### Testar TTS/STT
-```bash
-cd ~/eduflow/backend
-source venv/bin/activate
-export $(grep -v '^#' .env | xargs)
-python3 test_tts.py
-```
-
-### Disparar Chamada de Teste
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login -H "Content-Type: application/json" -d '{"email":"linsalefe@gmail.com","password":"SUA_SENHA_ADMIN"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-curl -s -X POST http://localhost:8001/api/voice-ai/leads/new -H "Content-Type: application/json" -d '{"name":"Teste","phone":"+55SEU_NUMERO","course":"Administração","source":"debug"}' | python3 -m json.tool
-```
-
-### Ver Detalhe de uma Chamada
-```bash
-curl -s http://localhost:8001/api/voice-ai/calls/ID -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
-```
-
----
-
 ## Endpoints da API
 
 ### Entrada de Leads
 | Método | Endpoint | Auth | Descrição |
 |--------|----------|------|-----------|
-| POST | `/api/voice-ai/leads/new` | Não | Recebe lead e dispara chamada |
+| POST | `/api/voice-ai/leads/new` | Sim | Recebe lead e dispara chamada |
 | POST | `/api/voice-ai/calls/manual` | Sim | Disparo manual |
 
 ### Twilio Callbacks
@@ -310,3 +311,62 @@ OPENING → CONTEXT → QUALIFY → HANDLE_OBJECTION
 | Disponibilidade | 15 |
 | Forma de pagamento | 20 |
 | Sem objeções | 15 |
+
+---
+
+## Histórico de Bugs Corrigidos
+
+| # | Bug | Causa | Fix |
+|---|-----|-------|-----|
+| 1 | Dashboard 500 error | `func.count().filter()` incompatível com PostgreSQL GROUP BY | Trocado por raw SQL |
+| 2 | channel_id NULL crash | `AIConversationSummary` criado sem channel_id (NOT NULL) | Fallback para primeiro Channel ativo |
+| 3 | TypeScript build error | CSS property `ringColor` inválida | Trocado por `boxShadow` |
+| 4 | Suspense boundary | `useSearchParams()` sem `<Suspense>` | Adicionado wrapper |
+| 5 | IA muda (11s silêncio) | OpenAI TTS demorava 11s | Migrado para Realtime API (v3) |
+| 6 | websockets v13 crash | `ClientConnection.open` não existe no v13+ | Substituído por try/except |
+| 7 | from_number como integer | Inserido em campo integer | Corrigido para `channel_id=None` com fallback |
+| 8 | Greeting truncado | max_response_output_tokens muito baixo | Aumentado para 4096 |
+| 9 | VAD muito sensível | Ruído ativava VAD e cortava greeting | threshold 0.8, silence 800ms |
+| 10 | Sem créditos OpenAI | Saldo -$0.08 bloqueava API | Adicionado créditos + auto recharge |
+| 11 | Greeting sem áudio | relay não ativo quando greeting disparava | Greeting antes do relay (versão estável) |
+
+---
+
+## Como Debugar
+
+### Logs do Backend
+```bash
+sudo journalctl -u eduflow-backend -f | grep -E "📞|✅|❌|🎙️|🤖|📡|Stream|Realtime|greeting|RAG|error"
+```
+
+### Disparar Chamada de Teste
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login -H "Content-Type: application/json" -d '{"email":"linsalefe@gmail.com","password":"SUA_SENHA_ADMIN"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+curl -s -X POST http://localhost:8001/api/voice-ai/leads/new \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"name":"Teste","phone":"+55SEU_NUMERO","course":"Administração","source":"debug"}' | python3 -m json.tool
+```
+
+### Monitorar Logs Filtrados
+```bash
+sudo journalctl -u eduflow-backend -n 50 --no-pager | grep -E "📞|✅|❌|🎙️|🤖|📡|Traceback|Error"
+```
+
+### Ver Detalhe de uma Chamada
+```bash
+curl -s http://localhost:8001/api/voice-ai/calls/ID -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+---
+
+## Git — Commits Importantes
+
+| Hash | Descrição |
+|------|-----------|
+| `0706814` | ✅ **Versão estável** — rag_snippets fix, conversa funcional |
+| `a7f498a` | pre_connect + max_tokens 4096 + VAD 0.8 |
+| `effffad` | Ajuste no voice pipeline |
+
+> Para reverter para versão estável: `git reset --hard 0706814`

@@ -271,6 +271,9 @@ async def websocket_media_stream(websocket: WebSocket):
                 custom_params = start_data.get("customParameters", {})
                 call_sid = custom_params.get("call_sid", start_data.get("callSid", ""))
 
+                import time as _time
+                _t0 = _time.perf_counter()
+                print(f"[TIMING] stream_connected dt_ms=0")
                 print(f"🎙️ Media Stream conectado para chamada: {call_sid}")
 
                 # Buscar dados da chamada no DB
@@ -329,6 +332,7 @@ async def websocket_media_stream(websocket: WebSocket):
                 # Criar FSM e Pipeline
                 fsm = FSMEngine(session)
                 pipeline = VoicePipeline(session, fsm)
+                pipeline._t0 = _t0
                 pipeline.rag_snippets = rag_snippets
 
                 if script and script.policies:

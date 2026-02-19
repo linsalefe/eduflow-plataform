@@ -63,6 +63,9 @@ class VoicePipeline:
         # Controle interno
         self._finalized = False
         self._call_ended = False
+        self._vad_reactivated = False
+        self._t0 = None  # Timestamp de início para medição
+
 
     # --------------------------------------------------------
     # ENTRY POINT
@@ -79,7 +82,12 @@ class VoicePipeline:
             self.openai_ws = await websockets.connect(
                 url,
                 additional_headers=headers,
+                open_timeout=3,
+                close_timeout=3,
+                ping_interval=20,
+                ping_timeout=20,
             )
+            print(f"[TIMING] openai_connected dt_ms={(time.perf_counter()-self._t0)*1000:.0f}" if self._t0 else "")
             print(f"✅ Conectado ao OpenAI Realtime API ({REALTIME_MODEL})")
             await self._configure_session()
             await self._trigger_greeting()
@@ -183,6 +191,7 @@ class VoicePipeline:
             async for msg in self.openai_ws:
                 event = json.loads(msg)
                 if event["type"] == "session.updated":
+                    print(f"[TIMING] session_configured dt_ms={(time.perf_counter()-self._t0)*1000:.0f}" if self._t0 else "")
                     print("✅ Sessão Realtime configurada")
                     break
                 elif event["type"] == "error":
@@ -192,26 +201,25 @@ class VoicePipeline:
             print(f"❌ Erro aguardando configuração: {e}")
 
     async def _trigger_greeting(self):
-        """
-        Dispara o greeting: cria uma mensagem de sistema e pede
-        para a IA se apresentar. A IA fala com voz natural.
-        """
-        create_msg = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": "[A chamada foi atendida. Faça sua saudação inicial.]",
-                    }
-                ],
-            },
-        }
-        await self._send_to_openai(create_msg)
-        await self._send_to_openai({"type": "response.create"})
-        print("🎙️ Greeting solicitado ao Realtime API")
+        """Envia greeting com VAD desabilitado para evitar cancelamento."""
+        # 1) Limpar buffer de audio acumulado
+        await self._send_to_openai({"type": "input_audio_buffer.clear"})
+
+        # 2) Desabilitar VAD durante greeting
+        await self._send_to_openai({
+            "type": "session.update",
+            "session": {"turn_detection": None}
+        })
+
+        # 3) Criar resposta de greeting
+        await self._send_to_openai({
+            "type": "response.create",
+            "response": {
+                "instructions": "[A chamada foi atendida. Faça sua saudação inicial.]",
+                "modalities": ["audio", "text"]
+            }
+        })
+        print("🎙️ Greeting solicitado ao Realtime API (VAD desabilitado)")
     # --------------------------------------------------------
     # RELAY: TWILIO → OPENAI
     # --------------------------------------------------------
@@ -334,6 +342,21 @@ class VoicePipeline:
 
                 # ------- RESPOSTA COMPLETA -------
                 elif etype == "response.done":
+                    # Reativar VAD após greeting
+                    if not self._vad_reactivated:
+                        await self._send_to_openai({
+                            "type": "session.update",
+                            "session": {
+                                "turn_detection": {
+                                    "type": "server_vad",
+                                    "threshold": 0.8,
+                                    "silence_duration_ms": 800
+                                }
+                            }
+                        })
+                        self._vad_reactivated = True
+                        print("✅ VAD reativado após greeting")
+                        print(f"[TIMING] greeting_done dt_ms={(time.perf_counter()-self._t0)*1000:.0f}" if self._t0 else "")
                     response = event.get("response", {})
                     for item in response.get("output", []):
                         if (
