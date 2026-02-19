@@ -76,7 +76,6 @@ class VoicePipeline:
         url = f"wss://api.openai.com/v1/realtime?model={REALTIME_MODEL}"
         headers = {
             "Authorization": f"Bearer {OPENAI_API_KEY}",
-            "OpenAI-Beta": "realtime=v1",
         }
         try:
             self.openai_ws = await websockets.connect(
@@ -157,26 +156,31 @@ class VoicePipeline:
     # --------------------------------------------------------
 
     async def _configure_session(self):
-        """Envia configuração da sessão para o OpenAI Realtime."""
+        """Envia configuração da sessão para o OpenAI Realtime (formato GA)."""
         system_prompt = self._build_system_prompt()
         tools = self._build_tools()
 
         config = {
             "type": "session.update",
             "session": {
+                "type": "realtime",
                 "modalities": ["text", "audio"],
                 "instructions": system_prompt,
                 "voice": REALTIME_VOICE,
-                "input_audio_format": "g711_ulaw",
-                "output_audio_format": "g711_ulaw",
-                "input_audio_transcription": {
-                    "model": "whisper-1",
-                },
-                "turn_detection": {
-                    "type": "server_vad",
-                    "threshold": 0.8,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 800,
+                "audio": {
+                    "input": {
+                        "format": {"type": "audio/pcmu"},
+                        "transcription": {"model": "gpt-4o-mini-transcribe", "language": "pt"},
+                        "turn_detection": {
+                            "type": "server_vad",
+                            "threshold": 0.8,
+                            "prefix_padding_ms": 300,
+                            "silence_duration_ms": 800,
+                        },
+                    },
+                    "output": {
+                        "format": {"type": "audio/pcmu"},
+                    },
                 },
                 "tools": tools,
                 "tool_choice": "auto",
@@ -208,7 +212,13 @@ class VoicePipeline:
         # 2) Desabilitar VAD durante greeting
         await self._send_to_openai({
             "type": "session.update",
-            "session": {"turn_detection": None}
+            "session": {
+                "audio": {
+                    "input": {
+                        "turn_detection": None
+                    }
+                }
+            }
         })
 
         # 3) Criar resposta de greeting
@@ -280,7 +290,7 @@ class VoicePipeline:
                 etype = event.get("type", "")
 
                 # ====== LOG VERBOSO DE TODOS OS EVENTOS ======
-                if etype == "response.audio.delta":
+                if etype in ("response.audio.delta", "response.output_audio.delta"):
                     audio_chunks_sent += 1
                     if audio_chunks_sent % 50 == 1:
                         print(f"🔊 [OPENAI] audio delta (chunk #{audio_chunks_sent})")
@@ -310,7 +320,7 @@ class VoicePipeline:
                 # ====== FIM DO LOG VERBOSO ======
 
                 # ------- ÁUDIO: IA → Twilio -------
-                if etype == "response.audio.delta":
+                if etype in ("response.audio.delta", "response.output_audio.delta"):
                     if self.stream_sid and self.twilio_ws:
                         media_msg = {
                             "event": "media",
@@ -323,7 +333,7 @@ class VoicePipeline:
                             break
 
                 # ------- TRANSCRIÇÃO DA IA -------
-                elif etype == "response.audio_transcript.done":
+                elif etype in ("response.audio_transcript.done", "response.output_audio_transcript.done"):
                     transcript = event.get("transcript", "")
                     if transcript:
                         print(f"🤖 IA disse: {transcript[:100]}")
@@ -347,10 +357,14 @@ class VoicePipeline:
                         await self._send_to_openai({
                             "type": "session.update",
                             "session": {
-                                "turn_detection": {
-                                    "type": "server_vad",
-                                    "threshold": 0.8,
-                                    "silence_duration_ms": 800
+                                "audio": {
+                                    "input": {
+                                        "turn_detection": {
+                                            "type": "server_vad",
+                                            "threshold": 0.8,
+                                            "silence_duration_ms": 800
+                                        }
+                                    }
                                 }
                             }
                         })
