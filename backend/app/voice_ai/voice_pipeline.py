@@ -183,8 +183,6 @@ class VoicePipeline:
                 },
                 "tools": tools,
                 "tool_choice": "auto",
-                "temperature": 0.7,
-                "max_response_output_tokens": 4096,
             },
         }
         await self._send_to_openai(config)
