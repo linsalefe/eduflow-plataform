@@ -17,72 +17,82 @@ Sistema de ligações automáticas com IA para qualificação de leads, integrad
 | Dashboard `/api/voice-ai/dashboard` | ✅ Operacional | Métricas e KPIs |
 | Twilio (disparo de chamadas) | ✅ Operacional | Número +553122980172 |
 | Twilio Webhooks | ✅ Operacional | answer, status, recording |
-| OpenAI Realtime API | ✅ Conecta + Funciona | gpt-4o-realtime-preview-2024-12-17 |
-| Greeting (saudação inicial) | ✅ Funciona | IA fala com voz natural (coral) |
+| OpenAI Realtime API | ✅ Conecta + Funciona | gpt-realtime (modelo GA) |
+| Voz Coral (feminina PT-BR) | ✅ Funciona | Calorosa, natural em português |
+| Greeting (saudação inicial) | ✅ Funciona | Latência ~2-3s |
 | Conversa bidirecional | ✅ Funciona | Lead fala ↔ IA responde em tempo real |
-| Transcrição em tempo real | ✅ Funciona | input_audio_transcription funcionando |
+| Transcrição em tempo real | ✅ Funciona | gpt-4o-transcribe (alta precisão) |
+| Semantic VAD | ✅ Funciona | eagerness: medium, interrupt_response: true |
+| Barge-in inteligente | ✅ Funciona | response.cancel + clear Twilio |
 | Function Calling | ✅ Funciona | update_lead_fields, change_state, end_call |
 | FSM (Máquina de Estados) | ✅ Funciona | OPENING→CONTEXT→QUALIFY→SCHEDULE→CLOSE |
 | Score de qualificação | ✅ Funciona | Score 0-100 calculado automaticamente |
 | Resumo automático | ✅ Funciona | Gerado ao final da chamada |
 | Atualização CRM | ✅ Funciona | Status e resumo atualizados no banco |
-| CRM Adapter | ✅ Corrigido | Fix channel_id NULL |
-| Pipeline websockets v13 | ✅ Corrigido | Compatível com v13+ |
-| RAG (snippets de contexto) | ✅ Funciona | Com fallback se quota excedida |
-| VAD (Voice Activity Detection) | ✅ Funciona | threshold 0.8, silence 800ms |
-| Barge-in | ✅ Funciona | IA para quando lead interrompe |
+| RAG (Base de Conhecimento) | ✅ Funciona | 10 pós-graduações CENAT com embeddings |
+| Prompt SDR (Nat/CENAT) | ✅ Funciona | Baseado no pitch real da Vitória |
+| Agendamento inteligente | ✅ Funciona | Turno → Dia → Horário específico |
+| Encerramento suave | ✅ Funciona | Voucher + ementa + recapitulação |
+| Gravação de chamadas | ✅ Funciona | Salvas no Twilio + URL no banco |
+
+---
+
+## 🧠 Otimizações de Naturalidade (v5)
+
+### Modelo e Voz
+- **Modelo:** `gpt-realtime` (GA — mais avançado para voz)
+- **Transcrição:** `gpt-4o-transcribe` (alta precisão, entende sotaque e ruído)
+- **Voz:** `coral` (feminina, calorosa, otimizada para PT-BR)
+- **Speed:** `1.05` (5% mais rápido, cadência natural)
+
+### VAD e Barge-in
+- **Semantic VAD** com `eagerness: medium` (detecta fim de fala com precisão)
+- **interrupt_response: true** (cancela fala da IA quando lead interrompe)
+- **response.cancel** enviado ao OpenAI + **clear** no Twilio (barge-in completo)
+- **create_response: true** (resposta automática após detecção de turno)
+
+### Prompt SDR Humanizado
+- **Identidade:** Nat, consultora do CENAT
+- **Adaptive Listening:** Usa palavras do lead, conecta com o curso
+- **Turn Pattern:** Ack curto → Espelho → Pergunta (nunca formulário)
+- **Conversation Flow Rules:** Nunca para em frase informativa, sempre emenda com próximo passo
+- **Agendamento:** Turno → Dia da semana → Horário específico → Confirmação
+- **Encerramento:** Voucher + ementa WhatsApp + recapitulação + despedida calorosa
+- **Variedade:** Alterna acks, nunca repete mesma frase
+
+### RAG — Base de Conhecimento
+10 pós-graduações do CENAT com embeddings (text-embedding-3-small):
+1. Psicologia Hospitalar e da Saúde
+2. Supervisão Clínica-Institucional (2026)
+3. Novas Abordagens em Saúde Mental (Luta Antimanicomial)
+4. Saúde Mental Infantojuvenil
+5. Ouvidores de Vozes (2025)
+6. PICs em Saúde Mental
+7. Saúde Mental na Atenção Primária
+8. Direitos Humanos e Populações Vulnerabilizadas
+9. Saúde Mental do Trabalhador
+10. Acompanhamento Terapêutico (2026)
 
 ---
 
 ## ❌ O que falta concluir
 
-### 🔴 Prioridade Alta — Latência do Greeting
-
-A IA **funciona completamente** mas há um **delay de ~10-16 segundos** entre o lead atender e a IA começar a falar.
-
-**Diagnóstico:**
-- Media Stream conecta em T+0s
-- Queries no banco (AICall, CallSession, VoiceScript, RAG) levam ~8-12s
-- Conexão OpenAI Realtime API leva ~2-3s (sequencial após DB)
-- Greeting só dispara após tudo completar
-
-**Tentativas já feitas:**
-- ❌ Conexão OpenAI em paralelo com DB → greeting disparava antes do relay estar ativo, áudio se perdia
-- ❌ Greeting após relay → áudio acumulado do Twilio ativava VAD e cancelava greeting
-- ❌ `input_audio_buffer.clear` antes do greeting → não resolveu
-- ❌ Modelo `gpt-4o-mini-realtime-preview` → qualidade muito inferior, descartado
-
-**Próximas abordagens a testar:**
-1. Otimizar queries do banco (índices, cache, reduzir JOINs)
-2. Enviar `input_audio_buffer.clear` + desabilitar VAD temporariamente durante greeting
-3. Usar `asyncio.gather()` para paralelizar todas as queries DB
-4. Conectar OpenAI primeiro, iniciar relay, só depois fazer DB queries em background
-5. Pre-conectar OpenAI no boot da aplicação (connection pool)
-
----
-
 ### 🟡 Prioridade Média
 
 | Tarefa | Status | Descrição |
 |--------|--------|-----------|
-| Voz em Português | ⚠️ Funciona parcial | Responde em PT-BR mas pode misturar inglês em edge cases |
-| Timeout da chamada | 🔲 Não testado | FSM_MAX_CALL_DURATION_SEC (300s) |
 | Retry automático | 🔲 Não testado | Re-tentativas (5min, 30min, 120min) |
-| Gravação | 🔲 Não testado | recording_url após chamada |
-| Auto recharge OpenAI | ✅ Configurado | Evitar interrupção por falta de créditos |
-
----
+| QA Engine | 🔲 Não testado | Avaliação automática pós-chamada |
+| Scheduler Adapter | 🔲 Não testado | Google Calendar após agendamento |
+| WhatsApp Follow-up | 🔲 Não testado | Ementa + voucher pós-ligação |
 
 ### 🟢 Prioridade Baixa
 
-| Tarefa | Descrição | Arquivo |
-|--------|-----------|---------|
-| QA Engine | Avaliação automática pós-chamada | `qa_engine.py` |
-| Scheduler Adapter | Criar evento no Google Calendar após agendamento | `scheduler_adapter.py` |
-| WhatsApp Follow-up | Enviar mensagem de follow-up após a ligação | `scheduler_adapter.py` |
-| Exact Spotter Timeline | Postar resumo na timeline do lead | `crm_adapter.py` |
-| Dashboard Frontend | Gráficos, lista de chamadas, player de gravação | `frontend/src/app/voice-ai/page.tsx` |
-| Scripts/Roteiros | CRUD de roteiros personalizados via interface | `routes.py` + frontend |
+| Tarefa | Descrição |
+|--------|-----------|
+| Exact Spotter Timeline | Postar resumo na timeline do lead |
+| Dashboard Frontend | Gráficos, lista de chamadas, player de gravação |
+| Scripts/Roteiros | CRUD de roteiros personalizados via interface |
 
 ---
 
@@ -100,6 +110,7 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
                          │  ai_call_events    │
                          │  voice_scripts     │
                          │  ai_call_qa        │
+                         │  knowledge_documents│
                          └─────────┬─────────┘
                                    ↓
                     ┌──────────────┼──────────────┐
@@ -108,7 +119,7 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
            (chamadas voz)   (STT+LLM+TTS)      (CRM)
 ```
 
-### Fluxo da Chamada (v3 — Realtime API)
+### Fluxo da Chamada (v5 — Realtime API GA)
 
 ```
 1. POST /api/voice-ai/leads/new
@@ -116,33 +127,16 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
 3. Twilio.calls.create() → liga para o lead
 4. Lead atende → Twilio chama /twilio/answer
 5. TwiML retorna <Connect><Stream> → WebSocket bidirecional
-6. Pipeline conecta ao OpenAI Realtime API via WSS
-7. Realtime API gerencia: STT + LLM + TTS + VAD + Barge-in
-8. Áudio relay: Twilio ↔ OpenAI (g711_ulaw 8kHz direto)
-9. Function calls: coleta dados, muda estado FSM
-10. Chamada encerra → gera resumo, score, atualiza CRM
-```
-
----
-
-## Exemplo de Chamada Completa (18/02/2026)
-
-```
-🎙️ IA: "Oi, Teste Debug! Tudo bom? Aqui é a Nat, da equipe de atendimento do CENAT. Pode falar rapidinho?"
-🗣️ Lead: "Posso ser."
-🎙️ IA: "É rapidinho! Então, vi aqui que você demonstrou interesse no curso de Administração, né? Queria saber o que te motivou?"
-🗣️ Lead: "Olha, tem uma empresa e eu gostaria de gerir ela melhor."
-🎙️ IA: "Entendi, super bacana! E você tá pensando em começar quando?"
-🗣️ Lead: "Olha, o negócio vai começar a partir do mês que vem."
-🎙️ IA: "Massa! E você tem alguma preferência de horário pra estudar?"
-🗣️ Lead: "Eu preferia a noite."
-🎙️ IA: "Beleza, anotado! Sobre o pagamento, você prefere parcelar, pagar à vista?"
-🗣️ Lead: "Gosto de... no Pix."
-🎙️ IA: "Perfeito! Posso marcar uma conversa com nossa consultora?"
-🗣️ Lead: "Pode ser amanhã, às 10 da manhã."
-🎙️ IA: "Agendado! Amanhã, às 10h. A nossa consultora vai te ligar!"
-
-📊 Score: 100/100 | Status: qualified | Duração: 135s
+6. Pipeline pre-conecta ao OpenAI Realtime API via WSS
+7. Configura sessão: coral, semantic_vad, speed 1.05
+8. RAG: busca snippets por curso (embeddings + cosine similarity)
+9. Greeting disparado automaticamente
+10. Realtime API gerencia: STT + LLM + TTS + VAD + Barge-in
+11. Áudio relay: Twilio ↔ OpenAI (g711_ulaw 8kHz direto)
+12. Function calls: coleta dados, muda estado FSM
+13. Agendamento: turno → dia → horário → confirmação
+14. Encerramento suave: voucher + ementa + despedida (5s delay)
+15. Chamada encerra → gera resumo, score, atualiza CRM
 ```
 
 ---
@@ -151,12 +145,13 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
 
 ### Preços Oficiais (Fev/2026)
 
-**OpenAI Realtime API — gpt-4o-realtime-preview (por 1M tokens):**
+**OpenAI Realtime API — gpt-realtime (por 1M tokens):**
 
 | Tipo | Input | Output |
 |------|-------|--------|
-| Audio | $40.00 | $80.00 |
+| Audio | $32.00 | $64.00 |
 | Text | $5.00 | $20.00 |
+| Cached Audio Input | $0.40 | — |
 
 **Twilio Voice — Brasil:**
 
@@ -165,22 +160,11 @@ Internet → Nginx (443/SSL) → Frontend Next.js (3000) + Backend FastAPI (8001
 | Chamada para celular BR | ~$0.14/min |
 | Número local BR | ~$2-5/mês |
 
-### Estimativa por Minuto
-
-| Componente | Custo/min |
-|------------|-----------|
-| Twilio (chamada BR) | ~$0.14 |
-| OpenAI (áudio in+out+text) | ~$0.20 |
-| **Total** | **~$0.34/min** |
-
 ### Estimativa por Chamada (3 min média)
 
 | Cenário | Custo/chamada | Custo/dia (100 chamadas) |
 |---------|---------------|--------------------------|
-| Modelo atual (gpt-4o-realtime) | ~$1.02 (~R$6) | ~$102 (~R$612) |
-| Modelo mini (descartado — baixa qualidade) | ~$0.57 (~R$3.40) | ~$57 (~R$342) |
-
-> ⚠️ `gpt-4o-mini-realtime-preview` foi testado e descartado por perda significativa de qualidade na voz e inteligência da conversa.
+| Modelo atual (gpt-realtime) | ~$0.85 (~R$5) | ~$85 (~R$510) |
 
 ---
 
@@ -197,7 +181,8 @@ backend/app/voice_ai/
 ├── routes.py              # Endpoints da API + WebSocket handler
 ├── crm_adapter.py         # Integração CRM (Exact + interno)
 ├── scheduler_adapter.py   # Agendamento (Calendar + WhatsApp)
-└── qa_engine.py           # Avaliação automática de qualidade
+├── qa_engine.py           # Avaliação automática de qualidade
+└── README.md              # Este arquivo
 ```
 
 ---
@@ -225,15 +210,13 @@ sudo systemctl status eduflow-frontend  # Next.js (porta 3000)
 ### Variáveis de Ambiente (.env)
 
 ```env
-DATABASE_URL=postgresql+asyncpg://eduflow:SUA_SENHA_DB@localhost:5432/eduflow_db
+DATABASE_URL=postgresql+asyncpg://eduflow:SENHA@localhost:5432/eduflow_db
 OPENAI_API_KEY=SUA_OPENAI_KEY
 TWILIO_ACCOUNT_SID=SEU_TWILIO_SID
 TWILIO_AUTH_TOKEN=SEU_TWILIO_TOKEN
 TWILIO_PHONE_NUMBER=+553122980172
 BASE_URL=https://portal.eduflowia.com
 VOICE_AI_ENABLED=true
-VOICE_AI_REALTIME_MODEL=gpt-4o-realtime-preview-2024-12-17
-VOICE_AI_REALTIME_VOICE=coral
 ```
 
 ### Twilio Webhooks
@@ -292,12 +275,12 @@ OPENING → CONTEXT → QUALIFY → HANDLE_OBJECTION
 |--------|-----------|---------------------|
 | OPENING | Apresentação + permissão | — |
 | CONTEXT | Confirma interesse/curso | confirmed_interest |
-| QUALIFY | Coleta dados do lead | objetivo, prazo, disponibilidade, forma_pagamento |
-| HANDLE_OBJECTION | Trata objeções | — |
-| SCHEDULE | Agenda reunião | data_agendamento, hora_agendamento |
+| QUALIFY | Coleta: formação, atuação, motivação, investimento | formação, atuação, motivação |
+| HANDLE_OBJECTION | Trata objeções com empatia | — |
+| SCHEDULE | Agenda reunião (turno→dia→horário) | data_agendamento, hora_agendamento |
 | WARM_TRANSFER | Transfere pro closer | handoff_reason |
 | FOLLOW_UP | Encerra com WhatsApp | — |
-| CLOSE | Despedida | — |
+| CLOSE | Voucher + ementa + despedida | — |
 
 ---
 
@@ -314,50 +297,46 @@ OPENING → CONTEXT → QUALIFY → HANDLE_OBJECTION
 
 ---
 
-## Histórico de Bugs Corrigidos
-
-| # | Bug | Causa | Fix |
-|---|-----|-------|-----|
-| 1 | Dashboard 500 error | `func.count().filter()` incompatível com PostgreSQL GROUP BY | Trocado por raw SQL |
-| 2 | channel_id NULL crash | `AIConversationSummary` criado sem channel_id (NOT NULL) | Fallback para primeiro Channel ativo |
-| 3 | TypeScript build error | CSS property `ringColor` inválida | Trocado por `boxShadow` |
-| 4 | Suspense boundary | `useSearchParams()` sem `<Suspense>` | Adicionado wrapper |
-| 5 | IA muda (11s silêncio) | OpenAI TTS demorava 11s | Migrado para Realtime API (v3) |
-| 6 | websockets v13 crash | `ClientConnection.open` não existe no v13+ | Substituído por try/except |
-| 7 | from_number como integer | Inserido em campo integer | Corrigido para `channel_id=None` com fallback |
-| 8 | Greeting truncado | max_response_output_tokens muito baixo | Aumentado para 4096 |
-| 9 | VAD muito sensível | Ruído ativava VAD e cortava greeting | threshold 0.8, silence 800ms |
-| 10 | Sem créditos OpenAI | Saldo -$0.08 bloqueava API | Adicionado créditos + auto recharge |
-| 11 | Greeting sem áudio | relay não ativo quando greeting disparava | Greeting antes do relay (versão estável) |
-
----
-
 ## Como Debugar
 
 ### Logs do Backend
 ```bash
-sudo journalctl -u eduflow-backend -f | grep -E "📞|✅|❌|🎙️|🤖|📡|Stream|Realtime|greeting|RAG|error"
+sudo journalctl -u eduflow-backend -f | grep -E "📞|✅|❌|🎙️|🤖|📡|RAG|TIMING|greeting|error"
 ```
 
 ### Disparar Chamada de Teste
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login -H "Content-Type: application/json" -d '{"email":"linsalefe@gmail.com","password":"SUA_SENHA_ADMIN"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+TOKEN=$(curl -s -X POST http://localhost:8001/api/auth/login -H "Content-Type: application/json" -d '{"email":"SEU_EMAIL","password":"SUA_SENHA"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
 curl -s -X POST http://localhost:8001/api/voice-ai/leads/new \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
-  -d '{"name":"Teste","phone":"+55SEU_NUMERO","course":"Administração","source":"debug"}' | python3 -m json.tool
+  -d '{"name":"Teste","phone":"+55SEU_NUMERO","course":"Psicologia Hospitalar e da Saúde","source":"debug"}' | python3 -m json.tool
 ```
 
-### Monitorar Logs Filtrados
+### Baixar Gravação
 ```bash
-sudo journalctl -u eduflow-backend -n 50 --no-pager | grep -E "📞|✅|❌|🎙️|🤖|📡|Traceback|Error"
+source ~/eduflow/backend/.env
+sudo -u postgres psql eduflow_db -c "SELECT recording_url FROM ai_calls WHERE recording_url IS NOT NULL ORDER BY id DESC LIMIT 1;"
+curl -u "$TWILIO_ACCOUNT_SID:$TWILIO_AUTH_TOKEN" -o /tmp/gravacao.mp3 "URL_AQUI"
 ```
 
-### Ver Detalhe de uma Chamada
+### Gerar Embeddings para novos documentos
 ```bash
-curl -s http://localhost:8001/api/voice-ai/calls/ID -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+cd ~/eduflow/backend && source venv/bin/activate && python3 /tmp/gen_embeddings.py
 ```
+
+---
+
+## Histórico de Versões
+
+| Versão | Data | Descrição |
+|--------|------|-----------|
+| v1 | 18/02/2026 | Pipeline básico STT→LLM→TTS |
+| v2 | 18/02/2026 | Migração para OpenAI Realtime API |
+| v3 | 18/02/2026 | Conversa funcional, greeting estável |
+| v4 | 19/02/2026 | Formato GA, latência reduzida 3-4s |
+| **v5** | **19/02/2026** | **Coral, semantic_vad, prompt SDR, RAG, barge-in completo** |
 
 ---
 
@@ -365,8 +344,8 @@ curl -s http://localhost:8001/api/voice-ai/calls/ID -H "Authorization: Bearer $T
 
 | Hash | Descrição |
 |------|-----------|
-| `0706814` | ✅ **Versão estável** — rag_snippets fix, conversa funcional |
+| `0706814` | ✅ Versão estável v3 — rag_snippets fix, conversa funcional |
 | `a7f498a` | pre_connect + max_tokens 4096 + VAD 0.8 |
-| `effffad` | Ajuste no voice pipeline |
+| Próximo commit | v5 — coral, semantic_vad, SDR prompt, RAG embeddings, barge-in |
 
-> Para reverter para versão estável: `git reset --hard 0706814`
+> Para reverter para versão estável v3: `git reset --hard 0706814`
