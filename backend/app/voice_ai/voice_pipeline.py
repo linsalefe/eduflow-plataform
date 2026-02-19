@@ -176,7 +176,7 @@ class VoicePipeline:
                     "output": {
                         "format": {"type": "audio/pcmu"},
                         "voice": REALTIME_VOICE,
-                        "speed": 1.05,
+                        "speed": 1.08,
                     },
                     "input": {
                         "format": {"type": "audio/pcmu"},
