@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
 from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
+from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
@@ -85,6 +86,7 @@ app.include_router(twilio_router)
 app.include_router(landing_router)
 app.include_router(landing_public_router)
 app.include_router(oauth_router)
+app.include_router(voice_ai_el_router)
 app.include_router(voice_ai_router)
 
 @app.get("/webhook")
