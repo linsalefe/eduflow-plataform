@@ -164,7 +164,6 @@ class VoicePipeline:
             "type": "session.update",
             "session": {
                 "type": "realtime",
-                "modalities": ["text", "audio"],
                 "instructions": system_prompt,
                 "voice": REALTIME_VOICE,
                 "audio": {
@@ -213,6 +212,7 @@ class VoicePipeline:
         await self._send_to_openai({
             "type": "session.update",
             "session": {
+                "type": "realtime",
                 "audio": {
                     "input": {
                         "turn_detection": None
@@ -225,8 +225,7 @@ class VoicePipeline:
         await self._send_to_openai({
             "type": "response.create",
             "response": {
-                "instructions": "[A chamada foi atendida. Faça sua saudação inicial.]",
-                "modalities": ["audio", "text"]
+                "instructions": "[A chamada foi atendida. Faça sua saudação inicial.]"
             }
         })
         print("🎙️ Greeting solicitado ao Realtime API (VAD desabilitado)")
@@ -357,6 +356,7 @@ class VoicePipeline:
                         await self._send_to_openai({
                             "type": "session.update",
                             "session": {
+                                "type": "realtime",
                                 "audio": {
                                     "input": {
                                         "turn_detection": {
