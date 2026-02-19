@@ -183,7 +183,9 @@ class VoicePipeline:
                         "transcription": {"model": "gpt-4o-transcribe", "language": "pt"},
                         "turn_detection": {
                             "type": "semantic_vad",
-                            "eagerness": "high",
+                            "eagerness": "medium",
+                            "create_response": True,
+                            "interrupt_response": True,
                         },
                     },
                 },
@@ -362,7 +364,9 @@ class VoicePipeline:
                                     "input": {
                                         "turn_detection": {
                                             "type": "semantic_vad",
-                                            "eagerness": "high",
+                                            "eagerness": "medium",
+                                            "create_response": True,
+                                            "interrupt_response": True,
                                         }
                                     }
                                 }
@@ -385,6 +389,9 @@ class VoicePipeline:
 
                 # ------- BARGE-IN (lead interrompeu) -------
                 elif etype == "input_audio_buffer.speech_started":
+                    # Cancelar resposta em andamento no OpenAI
+                    await self._send_to_openai({"type": "response.cancel"})
+                    # Limpar áudio no Twilio
                     if self.stream_sid and self.twilio_ws:
                         clear_msg = {
                             "event": "clear",
@@ -598,6 +605,16 @@ Seu objetivo é qualificar o candidato e agendar uma conversa com a consultora.
 - Exemplo de fluxo HUMANO: "Legal que você trabalha no CAPS! E o que te motivou a buscar essa pós?"
 - Exemplo ROBÓTICO (NUNCA faça): "Legal que você trabalha no CAPS!" [silêncio esperando resposta]
 
+# Turn Pattern
+
+- TODA resposta após o lead falar DEVE seguir este padrão:
+  1. ACK curto (reação): "Entendi", "Legal", "Bacana", "Certo", "Show"
+  2. ESPELHO (repita algo que o lead disse com suas palavras): "Então você tá no hospital infantil..."
+  3. PERGUNTA ou PRÓXIMO PASSO
+- Exemplo HUMANO: "Entendi. Você quer se especializar pra melhorar os atendimentos... massa. E pra estudar, você prefere noite ou fim de semana?"
+- Exemplo ROBÓTICO (NUNCA): "Legal. Qual é a sua disponibilidade de horário?"
+- VARIE os acks. NÃO use sempre "Entendi". Alterne: "Certo", "Bacana", "Show", "Legal", "Massa", "Que legal", "Faz sentido".
+
 # Conversation Flow
 
 Greeting → Apresentação → Formação → Atuação → Motivação → Validação → Investimento → Agendamento → Encerramento.
@@ -606,8 +623,8 @@ Avance SOMENTE quando o candidato responder. UMA ETAPA POR VEZ.
 ## Greeting
 - Se apresente e contextualize a ligação.
 - Sample phrases (VARIE):
-  - "Olá, {{{{nome}}}}! Tudo bem? Aqui é a Vitória do CENAT!"
-  - "Oi, {{{{nome}}}}! Aqui é a Vitória, do CENAT. Tudo bem com você?"
+  - "Olá, {{{{nome}}}}! Tudo bem? Aqui é a Nat do CENAT!"
+  - "Oi, {{{{nome}}}}! Aqui é a Nat, do CENAT. Tudo bem com você?"
 
 ## Apresentação
 - Explique o motivo da ligação.
