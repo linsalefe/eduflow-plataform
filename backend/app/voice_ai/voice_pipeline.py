@@ -229,7 +229,7 @@ class VoicePipeline:
         await self._send_to_openai({
             "type": "response.create",
             "response": {
-                "instructions": "[A chamada foi atendida. Faça sua saudação inicial conforme as sample phrases do Greeting. Varie — escolha uma frase DIFERENTE a cada chamada.]"
+                "instructions": "[A chamada foi atendida. Você LIGOU para o lead. Diga apenas: 'Olá, (nome do lead)! Tudo bem? Aqui é a Nat do CENAT!' e PARE. Espere a resposta. NÃO explique o motivo da ligação ainda.]"
             }
         })
         print("🎙️ Greeting solicitado ao Realtime API (VAD desabilitado)")
