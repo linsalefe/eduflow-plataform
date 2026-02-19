@@ -165,8 +165,11 @@ class VoicePipeline:
             "session": {
                 "type": "realtime",
                 "instructions": system_prompt,
-                "voice": REALTIME_VOICE,
                 "audio": {
+                    "output": {
+                        "format": {"type": "audio/pcmu"},
+                        "voice": REALTIME_VOICE,
+                    },
                     "input": {
                         "format": {"type": "audio/pcmu"},
                         "transcription": {"model": "gpt-4o-mini-transcribe", "language": "pt"},
@@ -176,9 +179,6 @@ class VoicePipeline:
                             "prefix_padding_ms": 300,
                             "silence_duration_ms": 800,
                         },
-                    },
-                    "output": {
-                        "format": {"type": "audio/pcmu"},
                     },
                 },
                 "tools": tools,
