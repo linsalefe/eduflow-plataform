@@ -15,3 +15,6 @@ TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "")
 
 # === Base URL do servidor ===
 BASE_URL = os.getenv("BASE_URL", "https://portal.eduflowia.com")
+
+# === Webhook ===
+ELEVENLABS_WEBHOOK_SECRET = os.getenv("ELEVENLABS_WEBHOOK_SECRET", "")
