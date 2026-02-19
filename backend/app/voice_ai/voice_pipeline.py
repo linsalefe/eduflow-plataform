@@ -379,7 +379,7 @@ class VoicePipeline:
                             and item.get("name") == "end_call"
                         ):
                             print("📞 IA solicitou encerramento")
-                            await asyncio.sleep(1.5)
+                            await asyncio.sleep(5)
                             self._call_ended = True
                             return
 
