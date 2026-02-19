@@ -176,12 +176,14 @@ class VoicePipeline:
                     "output": {
                         "format": {"type": "audio/pcmu"},
                         "voice": REALTIME_VOICE,
+                        "speed": 1.05,
                     },
                     "input": {
                         "format": {"type": "audio/pcmu"},
                         "transcription": {"model": "gpt-4o-mini-transcribe", "language": "pt"},
                         "turn_detection": {
                             "type": "semantic_vad",
+                            "eagerness": "high",
                         },
                     },
                 },
@@ -362,6 +364,7 @@ class VoicePipeline:
                                     "input": {
                                         "turn_detection": {
                                             "type": "semantic_vad",
+                                            "eagerness": "high",
                                         }
                                     }
                                 }
