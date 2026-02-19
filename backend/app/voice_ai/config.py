@@ -15,7 +15,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # === OpenAI Realtime API (NOVO - v3) ===
 # Modelo de voz em tempo real — usa GPT-4o com STT + TTS integrados
-REALTIME_MODEL = os.getenv("VOICE_AI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
+REALTIME_MODEL = os.getenv("VOICE_AI_REALTIME_MODEL", "gpt-realtime")
 
 # Voz do Realtime API. Opções:
 #   coral    → feminina calorosa (RECOMENDADA para pt-BR)
@@ -23,7 +23,7 @@ REALTIME_MODEL = os.getenv("VOICE_AI_REALTIME_MODEL", "gpt-4o-realtime-preview-2
 #   alloy    → neutra
 #   nova     → feminina animada
 #   sage     → calma
-REALTIME_VOICE = os.getenv("VOICE_AI_REALTIME_VOICE", "coral")
+REALTIME_VOICE = os.getenv("VOICE_AI_REALTIME_VOICE", "marin")
 
 # === LLM (usado apenas para resumo pós-chamada) ===
 LLM_MODEL = os.getenv("VOICE_AI_LLM_MODEL", "gpt-4o-mini")
