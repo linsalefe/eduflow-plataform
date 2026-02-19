@@ -23,7 +23,7 @@ REALTIME_MODEL = os.getenv("VOICE_AI_REALTIME_MODEL", "gpt-realtime")
 #   alloy    → neutra
 #   nova     → feminina animada
 #   sage     → calma
-REALTIME_VOICE = os.getenv("VOICE_AI_REALTIME_VOICE", "marin")
+REALTIME_VOICE = os.getenv("VOICE_AI_REALTIME_VOICE", "cedar")
 
 # === LLM (usado apenas para resumo pós-chamada) ===
 LLM_MODEL = os.getenv("VOICE_AI_LLM_MODEL", "gpt-4o-mini")
