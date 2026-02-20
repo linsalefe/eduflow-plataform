@@ -46,59 +46,70 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
     Salva transcrição, duração e resultado na tabela ai_calls.
     """
     try:
-        data = await request.json()
-        print(f"📦 ElevenLabs webhook payload: {data}")
+        payload = await request.json()
+        print(f"📦 ElevenLabs webhook payload recebido")
 
-
-
-        # Extrair dados do payload ElevenLabs
-        conversation_id = data.get("conversation_id", "")
-        agent_id = data.get("agent_id", "")
-        status = data.get("status", "completed")
-        transcript = data.get("transcript", [])
+        data = payload.get("data", {})
         metadata = data.get("metadata", {})
         analysis = data.get("analysis", {})
-        call_duration = data.get("call_duration_secs", 0)
+        phone_call = metadata.get("phone_call", {})
+        initiation = data.get("conversation_initiation_client_data", {})
+        dynamic_vars = initiation.get("dynamic_variables", {})
+        transcript_list = data.get("transcript", [])
 
-        # Extrair número do lead dos metadata
-        to_number = metadata.get("to_number", "")
-        from_number = metadata.get("from_number", "")
+        # Dados do lead
+        lead_name = dynamic_vars.get("nome", "")
+        course = dynamic_vars.get("curso", "")
+        conversation_id = data.get("conversation_id", "")
+        to_number = phone_call.get("external_number", "")
+        from_number = phone_call.get("agent_number", "")
+        call_sid = phone_call.get("call_sid", "")
+        duration = metadata.get("call_duration_secs", 0)
+        termination = metadata.get("termination_reason", "")
 
-        # Montar transcrição como texto
+        # Transcrição como texto
         transcript_text = ""
-        for turn in transcript:
+        for turn in transcript_list:
             role = turn.get("role", "")
-            text = turn.get("message", "")
-            transcript_text += f"{'Lead' if role == 'user' else 'Nat'}: {text}\n"
+            message = turn.get("message", "")
+            if message:
+                label = "Lead" if role == "user" else "Nat"
+                transcript_text += f"{label}: {message}\n"
 
-        # Extrair dados coletados e resultado da analysis
-        collected_fields = analysis.get("data_collection", {})
-        evaluation = analysis.get("evaluation", {})
+        # Data collection
+        data_collection = analysis.get("data_collection_results", {})
+        collected_fields = {}
+        for key, val in data_collection.items():
+            collected_fields[key.strip()] = val.get("value", "")
 
-        # Determinar outcome
-        outcome = "completed"
-        if evaluation:
-            eval_result = evaluation.get("solved_user_inquiry", "unknown")
-            if eval_result == "success":
-                outcome = "qualified"
-            elif eval_result == "failure":
-                outcome = "not_qualified"
+        # Outcome
+        call_successful = analysis.get("call_successful", "unknown")
+        if call_successful == "success":
+            outcome = "qualified"
+        elif call_successful == "failure":
+            outcome = "not_qualified"
+        else:
+            outcome = "completed"
+
+        # Summary
+        summary_text = analysis.get("transcript_summary", "")
 
         now = datetime.now(SP_TZ).replace(tzinfo=None)
 
-        # Criar registro na tabela ai_calls
+        # Criar registro
         ai_call = AICall(
             from_number=from_number,
             to_number=to_number,
+            twilio_call_sid=call_sid,
             direction="outbound",
-            status=status,
+            status="completed",
             outcome=outcome,
             collected_fields=collected_fields if collected_fields else None,
-            summary=transcript_text[:2000] if transcript_text else None,
-            course=metadata.get("course", ""),
-            lead_name=metadata.get("lead_name", ""),
-            duration_seconds=int(call_duration),
-            total_turns=len(transcript),
+            summary=summary_text or transcript_text[:2000],
+            course=course,
+            lead_name=lead_name,
+            duration_seconds=int(duration),
+            total_turns=len([t for t in transcript_list if t.get("message")]),
             source="elevenlabs",
             campaign=conversation_id,
             started_at=now,
@@ -107,25 +118,28 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         db.add(ai_call)
         await db.flush()
 
-        # Salvar cada turno da conversa
-        for turn in transcript:
+        # Salvar turnos
+        for turn in transcript_list:
+            message = turn.get("message", "")
+            if not message:
+                continue
             ai_turn = AICallTurn(
                 call_id=ai_call.id,
                 role=turn.get("role", "unknown"),
-                text=turn.get("message", ""),
+                text=message,
             )
             db.add(ai_turn)
 
         await db.commit()
 
-        print(f"✅ ElevenLabs post-call salvo: call_id={ai_call.id}, conversation={conversation_id}")
+        print(f"✅ ElevenLabs post-call salvo: call_id={ai_call.id}, lead={lead_name}, curso={course}, duracao={duration}s, outcome={outcome}")
+        print(f"📊 Campos coletados: {collected_fields}")
         return {"status": "ok", "call_id": ai_call.id}
 
     except Exception as e:
         print(f"❌ Erro no post-call webhook ElevenLabs: {e}")
         await db.rollback()
         return {"status": "error", "detail": str(e)}
-
 
 @router.get("/health")
 async def health():
