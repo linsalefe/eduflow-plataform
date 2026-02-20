@@ -332,6 +332,7 @@ async def get_call_detail(call_id: int, db: AsyncSession = Depends(get_db)):
             "started_at": str(call.started_at) if call.started_at else "",
             "ended_at": str(call.ended_at) if call.ended_at else "",
             "created_at": str(call.created_at) if call.created_at else "",
+            "campaign": call.campaign or "",
         },
         "transcript": [
             {
@@ -348,6 +349,35 @@ async def get_call_detail(call_id: int, db: AsyncSession = Depends(get_db)):
         "qa": None,
     }
 
+@router.get("/calls/{call_id}/audio")
+async def get_call_audio(call_id: int, db: AsyncSession = Depends(get_db)):
+    """Retorna o áudio da ligação do ElevenLabs."""
+    import httpx
+    from app.voice_ai_elevenlabs.config import ELEVENLABS_API_KEY
+
+    result = await db.execute(select(AICall).where(AICall.id == call_id))
+    call = result.scalar_one_or_none()
+    if not call:
+        raise HTTPException(status_code=404, detail="Chamada não encontrada")
+
+    conversation_id = call.campaign
+    if not conversation_id:
+        raise HTTPException(status_code=404, detail="Sem conversation_id")
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(
+            f"https://api.elevenlabs.io/v1/convai/conversations/{conversation_id}/audio",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status_code=404, detail="Áudio não encontrado")
+
+        from fastapi.responses import Response
+        return Response(
+            content=resp.content,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f"inline; filename=call_{call_id}.mp3"},
+        )
 
 # ============================================================
 # HEALTH
