@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
-from app.models import Channel
+from app.models import Channel, Contact, Message
 from app.evolution import client
 
 router = APIRouter(prefix="/api/evolution", tags=["Evolution API"])
