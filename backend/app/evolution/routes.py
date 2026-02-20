@@ -164,38 +164,112 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
             print(f"🔗 Conexão [{instance_name}]: {state}")
 
         # Mensagem recebida
+       # Mensagem recebida
         elif event == "MESSAGES_UPSERT":
-            messages = payload.get("data", [])
-            if isinstance(messages, dict):
-                messages = [messages]
+            data = payload.get("data", {})
+
+            # Evolution v2 manda um objeto, não uma lista
+            if isinstance(data, list):
+                messages = data
+            else:
+                messages = [data]
+
+            # Buscar canal
+            result = await db.execute(
+                select(Channel).where(Channel.instance_name == instance_name)
+            )
+            channel = result.scalar_one_or_none()
+            channel_id = channel.id if channel else None
 
             for msg in messages:
                 key = msg.get("key", {})
                 from_me = key.get("fromMe", False)
                 remote_jid = key.get("remoteJid", "")
+                msg_id = key.get("id", "")
 
-                # Ignorar mensagens próprias e de grupos
-                if from_me or "@g.us" in remote_jid:
-                    continue
-
-                # Extrair texto
-                message_content = msg.get("message", {})
-                text = (
-                    message_content.get("conversation", "")
-                    or message_content.get("extendedTextMessage", {}).get("text", "")
-                )
-
-                if not text:
+                # Ignorar grupos
+                if "@g.us" in remote_jid:
                     continue
 
                 # Extrair número limpo
                 phone = remote_jid.replace("@s.whatsapp.net", "")
                 sender_name = msg.get("pushName", phone)
 
-                print(f"💬 Mensagem [{instance_name}] de {sender_name} ({phone}): {text[:100]}")
+                # Extrair texto
+                message_content = msg.get("message", {})
+                msg_type = msg.get("messageType", "text")
+                text = (
+                    message_content.get("conversation", "")
+                    or message_content.get("extendedTextMessage", {}).get("text", "")
+                )
 
-                # TODO: Salvar no banco (Contact + Message)
-                # TODO: Fase 3 - Enviar para agente IA
+                if not text and msg_type not in ("image", "audio", "video", "document", "sticker"):
+                    continue
+
+                # Direção
+                direction = "outbound" if from_me else "inbound"
+                contact_phone = phone
+
+                # Criar ou atualizar contato (só pra mensagens recebidas)
+                if not from_me:
+                    contact_result = await db.execute(
+                        select(Contact).where(Contact.wa_id == contact_phone)
+                    )
+                    contact = contact_result.scalar_one_or_none()
+
+                    if not contact:
+                        contact = Contact(
+                            wa_id=contact_phone,
+                            name=sender_name,
+                            channel_id=channel_id,
+                            lead_status="novo",
+                        )
+                        db.add(contact)
+                        await db.flush()
+                        print(f"👤 Novo contato: {sender_name} ({contact_phone})")
+                    else:
+                        if sender_name and sender_name != contact_phone:
+                            contact.name = sender_name
+                        if not contact.channel_id and channel_id:
+                            contact.channel_id = channel_id
+
+                # Verificar duplicata
+                existing = await db.execute(
+                    select(Message).where(Message.wa_message_id == msg_id)
+                )
+                if existing.scalar_one_or_none():
+                    continue
+
+                # Conteúdo baseado no tipo
+                if msg_type in ("image", "audio", "video", "document", "sticker"):
+                    media = message_content.get(msg_type, {})
+                    media_id = media.get("id", "")
+                    mime = media.get("mimetype", "")
+                    caption = media.get("caption", "")
+                    text = f"media:{media_id}|{mime}|{caption}"
+
+                # Timestamp
+                ts = msg.get("messageTimestamp", 0)
+                from datetime import datetime, timezone, timedelta
+                SP_TZ = timezone(timedelta(hours=-3))
+                msg_time = datetime.fromtimestamp(int(ts), tz=SP_TZ).replace(tzinfo=None) if ts else datetime.now(SP_TZ).replace(tzinfo=None)
+
+                # Salvar mensagem
+                new_msg = Message(
+                    wa_message_id=msg_id,
+                    contact_wa_id=contact_phone,
+                    channel_id=channel_id,
+                    direction=direction,
+                    message_type=msg_type if msg_type != "conversation" else "text",
+                    content=text,
+                    timestamp=msg_time,
+                    status="received" if not from_me else "sent",
+                )
+                db.add(new_msg)
+
+                print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
+
+            await db.commit()
 
         return {"status": "ok"}
 
