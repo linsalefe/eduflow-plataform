@@ -138,7 +138,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
     """Recebe eventos do Evolution API (mensagens, conexão, QR code)."""
     try:
         payload = await request.json()
-        event = payload.get("event", "")
+        event = payload.get("event", "").upper().replace(".", "_")
 
         print(f"📩 Evolution webhook [{instance_name}]: {event}")
         print(f"📦 Payload: {payload}")
