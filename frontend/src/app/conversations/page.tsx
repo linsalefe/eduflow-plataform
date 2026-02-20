@@ -142,6 +142,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     if (selectedContact) {
       loadMessages(selectedContact.wa_id);
+      api.post(`/contacts/${selectedContact.wa_id}/read`);
       setNotesValue(selectedContact.notes || '');
       const interval = setInterval(() => loadMessages(selectedContact.wa_id), 3000);
       return () => clearInterval(interval);
