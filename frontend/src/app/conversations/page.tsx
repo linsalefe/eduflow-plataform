@@ -428,7 +428,7 @@ export default function ConversationsPage() {
                   <div>
                     <p className="text-[13px] font-medium text-white leading-tight">{activeChannel?.name || 'Selecionar canal'}</p>
                     <p className="text-[11px] text-gray-500 leading-tight">
-                      {activeChannel ? `+${activeChannel.phone_number.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '$1 $2 $3-$4')}` : 'Nenhum canal'}
+                      {activeChannel ? `+${(activeChannel.phone_number || '').replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '$1 $2 $3-$4')}` : 'Nenhum canal'}
                     </p>
                   </div>
                 </div>
