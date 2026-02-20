@@ -47,6 +47,8 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
     """
     try:
         data = await request.json()
+        print(f"📦 ElevenLabs webhook payload: {data}")
+
 
         # Extrair dados do payload ElevenLabs
         conversation_id = data.get("conversation_id", "")
