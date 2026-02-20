@@ -292,7 +292,23 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
 
 @router.get("/contacts")
 async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    query = select(Contact).order_by(Contact.updated_at.desc())
+    from sqlalchemy.orm import aliased
+    from sqlalchemy import case
+
+    latest_msg = (
+        select(
+            Message.contact_wa_id,
+            func.max(Message.timestamp).label("last_ts")
+        )
+        .group_by(Message.contact_wa_id)
+        .subquery()
+    )
+
+    query = (
+        select(Contact)
+        .outerjoin(latest_msg, Contact.wa_id == latest_msg.c.contact_wa_id)
+        .order_by(latest_msg.c.last_ts.desc().nullslast())
+    )
     if channel_id:
         query = query.where(Contact.channel_id == channel_id)
     result = await db.execute(query)
