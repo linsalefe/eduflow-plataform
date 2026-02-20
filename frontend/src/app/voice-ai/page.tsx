@@ -567,7 +567,7 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
                 🎙️ Gravação da Ligação
               </h4>
               <audio controls className="w-full" preload="none">
-                <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/voice-ai-el/calls/${call.id}/audio`} type="audio/mpeg" />
+                <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/voice-ai-el/calls/${call.id}/audio`} type="audio/mpeg" />
               </audio>
             </div>
           )}
