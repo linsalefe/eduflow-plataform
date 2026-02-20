@@ -5,8 +5,8 @@ import os
 
 # === ElevenLabs ===
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "agent_1801khvqs8p8f4h9a6a78z1dwmve")
-ELEVENLABS_PHONE_NUMBER_ID = os.getenv("ELEVENLABS_PHONE_NUMBER_ID", "phnum_7201khvwj7k6ejd95v52mf6fqwd7")
+ELEVENLABS_AGENT_ID = os.getenv("ELEVENLABS_AGENT_ID", "agent_8201khxrydbcfxqtav8ffy0enqft")
+ELEVENLABS_PHONE_NUMBER_ID = os.getenv("ELEVENLABS_PHONE_NUMBER_ID", "phnum_1901khxrxvs7ebc80097efpysx8k")
 
 # === Twilio (reutiliza do voice_ai) ===
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
