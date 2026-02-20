@@ -267,6 +267,15 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 )
                 db.add(new_msg)
 
+                # Atualizar updated_at do contato
+                if not from_me:
+                    contact_update = await db.execute(
+                        select(Contact).where(Contact.wa_id == contact_phone)
+                    )
+                    ct = contact_update.scalar_one_or_none()
+                    if ct:
+                        ct.updated_at = msg_time
+
                 print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
 
             await db.commit()

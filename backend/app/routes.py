@@ -334,6 +334,19 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
 
     return contacts_list
 
+@router.post("/contacts/{wa_id}/read")
+async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db)):
+    """Marca todas as mensagens inbound como lidas."""
+    from sqlalchemy import update
+    await db.execute(
+        update(Message).where(
+            Message.contact_wa_id == wa_id,
+            Message.direction == "inbound",
+            Message.status == "received",
+        ).values(status="read")
+    )
+    await db.commit()
+    return {"status": "ok"}
 
 @router.get("/contacts/{wa_id}")
 async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db)):
