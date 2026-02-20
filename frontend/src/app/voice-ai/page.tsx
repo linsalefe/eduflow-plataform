@@ -171,7 +171,7 @@ export default function VoiceAIPage() {
   // Fetch dashboard
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await api.get('/voice-ai/dashboard?days=7', { headers });
+      const res = await api.get('/voice-ai-el/dashboard?days=7', { headers });
       setDashboard(res.data);
     } catch (e) {
       console.error('Erro ao buscar dashboard:', e);
@@ -183,7 +183,7 @@ export default function VoiceAIPage() {
     try {
       const params: any = { limit: 50, offset: 0 };
       if (filterOutcome) params.outcome = filterOutcome;
-      const res = await api.get('/voice-ai/calls', { headers, params });
+      const res = await api.get('/voice-ai-el/calls', { headers, params });
       setCalls(res.data.calls);
       setTotalCalls(res.data.total);
     } catch (e) {
@@ -194,7 +194,7 @@ export default function VoiceAIPage() {
   // Fetch call detail
   const fetchCallDetail = async (callId: number) => {
     try {
-      const res = await api.get(`/voice-ai/calls/${callId}`, { headers });
+      const res = await api.get(`/voice-ai-el/calls/${callId}`, { headers });
       setSelectedCall(res.data);
       setShowDetail(true);
     } catch (e) {
