@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   MessageSquare, Plus, Loader2, Trash2, Wifi, WifiOff, Phone,
-  QrCode, X
+  QrCode, X, RefreshCw, LogOut
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
@@ -20,79 +20,6 @@ interface ChannelItem {
   instagram_id: string | null;
 }
 
-const channelTypes = [
-  {
-    type: 'whatsapp',
-    provider: 'evolution',
-    label: 'WhatsApp',
-    subtitle: 'Conecte via QR Code usando Evolution API',
-    color: '#25D366',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    logo: (
-      <svg viewBox="0 0 32 32" className="w-10 h-10">
-        <circle cx="16" cy="16" r="16" fill="#25D366"/>
-        <path d="M23.3 8.7A10.4 10.4 0 0 0 7.6 21.5L6 26l4.6-1.5a10.4 10.4 0 0 0 12.7-16.8zM16 24.3a8.6 8.6 0 0 1-4.4-1.2l-.3-.2-3.2 1 1.1-3.1-.2-.3A8.7 8.7 0 1 1 16 24.3zm4.8-6.5c-.3-.1-1.6-.8-1.8-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.8 1.1-.2.1-.3.2-.6 0-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.4.2-.3.2-.5c0-.2 0-.3-.1-.5s-.6-1.6-.9-2.1c-.2-.6-.5-.5-.6-.5h-.6c-.2 0-.5.1-.8.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.7.6.7.2 1.3.2 1.8.1.6-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3 0-.1-.2-.2-.5-.4z" fill="white"/>
-      </svg>
-    ),
-  },
-  {
-    type: 'whatsapp',
-    provider: 'official',
-    label: 'WhatsApp Business',
-    subtitle: 'API Oficial da Meta via Cloud API',
-    color: '#075E54',
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200',
-    logo: (
-      <svg viewBox="0 0 32 32" className="w-10 h-10">
-        <circle cx="16" cy="16" r="16" fill="#075E54"/>
-        <path d="M23.3 8.7A10.4 10.4 0 0 0 7.6 21.5L6 26l4.6-1.5a10.4 10.4 0 0 0 12.7-16.8zM16 24.3a8.6 8.6 0 0 1-4.4-1.2l-.3-.2-3.2 1 1.1-3.1-.2-.3A8.7 8.7 0 1 1 16 24.3zm4.8-6.5c-.3-.1-1.6-.8-1.8-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.8 1.1-.2.1-.3.2-.6 0-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.4.2-.3.2-.5c0-.2 0-.3-.1-.5s-.6-1.6-.9-2.1c-.2-.6-.5-.5-.6-.5h-.6c-.2 0-.5.1-.8.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.7.6.7.2 1.3.2 1.8.1.6-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3 0-.1-.2-.2-.5-.4z" fill="white"/>
-        <text x="16" y="13" textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">B</text>
-      </svg>
-    ),
-  },
-  {
-    type: 'instagram',
-    provider: 'meta',
-    label: 'Instagram',
-    subtitle: 'Automatize as mensagens do Direct',
-    color: '#E4405F',
-    bg: 'bg-pink-50',
-    border: 'border-pink-200',
-    logo: (
-      <svg viewBox="0 0 32 32" className="w-10 h-10">
-        <defs>
-          <linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#FFC107"/>
-            <stop offset="50%" stopColor="#F44336"/>
-            <stop offset="100%" stopColor="#9C27B0"/>
-          </linearGradient>
-        </defs>
-        <rect width="32" height="32" rx="8" fill="url(#ig)"/>
-        <rect x="7" y="7" width="18" height="18" rx="5" stroke="white" strokeWidth="1.8" fill="none"/>
-        <circle cx="16" cy="16" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
-        <circle cx="22" cy="10" r="1.3" fill="white"/>
-      </svg>
-    ),
-  },
-  {
-    type: 'messenger',
-    provider: 'meta',
-    label: 'Messenger',
-    subtitle: 'Atenda clientes pelo Messenger da Página',
-    color: '#0084FF',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    logo: (
-      <svg viewBox="0 0 32 32" className="w-10 h-10">
-        <circle cx="16" cy="16" r="16" fill="#0084FF"/>
-        <path d="M16 7C11 7 7 10.7 7 15.3c0 2.6 1.3 4.9 3.3 6.4v3.3l3.1-1.7c.8.2 1.7.3 2.6.3 5 0 9-3.7 9-8.3S21 7 16 7zm.9 11.2l-2.3-2.5-4.5 2.5 5-5.3 2.4 2.5 4.4-2.5-4.9 5.3z" fill="white"/>
-      </svg>
-    ),
-  },
-];
-
 const typeColors: Record<string, string> = {
   whatsapp: '#25D366',
   instagram: '#E4405F',
@@ -103,18 +30,17 @@ export default function ChannelsPage() {
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [selectedType, setSelectedType] = useState<typeof channelTypes[0] | null>(null);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Form states
+  // Form
   const [formName, setFormName] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formPhoneId, setFormPhoneId] = useState('');
-  const [formToken, setFormToken] = useState('');
-  const [formWabaId, setFormWabaId] = useState('');
-  const [formInstanceName, setFormInstanceName] = useState('');
-  const [formInstanceToken, setFormInstanceToken] = useState('');
+
+  // QR Code
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrInstanceName, setQrInstanceName] = useState('');
+  const [qrStatus, setQrStatus] = useState<'loading' | 'scanning' | 'connected' | 'error'>('loading');
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadChannels = async () => {
     try {
@@ -127,60 +53,141 @@ export default function ChannelsPage() {
     }
   };
 
-  useEffect(() => { loadChannels(); }, []);
+  useEffect(() => {
+    loadChannels();
+  }, []);
 
-  const resetForm = () => {
-    setFormName('');
-    setFormPhone('');
-    setFormPhoneId('');
-    setFormToken('');
-    setFormWabaId('');
-    setFormInstanceName('');
-    setFormInstanceToken('');
-  };
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
-  const selectChannelType = (ct: typeof channelTypes[0]) => {
-    setSelectedType(ct);
-    setShowNewModal(false);
-    setShowConfigModal(true);
-    resetForm();
-    setFormName(ct.label);
-  };
-
-  const saveChannel = async () => {
-    if (!selectedType) return;
+  // ============================================================
+  // CRIAR INSTÂNCIA EVOLUTION
+  // ============================================================
+  const createEvolutionInstance = async () => {
+    if (!formName.trim()) return;
     setSaving(true);
+
     try {
-      await api.post('/channels', {
+      const res = await api.post('/evolution/instances', {
         name: formName,
-        type: selectedType.type,
-        provider: selectedType.provider,
-        phone_number: formPhone || null,
-        phone_number_id: formPhoneId || null,
-        whatsapp_token: formToken || null,
-        waba_id: formWabaId || null,
-        instance_name: formInstanceName || null,
-        instance_token: formInstanceToken || null,
+        purpose: 'commercial',
       });
-      setShowConfigModal(false);
-      resetForm();
-      loadChannels();
-    } catch (err) {
+
+      const { instance_name, qrcode } = res.data;
+      setQrInstanceName(instance_name);
+      setShowNewModal(false);
+
+      // Extrair base64 do QR code
+      const base64 = qrcode?.base64 || qrcode?.qrcode?.base64 || null;
+      if (base64) {
+        setQrCode(base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`);
+        setQrStatus('scanning');
+      } else {
+        // Buscar QR code separadamente
+        await fetchQRCode(instance_name);
+      }
+
+      setShowQRModal(true);
+      startPolling(instance_name);
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao salvar canal');
+      alert('Erro ao criar instância: ' + (err?.response?.data?.detail || err.message));
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteChannel = async (id: number) => {
-    if (!confirm('Tem certeza que deseja remover este canal?')) return;
+  // ============================================================
+  // BUSCAR QR CODE
+  // ============================================================
+  const fetchQRCode = async (instanceName: string) => {
     try {
-      await api.delete(`/channels/${id}`);
+      setQrStatus('loading');
+      const res = await api.get(`/evolution/instances/${instanceName}/qrcode`);
+      const base64 = res.data?.base64 || res.data?.qrcode?.base64 || res.data?.code || null;
+      
+      if (base64) {
+        setQrCode(base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`);
+        setQrStatus('scanning');
+      }
+    } catch (err) {
+      console.error('Erro ao buscar QR code:', err);
+      setQrStatus('error');
+    }
+  };
+
+  // ============================================================
+  // POLLING DE STATUS
+  // ============================================================
+  const startPolling = (instanceName: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await api.get(`/evolution/instances/${instanceName}/status`);
+        if (res.data.is_connected) {
+          setQrStatus('connected');
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          loadChannels();
+
+          // Fechar modal após 2s
+          setTimeout(() => {
+            setShowQRModal(false);
+            setQrCode(null);
+            setFormName('');
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Erro no polling:', err);
+      }
+    }, 3000);
+  };
+
+  // ============================================================
+  // DELETAR CANAL
+  // ============================================================
+  const deleteChannel = async (ch: ChannelItem) => {
+    if (!confirm(`Remover o canal "${ch.name}"? Isso desconectará o WhatsApp.`)) return;
+    try {
+      if (ch.provider === 'evolution' && ch.instance_name) {
+        await api.delete(`/evolution/instances/${ch.instance_name}`);
+      } else {
+        await api.delete(`/channels/${ch.id}`);
+      }
       loadChannels();
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // ============================================================
+  // DESCONECTAR (LOGOUT)
+  // ============================================================
+  const logoutChannel = async (ch: ChannelItem) => {
+    if (!confirm(`Desconectar o WhatsApp de "${ch.name}"?`)) return;
+    try {
+      if (ch.provider === 'evolution' && ch.instance_name) {
+        await api.post(`/evolution/instances/${ch.instance_name}/logout`);
+        loadChannels();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ============================================================
+  // RECONECTAR (NOVO QR CODE)
+  // ============================================================
+  const reconnectChannel = async (ch: ChannelItem) => {
+    if (!ch.instance_name) return;
+    setQrInstanceName(ch.instance_name);
+    setShowQRModal(true);
+    await fetchQRCode(ch.instance_name);
+    startPolling(ch.instance_name);
   };
 
   const getProviderLabel = (ch: ChannelItem) => {
@@ -192,18 +199,18 @@ export default function ChannelsPage() {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-6 pb-8">
-
-        {/* Header Ajustado */}
+        {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Canais</h1>
             <p className="text-sm text-gray-500 mt-2 max-w-md leading-relaxed">
-              Conecte WhatsApp, Instagram e Messenger ao seu CRM para centralizar seu atendimento.
+              Conecte seu WhatsApp para atendimento e IA. Cada conta tem direito a 2 instâncias.
             </p>
           </div>
           <button
-            onClick={() => setShowNewModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95"
+            onClick={() => { setShowNewModal(true); setFormName(''); }}
+            disabled={channels.filter(c => c.provider === 'evolution').length >= 2}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Novo Canal
@@ -221,12 +228,12 @@ export default function ChannelsPage() {
               <MessageSquare className="w-8 h-8 text-gray-300" />
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Nenhum canal conectado</h3>
-            <p className="text-sm text-gray-400 mb-6">Conecte seu primeiro canal para começar a receber mensagens</p>
+            <p className="text-sm text-gray-400 mb-6">Conecte seu primeiro WhatsApp para começar</p>
             <button
               onClick={() => setShowNewModal(true)}
               className="px-6 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
             >
-              Conectar Canal
+              Conectar WhatsApp
             </button>
           </div>
         ) : (
@@ -236,12 +243,13 @@ export default function ChannelsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
                       style={{ backgroundColor: `${typeColors[ch.type] || '#6366f1'}15` }}
                     >
-                      {ch.type === 'whatsapp' && '💬'}
-                      {ch.type === 'instagram' && '📸'}
-                      {ch.type === 'messenger' && '💬'}
+                      <svg viewBox="0 0 32 32" className="w-7 h-7">
+                        <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                        <path d="M23.3 8.7A10.4 10.4 0 0 0 7.6 21.5L6 26l4.6-1.5a10.4 10.4 0 0 0 12.7-16.8zM16 24.3a8.6 8.6 0 0 1-4.4-1.2l-.3-.2-3.2 1 1.1-3.1-.2-.3A8.7 8.7 0 1 1 16 24.3zm4.8-6.5c-.3-.1-1.6-.8-1.8-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.8 1.1-.2.1-.3.2-.6 0-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.4.2-.3.2-.5c0-.2 0-.3-.1-.5s-.6-1.6-.9-2.1c-.2-.6-.5-.5-.6-.5h-.6c-.2 0-.5.1-.8.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.7.6.7.2 1.3.2 1.8.1.6-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3 0-.1-.2-.2-.5-.4z" fill="white"/>
+                      </svg>
                     </div>
 
                     <div>
@@ -265,7 +273,7 @@ export default function ChannelsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
                       ch.is_connected ? 'bg-emerald-50' : 'bg-red-50'
                     }`}>
@@ -282,9 +290,32 @@ export default function ChannelsPage() {
                       )}
                     </div>
 
+                    {/* Reconectar (se desconectado e Evolution) */}
+                    {!ch.is_connected && ch.provider === 'evolution' && ch.instance_name && (
+                      <button
+                        onClick={() => reconnectChannel(ch)}
+                        className="p-2 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
+                        title="Reconectar"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Desconectar (se conectado e Evolution) */}
+                    {ch.is_connected && ch.provider === 'evolution' && (
+                      <button
+                        onClick={() => logoutChannel(ch)}
+                        className="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
+                        title="Desconectar WhatsApp"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => deleteChannel(ch.id)}
+                      onClick={() => deleteChannel(ch)}
                       className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                      title="Remover canal"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -295,230 +326,143 @@ export default function ChannelsPage() {
           </div>
         )}
 
-        {/* Modal: Choose Channel Type */}
+        {/* Modal: Novo Canal */}
         {showNewModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowNewModal(false)}>
-            <div className="bg-white rounded-2xl w-[600px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+            <div className="bg-white rounded-2xl w-[440px] shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="p-6 space-y-5">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900">Qual canal deseja conectar?</h2>
-                    <p className="text-[13px] text-gray-400 mt-1">Escolha o tipo de canal para configurar</p>
+                    <h2 className="text-lg font-bold text-gray-900">Conectar WhatsApp</h2>
+                    <p className="text-[13px] text-gray-400 mt-1">Escaneie o QR Code para conectar</p>
                   </div>
                   <button onClick={() => setShowNewModal(false)} className="text-gray-400 hover:text-gray-600">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {channelTypes.map((ct, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectChannelType(ct)}
-                      className={`relative p-5 rounded-xl border-2 ${ct.border} ${ct.bg} text-left hover:shadow-md transition-all group`}
-                    >
-                      <div className="mb-3">{ct.logo}</div>
-                      <h3 className="text-[14px] font-bold text-gray-900 mb-1">{ct.label}</h3>
-                      <p className="text-[11px] text-gray-500 leading-relaxed">{ct.subtitle}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: Configure Channel */}
-        {showConfigModal && selectedType && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowConfigModal(false)}>
-            <div className="bg-white rounded-2xl w-[480px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-              <div className="p-6 space-y-5">
-                <div className="text-center">
-                  <div className="flex justify-center mb-3">{selectedType.logo}</div>
-                  <h2 className="text-lg font-bold text-gray-900">Configurar {selectedType.label}</h2>
-                  <p className="text-[13px] text-gray-400 mt-1">{selectedType.subtitle}</p>
+                <div className="bg-green-50 rounded-xl p-4 flex items-start gap-3">
+                  <svg viewBox="0 0 32 32" className="w-8 h-8 flex-shrink-0 mt-0.5">
+                    <circle cx="16" cy="16" r="16" fill="#25D366"/>
+                    <path d="M23.3 8.7A10.4 10.4 0 0 0 7.6 21.5L6 26l4.6-1.5a10.4 10.4 0 0 0 12.7-16.8zM16 24.3a8.6 8.6 0 0 1-4.4-1.2l-.3-.2-3.2 1 1.1-3.1-.2-.3A8.7 8.7 0 1 1 16 24.3zm4.8-6.5c-.3-.1-1.6-.8-1.8-.9-.3-.1-.5-.1-.6.1-.2.3-.7.9-.8 1.1-.2.1-.3.2-.6 0-.3-.1-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.4-.4.2-.3.2-.5c0-.2 0-.3-.1-.5s-.6-1.6-.9-2.1c-.2-.6-.5-.5-.6-.5h-.6c-.2 0-.5.1-.8.3-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.1 4.9 4.3.7.3 1.2.5 1.7.6.7.2 1.3.2 1.8.1.6-.1 1.6-.7 1.9-1.3.2-.6.2-1.2.2-1.3 0-.1-.2-.2-.5-.4z" fill="white"/>
+                  </svg>
+                  <div>
+                    <p className="text-[13px] font-semibold text-green-800">WhatsApp via Evolution API</p>
+                    <p className="text-[11px] text-green-600 mt-0.5">Conexão automática via QR Code. Sem precisar de API oficial.</p>
+                  </div>
                 </div>
 
-                {/* Name */}
                 <div>
                   <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Nome do Canal</label>
                   <input
                     value={formName}
                     onChange={e => setFormName(e.target.value)}
                     className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    placeholder="Ex: WhatsApp Principal"
+                    placeholder="Ex: WhatsApp Comercial"
+                    autoFocus
                   />
                 </div>
 
-                {/* WhatsApp Official fields */}
-                {selectedType.type === 'whatsapp' && selectedType.provider === 'official' && (
-                  <>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Número do telefone</label>
-                      <input
-                        value={formPhone}
-                        onChange={e => setFormPhone(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="5583988046720"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Phone Number ID</label>
-                      <input
-                        value={formPhoneId}
-                        onChange={e => setFormPhoneId(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="ID do Meta Business"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Token de Acesso</label>
-                      <input
-                        value={formToken}
-                        onChange={e => setFormToken(e.target.value)}
-                        type="password"
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="Token do WhatsApp Cloud API"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">WABA ID (opcional)</label>
-                      <input
-                        value={formWabaId}
-                        onChange={e => setFormWabaId(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="WhatsApp Business Account ID"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* WhatsApp Evolution fields */}
-                {selectedType.type === 'whatsapp' && selectedType.provider === 'evolution' && (
-                  <>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Nome da Instância</label>
-                      <input
-                        value={formInstanceName}
-                        onChange={e => setFormInstanceName(e.target.value)}
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="minha-instancia"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Token da Instância</label>
-                      <input
-                        value={formInstanceToken}
-                        onChange={e => setFormInstanceToken(e.target.value)}
-                        type="password"
-                        className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                        placeholder="Token da Evolution API"
-                      />
-                    </div>
-                    <div className="bg-green-50 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <QrCode className="w-4 h-4 text-green-600" />
-                        <span className="text-[12px] font-semibold text-green-700">Conexão via QR Code</span>
-                      </div>
-                      <p className="text-[11px] text-green-600">
-                        Após salvar, você poderá escanear o QR Code para conectar o WhatsApp.
-                      </p>
-                    </div>
-                  </>
-                )}
-
-                {/* Instagram OAuth */}
-                {selectedType.type === 'instagram' && (
-                  <>
-                    <div className="bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl p-6 text-center">
-                      <div className="mb-4">
-                        <svg viewBox="0 0 32 32" className="w-16 h-16 mx-auto">
-                          <defs>
-                            <linearGradient id="ig2" x1="0%" y1="100%" x2="100%" y2="0%">
-                              <stop offset="0%" stopColor="#FFC107"/>
-                              <stop offset="50%" stopColor="#F44336"/>
-                              <stop offset="100%" stopColor="#9C27B0"/>
-                            </linearGradient>
-                          </defs>
-                          <rect width="32" height="32" rx="8" fill="url(#ig2)"/>
-                          <rect x="7" y="7" width="18" height="18" rx="5" stroke="white" strokeWidth="1.8" fill="none"/>
-                          <circle cx="16" cy="16" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
-                          <circle cx="22" cy="10" r="1.3" fill="white"/>
-                        </svg>
-                      </div>
-                      <h3 className="text-[14px] font-bold text-gray-900 mb-1">Conectar com Instagram</h3>
-                      <p className="text-[12px] text-gray-500 mb-4">Faça login na sua conta do Instagram para conectar automaticamente</p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await api.get('/oauth/meta/url?channel_type=instagram');
-                            window.location.href = res.data.url;
-                          } catch (err) {
-                            alert('Erro ao gerar URL de login');
-                          }
-                        }}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white text-[13px] font-semibold hover:opacity-90 transition-all"
-                      >
-                        Entrar com Instagram
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Messenger OAuth */}
-                {selectedType.type === 'messenger' && (
-                  <>
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 text-center">
-                      <div className="mb-4">
-                        <svg viewBox="0 0 32 32" className="w-16 h-16 mx-auto">
-                          <circle cx="16" cy="16" r="16" fill="#0084FF"/>
-                          <path d="M16 7C11 7 7 10.7 7 15.3c0 2.6 1.3 4.9 3.3 6.4v3.3l3.1-1.7c.8.2 1.7.3 2.6.3 5 0 9-3.7 9-8.3S21 7 16 7zm.9 11.2l-2.3-2.5-4.5 2.5 5-5.3 2.4 2.5 4.4-2.5-4.9 5.3z" fill="white"/>
-                        </svg>
-                      </div>
-                      <h3 className="text-[14px] font-bold text-gray-900 mb-1">Conectar com Messenger</h3>
-                      <p className="text-[12px] text-gray-500 mb-4">Faça login no Facebook para conectar o Messenger da sua Página</p>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await api.get('/oauth/meta/url?channel_type=messenger');
-                            window.location.href = res.data.url;
-                          } catch (err) {
-                            alert('Erro ao gerar URL de login');
-                          }
-                        }}
-                        className="w-full py-3 rounded-xl bg-[#0084FF] text-white text-[13px] font-semibold hover:bg-[#006AFF] transition-all"
-                      >
-                        Entrar com Facebook
-                      </button>
-                    </div>
-                  </>
-                )}
-
-                {/* Actions */}
-                {selectedType.type === 'whatsapp' && (
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => { setShowConfigModal(false); resetForm(); }}
-                      className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-all"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={saveChannel}
-                      disabled={saving || !formName}
-                      className="flex-1 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                      {saving ? 'Salvando...' : 'Conectar Canal'}
-                    </button>
-                  </div>
-                )}
-                {selectedType.type !== 'whatsapp' && (
+                <div className="flex gap-3">
                   <button
-                    onClick={() => { setShowConfigModal(false); resetForm(); }}
-                    className="w-full py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-all"
+                    onClick={() => setShowNewModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-all"
                   >
                     Cancelar
+                  </button>
+                  <button
+                    onClick={createEvolutionInstance}
+                    disabled={saving || !formName.trim()}
+                    className="flex-1 py-2.5 rounded-xl bg-[#25D366] text-white text-[13px] font-medium hover:bg-[#1fb855] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4" />}
+                    {saving ? 'Criando...' : 'Gerar QR Code'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: QR Code */}
+        {showQRModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => { setShowQRModal(false); if (pollingRef.current) clearInterval(pollingRef.current); }}>
+            <div className="bg-white rounded-2xl w-[400px] shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="p-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {qrStatus === 'connected' ? 'Conectado!' : 'Escaneie o QR Code'}
+                  </h2>
+                  <button
+                    onClick={() => { setShowQRModal(false); if (pollingRef.current) clearInterval(pollingRef.current); }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* QR Code Display */}
+                <div className="flex flex-col items-center">
+                  {qrStatus === 'loading' && (
+                    <div className="w-64 h-64 flex items-center justify-center bg-gray-50 rounded-2xl">
+                      <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    </div>
+                  )}
+
+                  {qrStatus === 'scanning' && qrCode && (
+                    <>
+                      <div className="bg-white p-3 rounded-2xl border-2 border-green-200">
+                        <img src={qrCode} alt="QR Code WhatsApp" className="w-60 h-60 rounded-lg" />
+                      </div>
+                      <div className="flex items-center gap-2 mt-4 text-amber-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-[13px] font-medium">Aguardando leitura do QR Code...</span>
+                      </div>
+                    </>
+                  )}
+
+                  {qrStatus === 'connected' && (
+                    <div className="w-64 h-64 flex flex-col items-center justify-center bg-emerald-50 rounded-2xl">
+                      <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                        <Wifi className="w-8 h-8 text-emerald-600" />
+                      </div>
+                      <p className="text-lg font-bold text-emerald-700">WhatsApp Conectado!</p>
+                      <p className="text-[13px] text-emerald-500 mt-1">Tudo pronto para usar</p>
+                    </div>
+                  )}
+
+                  {qrStatus === 'error' && (
+                    <div className="w-64 h-64 flex flex-col items-center justify-center bg-red-50 rounded-2xl">
+                      <p className="text-sm text-red-600 mb-3">Erro ao gerar QR Code</p>
+                      <button
+                        onClick={() => fetchQRCode(qrInstanceName)}
+                        className="px-4 py-2 rounded-lg bg-red-100 text-red-700 text-[13px] font-medium hover:bg-red-200 transition-all flex items-center gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Tentar novamente
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {qrStatus === 'scanning' && (
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <p className="text-[12px] font-semibold text-gray-700">Como conectar:</p>
+                    <p className="text-[11px] text-gray-500">1. Abra o WhatsApp no celular</p>
+                    <p className="text-[11px] text-gray-500">2. Toque em ⋮ Menu → Aparelhos Conectados</p>
+                    <p className="text-[11px] text-gray-500">3. Toque em "Conectar aparelho"</p>
+                    <p className="text-[11px] text-gray-500">4. Aponte a câmera para o QR Code acima</p>
+                  </div>
+                )}
+
+                {/* Refresh QR button */}
+                {qrStatus === 'scanning' && (
+                  <button
+                    onClick={() => fetchQRCode(qrInstanceName)}
+                    className="w-full py-2.5 rounded-xl border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Atualizar QR Code
                   </button>
                 )}
               </div>
