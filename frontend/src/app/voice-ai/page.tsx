@@ -31,6 +31,7 @@ interface DashboardData {
 
 interface CallData {
   id: number;
+  campaign: string | null;
   lead_name: string;
   to_number: string;
   course: string;
@@ -558,6 +559,18 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
             </div>
           </div>
 
+
+          {/* Audio Player */}
+          {call.campaign && (
+            <div className="bg-white/[0.03] rounded-xl p-4">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                🎙️ Gravação da Ligação
+              </h4>
+              <audio controls className="w-full" preload="none">
+                <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/voice-ai-el/calls/${call.id}/audio`} type="audio/mpeg" />
+              </audio>
+            </div>
+          )}
           {/* Summary */}
           {call.summary && (
             <div className="bg-white/[0.03] rounded-xl p-4">
