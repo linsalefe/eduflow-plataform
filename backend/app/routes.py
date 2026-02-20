@@ -195,10 +195,16 @@ async def get_channel(channel_id: int, db: AsyncSession) -> Channel:
 @router.post("/send/text")
 async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
     channel = await get_channel(req.channel_id, db)
-    result = await send_text_message(req.to, req.text, channel.phone_number_id, channel.whatsapp_token)
 
-    if "messages" in result:
-        wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
+    # Evolution API
+    if channel.provider == "evolution" and channel.instance_name:
+        from app.evolution.client import send_text as evo_send
+        result = await evo_send(channel.instance_name, req.to, req.text)
+
+        # Salvar mensagem no banco
+        import uuid
+        wa_id = req.to.replace("+", "").replace("-", "").replace(" ", "")
+        msg_id = result.get("key", {}).get("id", str(uuid.uuid4()))
 
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
@@ -207,6 +213,30 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
             db.add(contact)
             await db.flush()
 
+        message = Message(
+            wa_message_id=msg_id,
+            contact_wa_id=wa_id,
+            channel_id=req.channel_id,
+            direction="outbound",
+            message_type="text",
+            content=req.text,
+            timestamp=datetime.now(SP_TZ).replace(tzinfo=None),
+            status="sent",
+        )
+        db.add(message)
+        await db.commit()
+        return result
+
+    # API Oficial (Meta)
+    result = await send_text_message(req.to, req.text, channel.phone_number_id, channel.whatsapp_token)
+    if "messages" in result:
+        wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+        contact = contact_result.scalar_one_or_none()
+        if not contact:
+            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id)
+            db.add(contact)
+            await db.flush()
         message = Message(
             wa_message_id=result["messages"][0]["id"],
             contact_wa_id=wa_id,
@@ -219,9 +249,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
         )
         db.add(message)
         await db.commit()
-
     return result
-
 
 @router.post("/send/template")
 async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get_db)):
