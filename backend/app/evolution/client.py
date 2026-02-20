@@ -1,0 +1,122 @@
+"""
+Client para Evolution API v2.x
+Gerencia instâncias, QR code, status e envio de mensagens.
+"""
+import httpx
+from app.evolution.config import EVOLUTION_API_URL, EVOLUTION_API_KEY, EDUFLOW_WEBHOOK_URL
+
+
+HEADERS = {
+    "apikey": EVOLUTION_API_KEY,
+    "Content-Type": "application/json",
+}
+
+
+async def create_instance(instance_name: str) -> dict:
+    """Cria uma instância no Evolution API e configura o webhook."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Criar instância
+        res = await client.post(
+            f"{EVOLUTION_API_URL}/instance/create",
+            headers=HEADERS,
+            json={
+                "instanceName": instance_name,
+                "integration": "WHATSAPP-BAILEYS",
+                "qrcode": True,
+                "rejectCall": False,
+                "groupsIgnore": True,
+                "alwaysOnline": False,
+                "readMessages": False,
+                "readStatus": False,
+                "syncFullHistory": False,
+            },
+        )
+        data = res.json()
+
+        # Configurar webhook
+        await client.post(
+            f"{EVOLUTION_API_URL}/webhook/set/{instance_name}",
+            headers=HEADERS,
+            json={
+                "webhook": {
+                    "enabled": True,
+                    "url": f"{EDUFLOW_WEBHOOK_URL}/{instance_name}",
+                    "webhookByEvents": False,
+                    "webhookBase64": False,
+                    "events": [
+                        "MESSAGES_UPSERT",
+                        "CONNECTION_UPDATE",
+                        "QRCODE_UPDATED",
+                    ],
+                }
+            },
+        )
+
+        return data
+
+
+async def get_instance_status(instance_name: str) -> dict:
+    """Verifica o status de conexão da instância."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.get(
+            f"{EVOLUTION_API_URL}/instance/connectionState/{instance_name}",
+            headers=HEADERS,
+        )
+        return res.json()
+
+
+async def get_qrcode(instance_name: str) -> dict:
+    """Busca o QR code da instância."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.get(
+            f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
+            headers=HEADERS,
+        )
+        return res.json()
+
+
+async def delete_instance(instance_name: str) -> dict:
+    """Deleta uma instância."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.delete(
+            f"{EVOLUTION_API_URL}/instance/delete/{instance_name}",
+            headers=HEADERS,
+        )
+        return res.json()
+
+
+async def logout_instance(instance_name: str) -> dict:
+    """Desconecta o WhatsApp da instância (sem deletar)."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.delete(
+            f"{EVOLUTION_API_URL}/instance/logout/{instance_name}",
+            headers=HEADERS,
+        )
+        return res.json()
+
+
+async def send_text(instance_name: str, to: str, text: str) -> dict:
+    """Envia mensagem de texto via WhatsApp."""
+    # Formata número (remove +, adiciona @s.whatsapp.net)
+    number = to.replace("+", "").replace("-", "").replace(" ", "")
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.post(
+            f"{EVOLUTION_API_URL}/message/sendText/{instance_name}",
+            headers=HEADERS,
+            json={
+                "number": number,
+                "text": text,
+            },
+        )
+        return res.json()
+
+
+async def list_instances() -> list:
+    """Lista todas as instâncias criadas."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.get(
+            f"{EVOLUTION_API_URL}/instance/fetchInstances",
+            headers=HEADERS,
+        )
+        return res.json()
