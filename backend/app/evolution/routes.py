@@ -141,6 +141,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
         event = payload.get("event", "")
 
         print(f"📩 Evolution webhook [{instance_name}]: {event}")
+        print(f"📦 Payload: {payload}")
 
         # Atualizar status de conexão
         if event == "CONNECTION_UPDATE":
