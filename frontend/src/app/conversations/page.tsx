@@ -131,6 +131,7 @@ export default function ConversationsPage() {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [profilePics, setProfilePics] = useState<Record<string, string | null>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -191,10 +192,25 @@ export default function ConversationsPage() {
         const updated = res.data.find((c: Contact) => c.wa_id === selectedContact.wa_id);
         if (updated) setSelectedContact(updated);
       }
+      // Carregar fotos de perfil dos contatos novos
+      if (activeChannel) {
+        const newContacts = res.data.filter((c: Contact) => !(c.wa_id in profilePics));
+        newContacts.forEach((c: Contact) => loadProfilePic(c.wa_id));
+      }
     } catch (err) {
       console.error('Erro:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfilePic = async (waId: string) => {
+    try {
+      const channelId = activeChannel?.id || 1;
+      const res = await api.get(`/contacts/${waId}/picture?channel_id=${channelId}`);
+      setProfilePics(prev => ({ ...prev, [waId]: res.data.profilePictureUrl || null }));
+    } catch {
+      setProfilePics(prev => ({ ...prev, [waId]: null }));
     }
   };
 
@@ -712,9 +728,13 @@ export default function ConversationsPage() {
                       }`}
                     >
                       <div className="relative flex-shrink-0">
-                        <div className={`w-[49px] h-[49px] rounded-full bg-gradient-to-br ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-sm`}>
-                          {getInitials(contact.name || contact.wa_id)}
-                        </div>
+                        {profilePics[contact.wa_id] ? (
+                          <img src={profilePics[contact.wa_id]!} alt="" className="w-[49px] h-[49px] rounded-full object-cover" />
+                        ) : (
+                          <div className={`w-[49px] h-[49px] rounded-full bg-gradient-to-br ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-sm`}>
+                            {getInitials(contact.name || contact.wa_id)}
+                          </div>
+                        )}
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${st.color} rounded-full border-2 border-[#111b21]`} />
                       </div>
 
@@ -773,9 +793,13 @@ export default function ConversationsPage() {
                     <ArrowLeft className="w-5 h-5 text-[#8696a0]" />
                   </button>
 
-                  <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-semibold text-xs`}>
-                    {getInitials(selectedContact.name || selectedContact.wa_id)}
-                  </div>
+                  {profilePics[selectedContact.wa_id] ? (
+                    <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-semibold text-xs`}>
+                      {getInitials(selectedContact.name || selectedContact.wa_id)}
+                    </div>
+                  )}
 
                   <div>
                     <p className="font-normal text-[15px] text-[#e9edef]">{selectedContact.name || selectedContact.wa_id}</p>
@@ -1032,9 +1056,13 @@ export default function ConversationsPage() {
 
                       {/* Perfil */}
                       <div className="text-center pb-5 border-b border-[#2a3942]">
-                        <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
-                          {getInitials(selectedContact.name || selectedContact.wa_id)}
-                        </div>
+                        {profilePics[selectedContact.wa_id] ? (
+                          <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-16 h-16 rounded-full object-cover shadow-md mx-auto" />
+                        ) : (
+                          <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
+                            {getInitials(selectedContact.name || selectedContact.wa_id)}
+                          </div>
+                        )}
                         <p className="font-semibold text-[#e9edef] mt-3 text-[15px]">{selectedContact.name || selectedContact.wa_id}</p>
                         <div className="flex items-center justify-center gap-1.5 mt-1.5 text-[#8696a0]">
                           <Phone className="w-3.5 h-3.5" />
