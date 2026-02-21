@@ -22,6 +22,7 @@ import {
   Calendar,
   X,
   Search,
+  Download,
 } from 'lucide-react';
 
 const menuGroups = [
@@ -31,6 +32,7 @@ const menuGroups = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
       { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+      { href: '/relatorios', label: 'Relatórios', icon: Download },
     ],
   },
   {
@@ -171,7 +173,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
               {group.items.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 const Icon = item.icon;
-                const showBadge = item.hasBadge && unreadCount > 0;
+                const showBadge = (item as any).hasBadge && unreadCount > 0;
 
                 return (
                   <div key={item.href} className="relative group">
