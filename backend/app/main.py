@@ -14,6 +14,7 @@ from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
+from app.export_routes import router as export_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
 from app.evolution.routes import router as evolution_router
@@ -132,6 +133,7 @@ app.include_router(voice_ai_el_router)
 app.include_router(voice_ai_router)
 app.include_router(evolution_router)
 app.include_router(schedule_router)
+app.include_router(export_router)
 
 @app.get("/webhook")
 async def verify_webhook(
