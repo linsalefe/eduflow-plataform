@@ -384,10 +384,10 @@ export default function ConversationsPage() {
   const formatFullDate = (ts: string) => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const getStatusIcon = (s: string) => {
     switch (s) {
-      case 'sent': return <Check className="w-3.5 h-3.5 text-gray-400" />;
-      case 'delivered': return <CheckCheck className="w-3.5 h-3.5 text-gray-400" />;
-      case 'read': return <CheckCheck className="w-3.5 h-3.5 text-blue-400" />;
-      default: return <Clock className="w-3.5 h-3.5 text-gray-400" />;
+      case 'sent': return <Check className="w-3.5 h-3.5 text-[#8696a0]" />;
+      case 'delivered': return <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />;
+      case 'read': return <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />;
+      default: return <Clock className="w-3.5 h-3.5 text-[#8696a0]" />;
     }
   };
   const getStatusConfig = (s: string) => leadStatuses.find(x => x.value === s) || leadStatuses[0];
@@ -634,10 +634,10 @@ export default function ConversationsPage() {
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className="px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between">
+              <div className="px-4 py-2.5 border-b border-[#2a3942] bg-[#202c33] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setSelectedContact(null)} className="lg:hidden p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                    <ArrowLeft className="w-5 h-5 text-gray-500" />
+                  <button onClick={() => setSelectedContact(null)} className="lg:hidden p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
+                    <ArrowLeft className="w-5 h-5 text-[#8696a0]" />
                   </button>
 
                   <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-semibold text-xs`}>
@@ -645,9 +645,9 @@ export default function ConversationsPage() {
                   </div>
 
                   <div>
-                    <p className="font-semibold text-[14px] text-[#27273D]">{selectedContact.name || selectedContact.wa_id}</p>
+                    <p className="font-normal text-[15px] text-[#e9edef]">{selectedContact.name || selectedContact.wa_id}</p>
                     <div className="flex items-center gap-2">
-                      <span className="text-[12px] text-gray-400">+{selectedContact.wa_id}</span>
+                      <span className="text-[12px] text-[#8696a0]">+{selectedContact.wa_id}</span>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-md ${getStatusConfig(selectedContact.lead_status).bg} ${getStatusConfig(selectedContact.lead_status).text}`}>
                         {getStatusConfig(selectedContact.lead_status).label}
                       </span>
@@ -655,14 +655,14 @@ export default function ConversationsPage() {
                   </div>
                 </div>
 
-                {/* ✅ ALTERAÇÃO 1: Botão Ligar + botão CRM */}
+                {/* Botão Ligar + botão CRM */}
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => {
                       const phone = selectedContact?.wa_id || '';
                       window.dispatchEvent(new CustomEvent('eduflow-call', { detail: { phone } }));
                     }}
-                    className="p-2 rounded-xl hover:bg-green-50 text-gray-400 hover:text-green-600 transition-all duration-200"
+                    className="p-2 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#00a884] transition-all duration-200"
                     title="Ligar para o lead"
                   >
                     <Phone className="w-5 h-5" />
@@ -670,10 +670,10 @@ export default function ConversationsPage() {
 
                   <button
                     onClick={() => setShowCRM(!showCRM)}
-                    className={`p-2 rounded-xl transition-all duration-200 ${
+                    className={`p-2 rounded-full transition-all duration-200 ${
                       showCRM
-                        ? 'bg-[#6366f1]/10 text-[#6366f1]'
-                        : 'hover:bg-gray-100 text-gray-400'
+                        ? 'bg-[#2a3942] text-[#00a884]'
+                        : 'hover:bg-[#2a3942] text-[#8696a0]'
                     }`}
                     title="Painel CRM"
                   >
@@ -686,35 +686,35 @@ export default function ConversationsPage() {
 
                 {/* Messages */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-[#eef0f3]">
+                  <div className="flex-1 overflow-y-auto px-[4%] py-4 space-y-1 bg-[#0b141a]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
                     {groupedMessages.map((group) => (
                       <div key={group.date}>
                         <div className="flex justify-center my-3">
-                          <span className="px-3 py-1 bg-white rounded-lg text-[11px] text-gray-500 shadow-sm font-medium">
+                          <span className="px-3 py-1.5 bg-[#182229] rounded-lg text-[12px] text-[#8696a0] shadow-sm font-normal">
                             {group.date}
                           </span>
                         </div>
 
                         {group.msgs.map((msg) => (
-                          <div key={msg.id} className={`flex mb-1.5 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[70%] px-3.5 py-2 shadow-sm ${
+                          <div key={msg.id} className={`flex mb-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[65%] px-2.5 py-1.5 shadow-sm relative ${
                               msg.direction === 'outbound'
-                                ? 'bg-[#6366f1] text-white rounded-2xl rounded-br-md'
-                                : 'bg-white text-gray-800 rounded-2xl rounded-bl-md'
+                                ? 'bg-[#005c4b] text-[#e9edef] rounded-lg rounded-tr-none'
+                                : 'bg-[#202c33] text-[#e9edef] rounded-lg rounded-tl-none'
                             }`}>
                               {msg.type === 'image' && msg.content.startsWith('media:') ? (
                                 <img
                                   src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
                                   alt={msg.content.split('|')[2] || 'Imagem'}
-                                  className="max-w-[250px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                  className="max-w-[280px] rounded-md cursor-pointer hover:opacity-90 transition-opacity"
                                   onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`, '_blank')}
                                 />
                               ) : msg.type === 'audio' && msg.content.startsWith('media:') ? (
-                                <audio controls className="max-w-[250px]">
+                                <audio controls className="max-w-[280px]">
                                   <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`} type={msg.content.split('|')[1] || 'audio/ogg'} />
                                 </audio>
                               ) : msg.type === 'video' && msg.content.startsWith('media:') ? (
-                                <video controls className="max-w-[250px] rounded-lg">
+                                <video controls className="max-w-[280px] rounded-md">
                                   <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`} type={msg.content.split('|')[1] || 'video/mp4'} />
                                 </video>
                               ) : msg.type === 'sticker' && msg.content.startsWith('media:') ? (
@@ -728,17 +728,17 @@ export default function ConversationsPage() {
                                   href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-white/90' : 'text-[#6366f1]'} underline text-sm`}
+                                  className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-[#8fdfcc]' : 'text-[#53bdeb]'} underline text-sm`}
                                 >
                                   📄 {msg.content.split('|')[2] || 'Documento'}
                                 </a>
                               ) : (
-                                <p className="text-[13.5px] whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                                <p className="text-[14.2px] whitespace-pre-wrap break-words leading-[19px]">{msg.content}</p>
                               )}
 
-                              <div className={`flex items-center justify-end gap-1 mt-0.5 ${msg.direction === 'outbound' ? 'text-white/50' : 'text-gray-400'}`}>
+                              <div className={`flex items-center justify-end gap-1 mt-0.5 ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>
                                 {msg.sent_by_ai && <span className="text-[10px] font-medium">🤖 Nat</span>}
-                                <span className="text-[10px] tabular-nums">{formatTime(msg.timestamp)}</span>
+                                <span className="text-[11px] tabular-nums">{formatTime(msg.timestamp)}</span>
                                 {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                               </div>
                             </div>
@@ -750,22 +750,22 @@ export default function ConversationsPage() {
                   </div>
 
                   {/* Input */}
-                  <div className="px-4 py-3 border-t border-gray-100 bg-white">
+                  <div className="px-3 py-2 bg-[#202c33]">
                     <div className="flex items-end gap-2">
                       <textarea
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={handleKeyPress}
-                        placeholder="Digite uma mensagem..."
+                        placeholder="Digite uma mensagem"
                         rows={1}
-                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 resize-none focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
+                        className="flex-1 px-3 py-2.5 bg-[#2a3942] rounded-lg text-[14px] text-[#e9edef] placeholder:text-[#8696a0] resize-none focus:outline-none transition-all"
                       />
                       <button
                         onClick={handleSend}
                         disabled={!newMessage.trim() || sending}
-                        className="flex items-center justify-center w-10 h-10 bg-[#6366f1] rounded-xl text-white hover:bg-[#4f46e5] active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100 flex-shrink-0"
+                        className="flex items-center justify-center w-[42px] h-[42px] bg-[#00a884] rounded-full text-white hover:bg-[#06cf9c] active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100 flex-shrink-0"
                       >
-                        {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
@@ -773,21 +773,21 @@ export default function ConversationsPage() {
 
                 {/* CRM PANEL */}
                 {showCRM && (
-                  <div className="w-[300px] border-l border-gray-100 bg-white overflow-y-auto flex-shrink-0 hidden xl:block">
+                  <div className="w-[300px] border-l border-[#2a3942] bg-[#111b21] overflow-y-auto flex-shrink-0 hidden xl:block">
                     <div className="p-5 space-y-6">
 
                       {/* Perfil */}
-                      <div className="text-center pb-5 border-b border-gray-100">
-                        <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
+                      <div className="text-center pb-5 border-b border-[#2a3942]">
+                        <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
                           {getInitials(selectedContact.name || selectedContact.wa_id)}
                         </div>
-                        <p className="font-semibold text-[#27273D] mt-3 text-[15px]">{selectedContact.name || selectedContact.wa_id}</p>
-                        <div className="flex items-center justify-center gap-1.5 mt-1.5 text-gray-400">
+                        <p className="font-semibold text-[#e9edef] mt-3 text-[15px]">{selectedContact.name || selectedContact.wa_id}</p>
+                        <div className="flex items-center justify-center gap-1.5 mt-1.5 text-[#8696a0]">
                           <Phone className="w-3.5 h-3.5" />
                           <span className="text-[12px]">+{selectedContact.wa_id}</span>
                         </div>
                         {selectedContact.created_at && (
-                          <div className="flex items-center justify-center gap-1.5 mt-1 text-gray-400">
+                          <div className="flex items-center justify-center gap-1.5 mt-1 text-[#8696a0]">
                             <Calendar className="w-3.5 h-3.5" />
                             <span className="text-[11px]">Desde {formatFullDate(selectedContact.created_at)}</span>
                           </div>
@@ -795,24 +795,24 @@ export default function ConversationsPage() {
                       </div>
 
                       {/* Toggle IA */}
-                      <div className="pb-4 border-b border-gray-100">
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Agente IA (Nat)</p>
+                      <div className="pb-4 border-b border-[#2a3942]">
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Agente IA (Nat)</p>
                         <button
                           onClick={toggleAI}
                           disabled={togglingAI}
                           className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${
-                            selectedContact.ai_active ? "border-emerald-200 bg-emerald-50" : "border-gray-200 bg-gray-50"
+                            selectedContact.ai_active ? "border-[#00a884]/30 bg-[#00a884]/10" : "border-[#2a3942] bg-[#202c33]"
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-[16px]">{selectedContact.ai_active ? "🤖" : "👤"}</span>
                             <span className={`text-[13px] font-medium ${
-                              selectedContact.ai_active ? "text-emerald-700" : "text-gray-500"
+                              selectedContact.ai_active ? "text-[#00a884]" : "text-[#8696a0]"
                             }`}>
                               {selectedContact.ai_active ? "IA Ativa" : "IA Desligada"}
                             </span>
                           </div>
-                          <div className={`w-10 h-5 rounded-full transition-all ${selectedContact.ai_active ? "bg-emerald-500" : "bg-gray-300"} relative`}>
+                          <div className={`w-10 h-5 rounded-full transition-all ${selectedContact.ai_active ? "bg-[#00a884]" : "bg-[#3b4a54]"} relative`}>
                             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${selectedContact.ai_active ? "left-5" : "left-0.5"}`} />
                           </div>
                         </button>
@@ -820,7 +820,7 @@ export default function ConversationsPage() {
 
                       {/* Status do Lead */}
                       <div>
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status do Lead</p>
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Status do Lead</p>
                         <div className="relative">
                           <button
                             onClick={() => setShowStatusMenu(!showStatusMenu)}
@@ -832,19 +832,19 @@ export default function ConversationsPage() {
                                 {getStatusConfig(selectedContact.lead_status).label}
                               </span>
                             </div>
-                            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
                           </button>
 
                           {showStatusMenu && (
-                            <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl border border-gray-200 shadow-lg z-10 overflow-hidden">
+                            <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
                               {leadStatuses.map(s => (
                                 <button
                                   key={s.value}
                                   onClick={() => updateLeadStatus(s.value)}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left"
                                 >
                                   <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
-                                  <span className="text-[13px] text-gray-700">{s.label}</span>
+                                  <span className="text-[13px] text-[#e9edef]">{s.label}</span>
                                 </button>
                               ))}
                             </div>
@@ -854,7 +854,7 @@ export default function ConversationsPage() {
 
                       {/* Tags */}
                       <div>
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Tags</p>
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Tags</p>
                         <div className="flex flex-wrap gap-1.5 mb-2">
                           {selectedContact.tags.map(tag => {
                             const tc = getTagColorConfig(tag.color);
@@ -869,12 +869,12 @@ export default function ConversationsPage() {
                           })}
                         </div>
 
-                        <button onClick={() => setShowTagMenu(!showTagMenu)} className="flex items-center gap-1 text-[12px] text-[#6366f1] hover:text-[#1a4a6e] font-medium transition-colors">
+                        <button onClick={() => setShowTagMenu(!showTagMenu)} className="flex items-center gap-1 text-[12px] text-[#00a884] hover:text-[#06cf9c] font-medium transition-colors">
                           <Plus className="w-3.5 h-3.5" /> Adicionar tag
                         </button>
 
                         {showTagMenu && (
-                          <div className="mt-2 bg-gray-50 rounded-xl p-3 space-y-2 border border-gray-100">
+                          <div className="mt-2 bg-[#202c33] rounded-xl p-3 space-y-2 border border-[#2a3942]">
                             {allTags.filter(t => !selectedContact.tags.find(ct => ct.id === t.id)).map(tag => {
                               const tc = getTagColorConfig(tag.color);
                               return (
@@ -888,27 +888,27 @@ export default function ConversationsPage() {
                               );
                             })}
 
-                            <div className="pt-2 border-t border-gray-200">
-                              <p className="text-[10px] text-gray-400 uppercase font-semibold mb-1.5 tracking-wider">Criar nova tag</p>
+                            <div className="pt-2 border-t border-[#2a3942]">
+                              <p className="text-[10px] text-[#8696a0] uppercase font-semibold mb-1.5 tracking-wider">Criar nova tag</p>
                               <input
                                 value={newTagName}
                                 onChange={(e) => setNewTagName(e.target.value)}
                                 placeholder="Nome da tag"
-                                className="w-full px-2.5 py-1.5 text-[12px] text-gray-800 bg-white border border-gray-200 rounded-lg outline-none focus:border-[#6366f1] transition-colors"
+                                className="w-full px-2.5 py-1.5 text-[12px] text-[#e9edef] bg-[#2a3942] border border-[#3b4a54] rounded-lg outline-none focus:border-[#00a884] transition-colors"
                               />
                               <div className="flex gap-1.5 mt-2">
                                 {tagColors.map(c => (
                                   <button
                                     key={c.value}
                                     onClick={() => setNewTagColor(c.value)}
-                                    className={`w-5 h-5 rounded-full ${c.bg} transition-all ${newTagColor === c.value ? 'ring-2 ring-offset-1 ring-[#6366f1] scale-110' : 'hover:scale-105'}`}
+                                    className={`w-5 h-5 rounded-full ${c.bg} transition-all ${newTagColor === c.value ? 'ring-2 ring-offset-1 ring-offset-[#202c33] ring-[#00a884] scale-110' : 'hover:scale-105'}`}
                                   />
                                 ))}
                               </div>
                               <button
                                 onClick={() => { createTag(); setShowTagMenu(false); }}
                                 disabled={!newTagName.trim()}
-                                className="w-full mt-2.5 px-2.5 py-1.5 bg-[#6366f1] text-white text-[11px] font-medium rounded-lg disabled:opacity-40 hover:bg-[#4f46e5] transition-colors"
+                                className="w-full mt-2.5 px-2.5 py-1.5 bg-[#00a884] text-[#111b21] text-[11px] font-medium rounded-lg disabled:opacity-40 hover:bg-[#06cf9c] transition-colors"
                               >
                                 Criar tag
                               </button>
@@ -920,9 +920,9 @@ export default function ConversationsPage() {
                       {/* Notes */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Notas</p>
+                          <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider">Notas</p>
                           {!editingNotes && (
-                            <button onClick={() => setEditingNotes(true)} className="text-[12px] text-[#6366f1] font-medium hover:text-[#1a4a6e] transition-colors">
+                            <button onClick={() => setEditingNotes(true)} className="text-[12px] text-[#00a884] font-medium hover:text-[#06cf9c] transition-colors">
                               Editar
                             </button>
                           )}
@@ -934,21 +934,21 @@ export default function ConversationsPage() {
                               value={notesValue}
                               onChange={(e) => setNotesValue(e.target.value)}
                               rows={4}
-                              className="w-full px-3 py-2.5 text-[13px] text-gray-800 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-[#6366f1] focus:bg-white resize-none transition-all"
+                              className="w-full px-3 py-2.5 text-[13px] text-[#e9edef] bg-[#2a3942] border border-[#3b4a54] rounded-xl outline-none focus:border-[#00a884] resize-none transition-all"
                               placeholder="Adicione notas sobre este lead..."
                             />
                             <div className="flex gap-2 mt-2">
-                              <button onClick={saveNotes} className="px-3.5 py-1.5 bg-[#6366f1] text-white text-[11px] font-medium rounded-lg hover:bg-[#4f46e5] transition-colors">
+                              <button onClick={saveNotes} className="px-3.5 py-1.5 bg-[#00a884] text-[#111b21] text-[11px] font-medium rounded-lg hover:bg-[#06cf9c] transition-colors">
                                 Salvar
                               </button>
-                              <button onClick={() => { setEditingNotes(false); setNotesValue(selectedContact.notes || ''); }} className="px-3.5 py-1.5 text-gray-500 text-[11px] font-medium rounded-lg hover:bg-gray-100 transition-colors">
+                              <button onClick={() => { setEditingNotes(false); setNotesValue(selectedContact.notes || ''); }} className="px-3.5 py-1.5 text-[#8696a0] text-[11px] font-medium rounded-lg hover:bg-[#202c33] transition-colors">
                                 Cancelar
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-gray-50 rounded-xl p-3 min-h-[60px] border border-gray-100">
-                            <p className="text-[13px] text-gray-500 whitespace-pre-wrap leading-relaxed">{selectedContact.notes || 'Sem notas'}</p>
+                          <div className="bg-[#202c33] rounded-xl p-3 min-h-[60px] border border-[#2a3942]">
+                            <p className="text-[13px] text-[#8696a0] whitespace-pre-wrap leading-relaxed">{selectedContact.notes || 'Sem notas'}</p>
                           </div>
                         )}
                       </div>
@@ -959,62 +959,64 @@ export default function ConversationsPage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center bg-[#eef0f3]">
-              <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mb-5 shadow-sm border border-gray-100">
-                <MessageCircle className="w-9 h-9 text-gray-300" />
+            <div className="flex-1 flex flex-col items-center justify-center bg-[#222e35]">
+              <div className="w-20 h-20 bg-[#2a3942] rounded-full flex items-center justify-center mb-5">
+                <MessageCircle className="w-9 h-9 text-[#8696a0]" />
               </div>
-              <p className="text-lg font-semibold text-[#27273D]">EduFlow</p>
-              <p className="text-sm mt-1 text-gray-400">Selecione uma conversa para começar</p>
+              <p className="text-[28px] font-light text-[#e9edef]">EduFlow</p>
+              <p className="text-sm mt-2 text-[#8696a0]">Selecione uma conversa para começar</p>
+              <div className="mt-6 w-[500px] h-[1px] bg-[#2a3942]" />
+              <p className="text-[13px] mt-4 text-[#8696a0]">🔒 Suas mensagens são gerenciadas com segurança</p>
             </div>
           )}
         </div>
 
         {/* MODAL NOVA CONVERSA */}
         {showNewChat && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowNewChat(false)}>
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl mx-4 max-h-[90vh] overflow-y-auto border border-gray-100" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowNewChat(false)}>
+            <div className="bg-[#111b21] rounded-lg p-6 w-full max-w-lg shadow-2xl mx-4 max-h-[90vh] overflow-y-auto border border-[#2a3942]" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold text-[#27273D]">Nova Conversa</h2>
-                <button onClick={() => { setShowNewChat(false); setSelectedTemplate(null); setTemplateParams([]); }} className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-gray-400" />
+                <h2 className="text-lg font-normal text-[#e9edef]">Nova Conversa</h2>
+                <button onClick={() => { setShowNewChat(false); setSelectedTemplate(null); setTemplateParams([]); }} className="p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
+                  <X className="w-5 h-5 text-[#8696a0]" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Telefone do lead</label>
+                  <label className="block text-[13px] font-medium text-[#8696a0] mb-1.5">Telefone do lead</label>
                   <input
                     type="text"
                     value={newChatPhone}
                     onChange={e => setNewChatPhone(e.target.value)}
                     placeholder="5583988001234"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-[#2a3942] border border-[#3b4a54] rounded-lg text-sm text-[#e9edef] placeholder:text-[#8696a0] focus:border-[#00a884] outline-none transition-all"
                   />
-                  <p className="text-[11px] text-gray-400 mt-1">DDD + número com 9 (sem espaços)</p>
+                  <p className="text-[11px] text-[#8696a0] mt-1">DDD + número com 9 (sem espaços)</p>
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Nome do lead</label>
+                  <label className="block text-[13px] font-medium text-[#8696a0] mb-1.5">Nome do lead</label>
                   <input
                     type="text"
                     value={newChatName}
                     onChange={e => setNewChatName(e.target.value)}
                     placeholder="Maria Silva"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
+                    className="w-full px-4 py-2.5 bg-[#2a3942] border border-[#3b4a54] rounded-lg text-sm text-[#e9edef] placeholder:text-[#8696a0] focus:border-[#00a884] outline-none transition-all"
                   />
                 </div>
 
                 {/* Seletor de Template */}
                 <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Template da mensagem</label>
+                  <label className="block text-[13px] font-medium text-[#8696a0] mb-1.5">Template da mensagem</label>
                   {loadingTemplates ? (
                     <div className="flex items-center justify-center py-4">
-                      <Loader2 className="w-5 h-5 text-[#6366f1] animate-spin" />
+                      <Loader2 className="w-5 h-5 text-[#00a884] animate-spin" />
                     </div>
                   ) : templates.length === 0 ? (
                     <button
                       onClick={loadTemplates}
-                      className="w-full py-2.5 border border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:border-[#6366f1] hover:text-[#6366f1] transition-colors"
+                      className="w-full py-2.5 border border-dashed border-[#3b4a54] rounded-lg text-sm text-[#8696a0] hover:border-[#00a884] hover:text-[#00a884] transition-colors"
                     >
                       Carregar templates disponíveis
                     </button>
@@ -1024,14 +1026,14 @@ export default function ConversationsPage() {
                         <button
                           key={t.name}
                           onClick={() => selectTemplate(t)}
-                          className={`w-full text-left px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                          className={`w-full text-left px-3.5 py-2.5 rounded-lg border text-sm transition-all ${
                             selectedTemplate?.name === t.name
-                              ? 'border-[#6366f1] bg-[#6366f1]/5 text-[#6366f1]'
-                              : 'border-gray-100 text-gray-700 hover:border-gray-200 hover:bg-gray-50'
+                              ? 'border-[#00a884] bg-[#00a884]/10 text-[#00a884]'
+                              : 'border-[#2a3942] text-[#e9edef] hover:border-[#3b4a54] hover:bg-[#202c33]'
                           }`}
                         >
                           <p className="font-medium text-[13px]">{t.name.replace(/_/g, ' ')}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">{t.language} • {t.parameters.length} variáveis</p>
+                          <p className="text-[11px] text-[#8696a0] mt-0.5">{t.language} • {t.parameters.length} variáveis</p>
                         </button>
                       ))}
                     </div>
@@ -1041,16 +1043,16 @@ export default function ConversationsPage() {
                 {/* Parâmetros do template */}
                 {selectedTemplate && selectedTemplate.parameters.length > 0 && (
                   <div className="space-y-3 pt-1">
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Preencher variáveis</p>
+                    <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider">Preencher variáveis</p>
                     {selectedTemplate.parameters.map((p: string, i: number) => (
                       <div key={i}>
-                        <label className="block text-[11px] text-gray-500 mb-1">{p} ({'{{'}{i + 1}{'}}'})</label>
+                        <label className="block text-[11px] text-[#8696a0] mb-1">{p} ({'{{'}{i + 1}{'}}'})</label>
                         <input
                           type="text"
                           value={templateParams[i] || ''}
                           onChange={e => updateParam(i, e.target.value)}
                           placeholder={`Valor para ${p}`}
-                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:bg-white outline-none transition-all"
+                          className="w-full px-3 py-2 bg-[#2a3942] border border-[#3b4a54] rounded-lg text-sm text-[#e9edef] placeholder:text-[#8696a0] focus:border-[#00a884] outline-none transition-all"
                         />
                       </div>
                     ))}
@@ -1059,10 +1061,10 @@ export default function ConversationsPage() {
 
                 {/* Preview */}
                 {selectedTemplate && (
-                  <div className="bg-[#eef0f3] rounded-xl p-4">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase mb-2 tracking-wider">Prévia da mensagem</p>
-                    <div className="bg-white rounded-xl px-3.5 py-2.5 shadow-sm border border-gray-100">
-                      <p className="text-[13px] text-gray-800 whitespace-pre-wrap leading-relaxed">{getPreview()}</p>
+                  <div className="bg-[#0b141a] rounded-lg p-4">
+                    <p className="text-[10px] font-semibold text-[#8696a0] uppercase mb-2 tracking-wider">Prévia da mensagem</p>
+                    <div className="bg-[#005c4b] rounded-lg px-3.5 py-2.5">
+                      <p className="text-[13px] text-[#e9edef] whitespace-pre-wrap leading-relaxed">{getPreview()}</p>
                     </div>
                   </div>
                 )}
@@ -1071,7 +1073,7 @@ export default function ConversationsPage() {
               <button
                 onClick={handleNewChat}
                 disabled={sendingTemplate || !newChatPhone.trim() || !newChatName.trim() || !selectedTemplate}
-                className="w-full mt-6 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
+                className="w-full mt-6 py-3 bg-[#00a884] text-[#111b21] font-medium rounded-lg hover:bg-[#06cf9c] active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
               >
                 {sendingTemplate ? (
                   <>
