@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import api from "@/lib/api";
 import {
   LayoutDashboard,
   MessageCircle,
@@ -13,26 +14,41 @@ import {
   ChevronRight,
   LogOut,
   Zap,
-  GitBranch,
   Radio,
   FileText,
   BarChart3,
   PhoneCall,
-  CalendarDays,
+  GitBranch,
+  Calendar,
   X,
 } from 'lucide-react';
 
-const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/conversations', label: 'Conversas', icon: MessageCircle },
-  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-  { href: '/users', label: 'Usuários', icon: Users },
-  { href: '/automacoes', label: 'Automações', icon: Zap },
-  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
-  { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
-  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
-  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/canais', label: 'Canais', icon: Radio },
+const menuGroups = [
+  {
+    label: 'Principal',
+    items: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
+      { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+    ],
+  },
+  {
+    label: 'Marketing',
+    items: [
+      { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
+      { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
+    ],
+  },
+  {
+    label: 'Configurações',
+    items: [
+      { href: '/users', label: 'Usuários', icon: Users },
+      { href: '/automacoes', label: 'Automações', icon: Zap },
+      { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
+      { href: '/agenda', label: 'Agenda', icon: Calendar },
+      { href: '/canais', label: 'Canais', icon: Radio },
+    ],
+  },
 ];
 
 interface SidebarProps {
@@ -45,6 +61,24 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const router = useRouter();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    try {
+      const res = await api.get('/contacts', { params: { limit: 200 } });
+      const contacts = res.data;
+      const count = contacts.filter((c: any) => c.unread > 0).length;
+      setUnreadCount(count);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 10000);
+    return () => clearInterval(interval);
+  }, [fetchUnread]);
 
   const handleLogout = () => {
     logout();
@@ -53,12 +87,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
   const getInitials = (name: string) =>
     name
-      ? name
-          .split(' ')
-          .map((n) => n[0])
-          .join('')
-          .toUpperCase()
-          .slice(0, 2)
+      ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
       : '??';
 
   const handleNavClick = () => {
@@ -106,43 +135,66 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       </div>
 
       {/* Navegação */}
-      <nav className="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
-        <p className={`text-[10px] font-semibold text-gray-600 uppercase tracking-widest px-3 mb-3 ${collapsed ? 'lg:hidden' : ''}`}>
-          Menu
-        </p>
+      <nav className="flex-1 py-4 px-3 space-y-5 overflow-y-auto">
+        {menuGroups.map((group) => (
+          <div key={group.label}>
+            <p className={`text-[10px] font-semibold text-gray-600 uppercase tracking-widest px-3 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                const Icon = item.icon;
+                const showBadge = item.hasBadge && unreadCount > 0;
 
-        {menuItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          const Icon = item.icon;
+                return (
+                  <div key={item.href} className="relative group">
+                    <Link
+                      href={item.href}
+                      onClick={handleNavClick}
+                      className={`
+                        relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium
+                        transition-all duration-200
+                        ${isActive ? 'bg-[#6366f1]/20 text-white' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'}
+                        ${collapsed ? 'lg:justify-center' : ''}
+                      `}
+                    >
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#6366f1] rounded-r-full" />
+                      )}
+                      <div className="relative flex-shrink-0">
+                        <Icon className={`w-[18px] h-[18px] transition-colors duration-200 ${isActive ? 'text-[#818cf8]' : 'text-gray-500 group-hover:text-gray-300'}`} />
+                        {showBadge && collapsed && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-[#00a884] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
+                      {showBadge && !collapsed && (
+                        <span className="ml-auto min-w-[20px] h-5 bg-[#00a884] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
 
-          return (
-            <div key={item.href} className="relative group">
-              <Link
-                href={item.href}
-                onClick={handleNavClick}
-                className={`
-                  relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium
-                  transition-all duration-200
-                  ${isActive ? 'bg-[#6366f1]/20 text-white' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'}
-                  ${collapsed ? 'lg:justify-center' : ''}
-                `}
-              >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#6366f1] rounded-r-full" />
-                )}
-                <Icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200 ${isActive ? 'text-[#818cf8]' : 'text-gray-500 group-hover:text-gray-300'}`} />
-                <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
-              </Link>
-
-              {collapsed && (
-                <div className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#1a2d42] text-white text-xs font-medium rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 border border-white/[0.06]">
-                  {item.label}
-                  <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1a2d42]" />
-                </div>
-              )}
+                    {collapsed && (
+                      <div className="hidden lg:block absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 bg-[#1a2d42] text-white text-xs font-medium rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 border border-white/[0.06]">
+                        {item.label}
+                        {showBadge && (
+                          <span className="ml-2 bg-[#00a884] text-white text-[9px] font-bold rounded-full px-1.5 py-0.5">
+                            {unreadCount}
+                          </span>
+                        )}
+                        <span className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1a2d42]" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </nav>
 
       {/* Rodapé */}
