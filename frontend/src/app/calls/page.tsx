@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 import {
   Phone,
   PhoneIncoming,
@@ -40,7 +41,7 @@ export default function CallsPage() {
       });
       setCalls(res.data);
     } catch (err) {
-      console.error('Erro ao buscar ligações:', err);
+      toast.error('Erro ao buscar ligações');
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import AppLayout from '@/components/AppLayout';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 import {
   PhoneCall, PhoneOff, PhoneForwarded, Calendar, Clock, TrendingUp,
@@ -175,7 +176,7 @@ export default function VoiceAIPage() {
       const res = await api.get('/voice-ai-el/dashboard?days=7', { headers });
       setDashboard(res.data);
     } catch (e) {
-      console.error('Erro ao buscar dashboard:', e);
+      toast.error('Erro ao buscar dashboard');
     }
   }, []);
 
@@ -188,7 +189,7 @@ export default function VoiceAIPage() {
       setCalls(res.data.calls);
       setTotalCalls(res.data.total);
     } catch (e) {
-      console.error('Erro ao buscar chamadas:', e);
+      toast.error('Erro ao buscar chamadas');
     }
   }, [filterOutcome]);
 
@@ -199,7 +200,7 @@ export default function VoiceAIPage() {
       setSelectedCall(res.data);
       setShowDetail(true);
     } catch (e) {
-      console.error('Erro ao buscar detalhes:', e);
+      toast.error('Erro ao buscar detalhes');
     }
   };
 
@@ -519,7 +520,7 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-4 lg:px-6 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
               <PhoneCall className="w-5 h-5 text-indigo-400" />
@@ -540,21 +541,21 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Stats Row */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-white/[0.03] rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-white">{call.score}</p>
+              <p className="text-xl lg:text-2xl font-bold text-white">{call.score}</p>
               <p className="text-[10px] text-gray-500 uppercase">Score</p>
             </div>
             <div className="bg-white/[0.03] rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-white">{call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}` : '-'}</p>
+              <p className="text-xl lg:text-2xl font-bold text-white">{call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}` : '-'}</p>
               <p className="text-[10px] text-gray-500 uppercase">Duração</p>
             </div>
             <div className="bg-white/[0.03] rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-white">{call.total_turns}</p>
+              <p className="text-xl lg:text-2xl font-bold text-white">{call.total_turns}</p>
               <p className="text-[10px] text-gray-500 uppercase">Turnos</p>
             </div>
             <div className="bg-white/[0.03] rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-white">{call.avg_latency_ms || '-'}ms</p>
+              <p className="text-xl lg:text-2xl font-bold text-white">{call.avg_latency_ms || '-'}ms</p>
               <p className="text-[10px] text-gray-500 uppercase">Latência</p>
             </div>
           </div>

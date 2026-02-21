@@ -6,6 +6,7 @@ import {
   PieChart
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface ROIData {
@@ -45,7 +46,7 @@ export default function DashboardROIPage() {
         const res = await api.get('/landing-pages/dashboard/roi');
         setData(res.data);
       } catch (err) {
-        console.error(err);
+        toast.error('Erro na operação');
       } finally {
         setLoading(false);
       }
@@ -72,7 +73,7 @@ export default function DashboardROIPage() {
 
         {/* Header */}
         <div className={`transition-all duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard de Campanhas</h1>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Dashboard de Campanhas</h1>
           <p className="text-sm text-gray-400 mt-1">Acompanhe o ROI das suas landing pages e campanhas</p>
         </div>
 
@@ -90,7 +91,7 @@ export default function DashboardROIPage() {
                   <card.icon className="w-[18px] h-[18px]" style={{ color: card.color }} />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-gray-900 tabular-nums">{card.value}</p>
+              <p className="text-xl lg:text-2xl font-bold text-gray-900 tabular-nums">{card.value}</p>
               <p className="text-[13px] text-gray-400 mt-0.5">{card.label}</p>
             </div>
           ))}

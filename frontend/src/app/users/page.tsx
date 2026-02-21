@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 import { UserPlus, Shield, User, Mail, Loader2, Eye, EyeOff, X, AlertCircle, Lock, Users } from 'lucide-react';
 
 interface UserInfo {
@@ -43,7 +44,7 @@ export default function UsersPage() {
       const res = await api.get('/auth/users');
       setUsers(res.data);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);
     }
@@ -60,6 +61,7 @@ export default function UsersPage() {
         password: newPassword,
         role: newRole,
       });
+      toast.success('Usuário criado');
       setShowModal(false);
       setNewName('');
       setNewEmail('');
@@ -78,7 +80,7 @@ export default function UsersPage() {
       await api.patch(`/auth/users/${u.id}`, { is_active: !u.is_active });
       await loadUsers();
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro ao alterar status');
     }
   };
 
@@ -95,50 +97,50 @@ export default function UsersPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-4xl mx-auto h-full overflow-y-auto pb-6">
+      <div className="space-y-4 lg:space-y-6 max-w-4xl mx-auto h-full overflow-y-auto pb-6">
 
         {/* Header */}
-        <div className={`flex items-center justify-between transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
+        <div className={`flex items-center justify-between gap-3 transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <div>
             <p className="text-sm text-gray-400 mb-0.5">Administração</p>
-            <h1 className="text-2xl font-semibold text-[#27273D] tracking-tight">Usuários</h1>
+            <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">Usuários</h1>
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white text-[13px] font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
+            className="flex items-center gap-2 px-3 lg:px-4 py-2.5 bg-[#6366f1] text-white text-[13px] font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
           >
             <UserPlus className="w-4 h-4" />
-            Novo usuário
+            <span className="hidden sm:inline">Novo usuário</span>
           </button>
         </div>
 
         {/* Stats resumo */}
-        <div className={`grid grid-cols-3 gap-4 transition-all duration-700 ease-out delay-75 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-              <Users className="w-[18px] h-[18px] text-blue-600" />
+        <div className={`grid grid-cols-3 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-75 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
+            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Users className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-blue-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[#27273D] tabular-nums">{users.length}</p>
-              <p className="text-[12px] text-gray-400">Total</p>
+              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{users.length}</p>
+              <p className="text-[11px] lg:text-[12px] text-gray-400">Total</p>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-              <User className="w-[18px] h-[18px] text-emerald-600" />
+          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
+            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-emerald-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[#27273D] tabular-nums">{activeCount}</p>
-              <p className="text-[12px] text-gray-400">Ativos</p>
+              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{activeCount}</p>
+              <p className="text-[11px] lg:text-[12px] text-gray-400">Ativos</p>
             </div>
           </div>
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
-              <Shield className="w-[18px] h-[18px] text-purple-600" />
+          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
+            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Shield className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-purple-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-[#27273D] tabular-nums">{adminCount}</p>
-              <p className="text-[12px] text-gray-400">Admins</p>
+              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{adminCount}</p>
+              <p className="text-[11px] lg:text-[12px] text-gray-400">Admins</p>
             </div>
           </div>
         </div>

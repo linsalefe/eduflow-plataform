@@ -50,7 +50,7 @@ export default function ChannelsPage() {
       const res = await api.get('/channels');
       setChannels(res.data);
     } catch (err) {
-      console.error(err);
+      toast.error('Erro na operação');
     } finally {
       setLoading(false);
     }
@@ -97,7 +97,7 @@ export default function ChannelsPage() {
       setShowQRModal(true);
       startPolling(instance_name);
     } catch (err: any) {
-      console.error(err);
+      toast.error('Erro na operação');
       alert('Erro ao criar instância: ' + (err?.response?.data?.detail || err.message));
     } finally {
       setSaving(false);
@@ -118,7 +118,7 @@ export default function ChannelsPage() {
         setQrStatus('scanning');
       }
     } catch (err) {
-      console.error('Erro ao buscar QR code:', err);
+      toast.error('Erro ao buscar QR code');
       setQrStatus('error');
     }
   };
@@ -145,7 +145,7 @@ export default function ChannelsPage() {
           }, 2000);
         }
       } catch (err) {
-        console.error('Erro no polling:', err);
+        // silent polling error
       }
     }, 3000);
   };
@@ -221,7 +221,7 @@ export default function ChannelsPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Canais</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Canais</h1>
             <p className="text-sm text-gray-500 mt-2 max-w-md leading-relaxed">
               Conecte seu WhatsApp para atendimento e IA. Cada conta tem direito a 2 instâncias.
             </p>

@@ -57,7 +57,7 @@ export default function LandingPagesPage() {
       const res = await api.get('/landing-pages');
       setPages(res.data);
     } catch (err) {
-      console.error(err);
+      toast.error('Erro na operação');
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function LandingPagesPage() {
         setChannelId(res.data[0].id);
       }
     } catch (err) {
-      console.error(err);
+      toast.error('Erro na operação');
     }
   };
 
@@ -164,7 +164,7 @@ export default function LandingPagesPage() {
       await api.put(`/landing-pages/${page.id}`, { is_active: !page.is_active });
       fetchPages();
     } catch (err) {
-      console.error(err);
+      toast.error('Erro na operação');
     }
   };
 
@@ -181,7 +181,7 @@ export default function LandingPagesPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Landing Pages</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Landing Pages</h1>
             <p className="text-sm text-gray-500 mt-1">Crie páginas de captura para seus cursos e campanhas</p>
           </div>
           <button

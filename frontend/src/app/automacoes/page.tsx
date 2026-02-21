@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Zap, Search, Send, Loader2, CheckCircle, XCircle, AlertTriangle, Filter } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/auth-context';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 
 interface ExactLead {
@@ -98,7 +99,7 @@ export default function AutomacoesPage() {
       setLeads(leadsRes.data);
       setStats(statsRes.data);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro na operação');
     } finally {
       setLoading(false);
     }
@@ -110,7 +111,7 @@ export default function AutomacoesPage() {
       setChannels(res.data);
       if (res.data.length > 0) setActiveChannelId(res.data[0].id);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro na operação');
     }
   };
 
@@ -120,7 +121,7 @@ export default function AutomacoesPage() {
       const res = await api.get(`/channels/${activeChannelId}/templates`);
       setTemplates(res.data);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro na operação');
     } finally {
       setLoadingTemplates(false);
     }
@@ -190,7 +191,7 @@ export default function AutomacoesPage() {
       });
       setSendResult(res.data);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro na operação');
     } finally {
       setSending(false);
     }
@@ -210,7 +211,7 @@ export default function AutomacoesPage() {
       });
       setSendResult(res.data);
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro na operação');
     } finally {
       setSending(false);
     }
@@ -250,10 +251,10 @@ export default function AutomacoesPage() {
         {/* Header */}
         <div className={`transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <p className="text-sm text-gray-400 mb-0.5">Envio em massa</p>
-          <h1 className="text-2xl font-semibold text-[#27273D] tracking-tight">Automações</h1>
+          <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">Automações</h1>
         </div>
 
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-700 ease-out delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 transition-all duration-700 ease-out delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
           {/* ══════════════════════════════════════ */}
           {/* COLUNA ESQUERDA — CONFIG               */}
