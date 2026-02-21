@@ -23,7 +23,10 @@ import {
   Paperclip,
   Mic,
   Image as ImageIcon,
-  FileText
+  FileText,
+  SlidersHorizontal,
+  Bot,
+  Hash,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import AppLayout from '@/components/AppLayout';
@@ -107,6 +110,10 @@ export default function ConversationsPage() {
   const [newMessage, setNewMessage] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
+  const [tagFilter, setTagFilter] = useState<number[]>([]);
+  const [unreadFilter, setUnreadFilter] = useState(false);
+  const [aiFilter, setAiFilter] = useState<'all' | 'on' | 'off'>('all');
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showCRM, setShowCRM] = useState(true);
@@ -616,8 +623,21 @@ export default function ConversationsPage() {
   const filteredContacts = contacts.filter(c => {
     const ms = c.name.toLowerCase().includes(search.toLowerCase()) || c.wa_id.includes(search);
     const mst = statusFilter === 'todos' || c.lead_status === statusFilter;
-    return ms && mst;
+    const mtag = tagFilter.length === 0 || c.tags.some(t => tagFilter.includes(t.id));
+    const mur = !unreadFilter || c.unread > 0;
+    const mai = aiFilter === 'all' || (aiFilter === 'on' ? c.ai_active : !c.ai_active);
+    return ms && mst && mtag && mur && mai;
   });
+
+  const hasActiveFilters = tagFilter.length > 0 || unreadFilter || aiFilter !== 'all';
+
+  const clearAllFilters = () => {
+    setStatusFilter('todos');
+    setTagFilter([]);
+    setUnreadFilter(false);
+    setAiFilter('all');
+    setShowFilters(false);
+  };
 
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   messages.forEach((msg) => {
@@ -761,6 +781,100 @@ export default function ConversationsPage() {
                 );
               })}
             </div>
+
+            {/* Advanced Filters Toggle + Counter */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                  showFilters || hasActiveFilters
+                    ? 'bg-[#00a884]/20 text-[#00a884]'
+                    : 'text-[#8696a0] hover:bg-[#202c33]'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="w-4 h-4 bg-[#00a884] text-[#111b21] text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {(tagFilter.length > 0 ? 1 : 0) + (unreadFilter ? 1 : 0) + (aiFilter !== 'all' ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+              <span className="text-[11px] text-[#8696a0] tabular-nums">
+                {filteredContacts.length} contato{filteredContacts.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Advanced Filters Panel */}
+            {showFilters && (
+              <div className="space-y-2.5 pb-1">
+                {/* Tag filter */}
+                {allTags.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-[#8696a0] uppercase tracking-wider mb-1.5">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {allTags.map(tag => {
+                        const tc = getTagColorConfig(tag.color);
+                        const isActive = tagFilter.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => setTagFilter(prev => isActive ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
+                              isActive ? `${tc.bg} ${tc.text}` : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                            }`}
+                          >
+                            <Hash className="w-2.5 h-2.5" />
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick filters row */}
+                <div className="flex gap-1.5 flex-wrap">
+                  <button
+                    onClick={() => setUnreadFilter(!unreadFilter)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                      unreadFilter ? 'bg-[#00a884]/20 text-[#00a884]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                    }`}
+                  >
+                    <MessageCircle className="w-3 h-3" />
+                    Não lidos
+                  </button>
+                  <button
+                    onClick={() => setAiFilter(aiFilter === 'on' ? 'all' : 'on')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                      aiFilter === 'on' ? 'bg-purple-500/20 text-purple-400' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                    }`}
+                  >
+                    <Bot className="w-3 h-3" />
+                    IA ativa
+                  </button>
+                  <button
+                    onClick={() => setAiFilter(aiFilter === 'off' ? 'all' : 'off')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                      aiFilter === 'off' ? 'bg-red-500/20 text-red-400' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                    }`}
+                  >
+                    <Bot className="w-3 h-3" />
+                    IA off
+                  </button>
+                </div>
+
+                {/* Clear all */}
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-[11px] text-[#8696a0] hover:text-red-400 transition-colors"
+                  >
+                    ✕ Limpar filtros
+                  </button>
+                )}
+              </div>
+            )}
 
           </div>
 
