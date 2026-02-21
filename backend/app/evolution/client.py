@@ -116,6 +116,10 @@ async def send_media(instance_name: str, to: str, media_type: str, base64_data: 
     """Envia mídia (imagem, vídeo, documento) via Evolution API."""
     number = to.replace("+", "").replace("-", "").replace(" ", "")
 
+    # Remover prefixo data:...;base64, se existir
+    if ";base64," in base64_data:
+        base64_data = base64_data.split(";base64,")[1]
+
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(
             f"{EVOLUTION_API_URL}/message/sendMedia/{instance_name}",
@@ -133,19 +137,21 @@ async def send_media(instance_name: str, to: str, media_type: str, base64_data: 
 
 
 async def send_audio(instance_name: str, to: str, base64_data: str) -> dict:
-    """Envia áudio via Evolution API usando sendMedia."""
+    """Envia áudio via Evolution API usando sendWhatsAppAudio."""
     number = to.replace("+", "").replace("-", "").replace(" ", "")
+
+    # Remover prefixo data:...;base64, se existir
+    if ";base64," in base64_data:
+        base64_data = base64_data.split(";base64,")[1]
 
     async with httpx.AsyncClient(timeout=60) as client:
         res = await client.post(
-            f"{EVOLUTION_API_URL}/message/sendMedia/{instance_name}",
+            f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{instance_name}",
             headers=HEADERS,
             json={
                 "number": number,
-                "mediatype": "audio",
-                "media": base64_data,
-                "fileName": "audio.ogg",
-                "mimetype": "audio/ogg; codecs=opus",
+                "audio": base64_data,
+                "encoding": True,
             },
         )
         return res.json()
