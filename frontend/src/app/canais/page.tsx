@@ -4,7 +4,9 @@ import {
   MessageSquare, Plus, Loader2, Trash2, Wifi, WifiOff, Phone,
   QrCode, X, RefreshCw, LogOut
 } from 'lucide-react';
+import { toast } from 'sonner';
 import AppLayout from '@/components/AppLayout';
+import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 
 interface ChannelItem {
@@ -40,6 +42,7 @@ export default function ChannelsPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [qrInstanceName, setQrInstanceName] = useState('');
   const [qrStatus, setQrStatus] = useState<'loading' | 'scanning' | 'connected' | 'error'>('loading');
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} });
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadChannels = async () => {
@@ -150,33 +153,49 @@ export default function ChannelsPage() {
   // ============================================================
   // DELETAR CANAL
   // ============================================================
-  const deleteChannel = async (ch: ChannelItem) => {
-    if (!confirm(`Remover o canal "${ch.name}"? Isso desconectará o WhatsApp.`)) return;
-    try {
-      if (ch.provider === 'evolution' && ch.instance_name) {
-        await api.delete(`/evolution/instances/${ch.instance_name}`);
-      } else {
-        await api.delete(`/channels/${ch.id}`);
-      }
-      loadChannels();
-    } catch (err) {
-      console.error(err);
-    }
+  const deleteChannel = (ch: ChannelItem) => {
+    setConfirmModal({
+      open: true,
+      title: 'Remover canal',
+      message: `Remover o canal "${ch.name}"? Isso desconectará o WhatsApp.`,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        try {
+          if (ch.provider === 'evolution' && ch.instance_name) {
+            await api.delete(`/evolution/instances/${ch.instance_name}`);
+          } else {
+            await api.delete(`/channels/${ch.id}`);
+          }
+          toast.success('Canal removido');
+          loadChannels();
+        } catch (err) {
+          toast.error('Erro ao remover canal');
+        }
+      },
+    });
   };
 
   // ============================================================
   // DESCONECTAR (LOGOUT)
   // ============================================================
-  const logoutChannel = async (ch: ChannelItem) => {
-    if (!confirm(`Desconectar o WhatsApp de "${ch.name}"?`)) return;
-    try {
-      if (ch.provider === 'evolution' && ch.instance_name) {
-        await api.post(`/evolution/instances/${ch.instance_name}/logout`);
-        loadChannels();
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const logoutChannel = (ch: ChannelItem) => {
+    setConfirmModal({
+      open: true,
+      title: 'Desconectar WhatsApp',
+      message: `Desconectar o WhatsApp de "${ch.name}"?`,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        try {
+          if (ch.provider === 'evolution' && ch.instance_name) {
+            await api.post(`/evolution/instances/${ch.instance_name}/logout`);
+            toast.success('WhatsApp desconectado');
+            loadChannels();
+          }
+        } catch (err) {
+          toast.error('Erro ao desconectar');
+        }
+      },
+    });
   };
 
   // ============================================================
@@ -470,6 +489,15 @@ export default function ChannelsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel="Remover"
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+      />
     </AppLayout>
   );
 }

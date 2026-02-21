@@ -1,7 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Plus, FileText, ExternalLink, Trash2, ToggleLeft, ToggleRight, Loader2, Copy, Eye, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import AppLayout from '@/components/AppLayout';
+import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 
 interface LandingPage {
@@ -48,6 +50,7 @@ export default function LandingPagesPage() {
   const [primaryColor, setPrimaryColor] = useState('#6366f1');
   const [logoUrl, setLogoUrl] = useState('');
   const [courseName, setCourseName] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} });
 
   const fetchPages = async () => {
     try {
@@ -132,20 +135,28 @@ export default function LandingPagesPage() {
       setShowModal(false);
       fetchPages();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao salvar');
+      toast.error(err.response?.data?.detail || 'Erro ao salvar');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Tem certeza que deseja remover esta landing page?')) return;
-    try {
-      await api.delete(`/landing-pages/${id}`);
-      fetchPages();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDelete = (id: number) => {
+    setConfirmModal({
+      open: true,
+      title: 'Remover landing page',
+      message: 'Tem certeza que deseja remover esta landing page?',
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, open: false }));
+        try {
+          await api.delete(`/landing-pages/${id}`);
+          toast.success('Landing page removida');
+          fetchPages();
+        } catch (err) {
+          toast.error('Erro ao remover');
+        }
+      },
+    });
   };
 
   const handleToggle = async (page: LandingPage) => {
@@ -421,6 +432,15 @@ export default function LandingPagesPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmLabel="Remover"
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+      />
     </AppLayout>
   );
 }
