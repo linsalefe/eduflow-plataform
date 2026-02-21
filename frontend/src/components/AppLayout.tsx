@@ -2,9 +2,42 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Menu } from 'lucide-react';
+import { 
+  Loader2, 
+  Menu,
+  LayoutDashboard,
+  MessageCircle,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  LogOut,
+  Zap,
+  Bot,
+  Columns3,
+  GitBranch,
+  Radio,
+  FileText,
+  BarChart3,
+  FlaskConical,
+  PhoneCall,
+  CalendarDays,
+  X 
+} from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import Sidebar from './Sidebar';
+
+const menuItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/conversations', label: 'Conversas', icon: MessageCircle },
+  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+  { href: '/users', label: 'Usuários', icon: Users },
+  { href: '/automacoes', label: 'Automações', icon: Zap },
+  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
+  { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
+  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
+  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { href: '/canais', label: 'Canais', icon: Radio },
+];
 
 export default function AppLayout({ children, fullWidth = false }: { children: React.ReactNode; fullWidth?: boolean }) {
   const { user, loading } = useAuth();
