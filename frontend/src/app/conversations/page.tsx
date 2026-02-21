@@ -514,10 +514,10 @@ export default function ConversationsPage() {
             <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
               <button
                 onClick={() => setStatusFilter('todos')}
-                className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
                   statusFilter === 'todos'
-                    ? 'bg-[#0f1b2d] text-white'
-                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    ? 'bg-[#00a884] text-[#111b21]'
+                    : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
                 }`}
               >
                 Todos ({contacts.length})
@@ -530,10 +530,10 @@ export default function ConversationsPage() {
                   <button
                     key={s.value}
                     onClick={() => setStatusFilter(s.value)}
-                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
                       statusFilter === s.value
                         ? `${s.bg} ${s.text}`
-                        : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                        : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
                     }`}
                   >
                     {s.label} ({count})
@@ -545,26 +545,26 @@ export default function ConversationsPage() {
           </div>
 
           {/* Contacts List */}
-          <div className="flex-1 overflow-y-auto border-t border-gray-100">
+          <div className="flex-1 overflow-y-auto border-t border-[#2a3942]">
             {loading ? (
               <div className="animate-pulse space-y-0 p-2">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
-                    <div className="w-11 h-11 bg-gray-100 rounded-full flex-shrink-0" />
+                    <div className="w-11 h-11 bg-[#2a3942] rounded-full flex-shrink-0" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3.5 bg-gray-100 rounded w-28" />
-                      <div className="h-3 bg-gray-100 rounded w-40" />
+                      <div className="h-3.5 bg-[#2a3942] rounded w-28" />
+                      <div className="h-3 bg-[#2a3942] rounded w-40" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : filteredContacts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-                <MessageCircle className="w-8 h-8 mb-2 text-gray-300" />
-                <p className="text-sm text-gray-400">Nenhuma conversa</p>
+              <div className="flex flex-col items-center justify-center h-48">
+                <MessageCircle className="w-8 h-8 mb-2 text-[#3b4a54]" />
+                <p className="text-sm text-[#8696a0]">Nenhuma conversa</p>
               </div>
             ) : (
-              <div className="p-1.5">
+              <div>
                 {filteredContacts.map((contact) => {
                   const st = getStatusConfig(contact.lead_status);
                   const isSelected = selectedContact?.wa_id === contact.wa_id;
@@ -572,52 +572,54 @@ export default function ConversationsPage() {
                     <button
                       key={contact.wa_id}
                       onClick={() => setSelectedContact(contact)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-150 mb-0.5 ${
+                      className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-150 ${
                         isSelected
-                          ? 'bg-[#6366f1]/8 border border-[#6366f1]/10'
-                          : 'hover:bg-gray-50 border border-transparent'
+                          ? 'bg-[#2a3942]'
+                          : 'hover:bg-[#202c33]'
                       }`}
                     >
                       <div className="relative flex-shrink-0">
-                        <div className={`w-11 h-11 rounded-full bg-gradient-to-br ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-xs shadow-sm`}>
+                        <div className={`w-[49px] h-[49px] rounded-full bg-gradient-to-br ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-sm`}>
                           {getInitials(contact.name || contact.wa_id)}
                         </div>
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${st.color} rounded-full border-2 border-white`} />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 ${st.color} rounded-full border-2 border-[#111b21]`} />
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 border-b border-[#222d34] py-0.5">
                         <div className="flex items-center justify-between">
-                          <p className={`font-medium text-[13px] truncate ${isSelected ? 'text-[#6366f1]' : 'text-[#27273D]'}`}>
+                          <p className={`font-normal text-[15px] truncate ${isSelected ? 'text-[#e9edef]' : 'text-[#e9edef]'}`}>
                             {contact.ai_active && "🤖 "}{contact.name || contact.wa_id}
                           </p>
                           {contact.last_message_time && (
-                            <span className="text-[11px] text-gray-400 ml-2 flex-shrink-0 tabular-nums">
+                            <span className={`text-[11px] ml-2 flex-shrink-0 tabular-nums ${contact.unread > 0 ? 'text-[#00a884]' : 'text-[#8696a0]'}`}>
                               {formatTime(contact.last_message_time)}
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          {contact.tags.length > 0 && (
-                            <div className="flex gap-0.5">
-                              {contact.tags.slice(0, 2).map(tag => {
-                                const tc = getTagColorConfig(tag.color);
-                                return <span key={tag.id} className={`w-2 h-2 rounded-full ${tc.bg}`} />;
-                              })}
-                            </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            {contact.tags.length > 0 && (
+                              <div className="flex gap-0.5">
+                                {contact.tags.slice(0, 2).map(tag => {
+                                  const tc = getTagColorConfig(tag.color);
+                                  return <span key={tag.id} className={`w-2 h-2 rounded-full ${tc.bg}`} />;
+                                })}
+                              </div>
+                            )}
+                            <p className="text-[13px] text-[#8696a0] truncate">
+                              {contact.direction === 'outbound' && '✓ '}
+                              {contact.last_message || 'Sem mensagens'}
+                            </p>
+                          </div>
+
+                          {contact.unread > 0 && (
+                            <span className="min-w-[20px] h-5 px-1.5 bg-[#00a884] text-[#111b21] text-[11px] font-bold rounded-full flex items-center justify-center flex-shrink-0 ml-1">
+                              {contact.unread}
+                            </span>
                           )}
-                          <p className="text-[12px] text-gray-400 truncate">
-                            {contact.direction === 'outbound' && '✓ '}
-                            {contact.last_message || 'Sem mensagens'}
-                          </p>
                         </div>
                       </div>
-
-                      {contact.unread > 0 && (
-                        <span className="min-w-[20px] h-5 px-1 bg-[#6366f1] text-white text-[10px] font-bold rounded-full flex items-center justify-center flex-shrink-0">
-                          {contact.unread}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
