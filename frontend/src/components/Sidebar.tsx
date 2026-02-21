@@ -21,6 +21,7 @@ import {
   GitBranch,
   Calendar,
   X,
+  Search,
 } from 'lucide-react';
 
 const menuGroups = [
@@ -94,6 +95,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     if (onMobileClose) onMobileClose();
   };
 
+  const openSearch = () => {
+    // Dispara Cmd+K programaticamente
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }));
+  };
+
   const sidebarContent = (
     <aside
       className={`
@@ -135,8 +141,27 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         </div>
       </div>
 
+      {/* Botão Busca */}
+      <div className="px-3 pt-4 pb-1">
+        <button
+          onClick={openSearch}
+          aria-label="Buscar"
+          className={`
+            w-full flex items-center gap-2.5 rounded-xl transition-all duration-200
+            bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06]
+            ${collapsed ? 'lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2' : 'px-3 py-2'}
+          `}
+        >
+          <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <span className={`text-[13px] text-gray-500 flex-1 text-left ${collapsed ? 'lg:hidden' : ''}`}>Buscar...</span>
+          <kbd className={`px-1.5 py-0.5 bg-white/[0.06] text-gray-600 text-[10px] font-medium rounded border border-white/[0.06] ${collapsed ? 'lg:hidden' : ''}`}>
+            ⌘K
+          </kbd>
+        </button>
+      </div>
+
       {/* Navegação */}
-      <nav className="flex-1 py-4 px-3 space-y-5 overflow-y-auto">
+      <nav className="flex-1 py-3 px-3 space-y-5 overflow-y-auto">
         {menuGroups.map((group) => (
           <div key={group.label}>
             <p className={`text-[10px] font-semibold text-gray-600 uppercase tracking-widest px-3 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>

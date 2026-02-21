@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import Sidebar from './Sidebar';
+import CommandPalette from './CommandPalette';
 
 export default function AppLayout({ children, fullWidth = false }: { children: React.ReactNode; fullWidth?: boolean }) {
   const { user, loading } = useAuth();
@@ -62,6 +63,9 @@ export default function AppLayout({ children, fullWidth = false }: { children: R
           {children}
         </main>
       </div>
+
+      {/* Busca Global */}
+      <CommandPalette />
     </div>
   );
 }
