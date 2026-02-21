@@ -134,6 +134,8 @@ export default function ConversationsPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [profilePics, setProfilePics] = useState<Record<string, string | null>>({});
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -144,8 +146,32 @@ export default function ConversationsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const loadedPicsRef = useRef<Set<string>>(new Set());
+  const prevMsgCountRef = useRef<number>(0);
+  const isTabFocusedRef = useRef<boolean>(true);
+  const notifAudioRef = useRef<HTMLAudioElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Inicializar áudio de notificação
+  useEffect(() => {
+    notifAudioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1pbJF/f3R1eYiNjI2Uf39sZnJ+goOHkZaOgHVqcHuDh4qPkpCIe3FrbnZ+hIuRk5KOh31zbHB3gIeMkZOTj4d9c21udoCGi5KUk4+Ie3Jtb3eAhouRlJOPiHxybnB4gIaMkZSTj4h7cm5wd4CGjJGUk4+IfHJub3iAho2RlJOQiHxybm94f4aNkZSTkId9cm5vd4CGjZGUk5CIfXJub3eAho2RlJOQiHxybm94f4aNkZSTkIh8cm5veICGjZKUk5CIfHJub3h/ho2SlJOQiHxybm94f4aNkpSTkIh8cm5veICGjZKUk5CIfHJucHh/ho2SlJOQiHxybm94gIaNkpSTkIh8cm5veICGjZKVk5CIfHJucHh/ho2SlJOPiHxybm94gIaNkpSUkIh8cW5veICHjZKUk5CIfHFucHmAho2SlJSQiHxybm94gIeNkpSTkIh8cm5veICGjZKVk5GIfHFub3mAho6SlJSQiHxxbm94gIeOkpWUkIh8cW1veYCHjpKVlJCIfHFub3mAh46SlZSQiHxxbm94gIeOk5WUkIl8cG1weYCHj5OVlJCJe3FtcHmBh4+TlZSQiXxxbXB5gIePk5WVkIl7cW1veYCHj5OVlZCJfHBtcHmBh4+UlZWQiXxwbXB5gIeQlJaVkIl7cG1weYGHkJSWlZCJe3FtcHmAh5CUlpWRiXtwbXB5gYeQlJaWkIl7cG1xeYCIkJSWlpGJe3BtcHqBh5GUlpaRiXtwbHB6gYiRlZaWkYl7cGxxeoCIkZWWlpGJe3BscXqBiJGVl5aRiXtwbHF6gYiRlZeXkYl6cGxxeoGIkpaXl5GJe3BscXqBiJKWl5eRiXtwbHF6gYiSlpeXkol6b2xxeoGIkpeYl5KJe29scXuBiZKXmJeSiXtvbHF7gYmTl5iXkol6b2xxe4GJk5eYl5KKem9scXuCiZOXmJiSinpvbHF7gYmTmJiYkop6b2txe4KJk5iYmJKKem9rcXyCiZOYmZiSinpva3F8gomUmJmYk4p5b2txfIKJlJmZmJOKeW9rcXyCipSZmZmTinpva3F8gomUmZqZk4p5b2txfIKKlJmamZOKem9rcXyCipSZmpqTi3luanJ8goqVmpqak4t5bmtzfIKKlZqampOLem5rc3yCi5WampuTi3luanN8g4uWmpubk4t5bmtzfYOLlpucm5OLeW5qc32Di5abnJyTjHluanN9g4uWm5ycl');
+    notifAudioRef.current.volume = 0.3;
+  }, []);
+
+  // Detectar foco da aba
+  useEffect(() => {
+    const onFocus = () => { isTabFocusedRef.current = true; setUnreadCount(0); };
+    const onBlur = () => { isTabFocusedRef.current = false; };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('blur', onBlur);
+    return () => { window.removeEventListener('focus', onFocus); window.removeEventListener('blur', onBlur); };
+  }, []);
+
+  // Atualizar título da aba com contador
+  useEffect(() => {
+    document.title = unreadCount > 0 ? `(${unreadCount}) Conversas - EduFlow` : 'Conversas - EduFlow';
+  }, [unreadCount]);
 
   useEffect(() => {
     loadChannels();
@@ -162,6 +188,8 @@ export default function ConversationsPage() {
 
   useEffect(() => {
     if (selectedContact) {
+      prevMsgCountRef.current = 0;
+      setShowScrollDown(false);
       loadMessages(selectedContact.wa_id);
       api.post(`/contacts/${selectedContact.wa_id}/read`);
       setNotesValue(selectedContact.notes || '');
@@ -171,7 +199,15 @@ export default function ConversationsPage() {
   }, [selectedContact]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollDown(false);
+    } else if (messages.length > 0) {
+      setShowScrollDown(true);
+    }
   }, [messages]);
 
   const loadChannels = async () => {
@@ -224,7 +260,23 @@ export default function ConversationsPage() {
   const loadMessages = async (waId: string) => {
     try {
       const res = await api.get(`/contacts/${waId}/messages`);
-      setMessages(res.data);
+      const newMsgs: Message[] = res.data;
+
+      // Detectar novas mensagens inbound
+      if (prevMsgCountRef.current > 0 && newMsgs.length > prevMsgCountRef.current) {
+        const newOnes = newMsgs.slice(prevMsgCountRef.current);
+        const hasInbound = newOnes.some(m => m.direction === 'inbound');
+        if (hasInbound) {
+          // Tocar som se a aba não estiver em foco
+          if (!isTabFocusedRef.current) {
+            setUnreadCount(prev => prev + newOnes.filter(m => m.direction === 'inbound').length);
+            try { notifAudioRef.current?.play(); } catch {}
+          }
+        }
+      }
+      prevMsgCountRef.current = newMsgs.length;
+
+      setMessages(newMsgs);
     } catch (err) {
       console.error('Erro:', err);
     }
@@ -850,7 +902,13 @@ export default function ConversationsPage() {
 
                 {/* Messages */}
                 <div className="flex-1 flex flex-col min-w-0">
-                  <div className="flex-1 overflow-y-auto px-[4%] py-4 space-y-1 bg-[#0b141a]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
+                  <div
+                    ref={chatContainerRef}
+                    onScroll={() => {
+                      const c = chatContainerRef.current;
+                      if (c) setShowScrollDown(c.scrollHeight - c.scrollTop - c.clientHeight > 150);
+                    }}
+                    className="flex-1 overflow-y-auto px-[4%] py-4 space-y-1 bg-[#0b141a] relative" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
                     {groupedMessages.map((group) => (
                       <div key={group.date}>
                         <div className="flex justify-center my-3">
@@ -911,6 +969,19 @@ export default function ConversationsPage() {
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
+
+                    {/* Botão scroll para baixo */}
+                    {showScrollDown && (
+                      <button
+                        onClick={() => {
+                          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                          setShowScrollDown(false);
+                        }}
+                        className="sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 bg-[#202c33] border border-[#2a3942] rounded-full flex items-center justify-center shadow-lg hover:bg-[#2a3942] transition-all z-10"
+                      >
+                        <ChevronDown className="w-5 h-5 text-[#8696a0]" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Input */}
