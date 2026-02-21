@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import AppLayout from '@/components/AppLayout';
+import ConfirmModal from '@/components/ConfirmModal';
 import { Calendar, Clock, Phone, User, GraduationCap, Plus, X, ChevronLeft, ChevronRight, Bot, UserCheck, Trash2, Edit3, Check, Ban } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
@@ -57,6 +59,7 @@ export default function AgendaPage() {
   const [formType, setFormType] = useState('voice_ai');
   const [formNotes, setFormNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = { Authorization: `Bearer ${token}` };
@@ -65,14 +68,14 @@ export default function AgendaPage() {
     try {
       const res = await fetch(`${API}/schedules?limit=500`, { headers });
       if (res.ok) setSchedules(await res.json());
-    } catch (e) { console.error(e); }
+    } catch { toast.error('Erro ao carregar dados'); }
   }, []);
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch(`${API}/schedules/stats`, { headers });
       if (res.ok) setStats(await res.json());
-    } catch (e) { console.error(e); }
+    } catch { toast.error('Erro ao carregar dados'); }
   }, []);
 
   useEffect(() => {
@@ -149,25 +152,40 @@ export default function AgendaPage() {
       setShowModal(false);
       fetchSchedules();
       fetchStats();
-    } catch (e) { console.error(e); }
+      toast.success(editingSchedule ? 'Agendamento atualizado' : 'Agendamento criado');
+    } catch { toast.error('Erro ao salvar agendamento'); }
     finally { setSaving(false); }
   };
 
   const handleCancel = async (id: number) => {
-    if (!confirm('Cancelar este agendamento?')) return;
-    await fetch(`${API}/schedules/${id}`, {
-      method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'cancelled' }),
+    setConfirmAction({
+      title: 'Cancelar agendamento',
+      message: 'Tem certeza que deseja cancelar este agendamento?',
+      onConfirm: async () => {
+        await fetch(`${API}/schedules/${id}`, {
+          method: 'PATCH', headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled' }),
+        });
+        toast.success('Agendamento cancelado');
+        fetchSchedules();
+        fetchStats();
+        setConfirmAction(null);
+      },
     });
-    fetchSchedules();
-    fetchStats();
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Deletar este agendamento permanentemente?')) return;
-    await fetch(`${API}/schedules/${id}`, { method: 'DELETE', headers });
-    fetchSchedules();
-    fetchStats();
+    setConfirmAction({
+      title: 'Deletar agendamento',
+      message: 'Tem certeza que deseja deletar este agendamento permanentemente?',
+      onConfirm: async () => {
+        await fetch(`${API}/schedules/${id}`, { method: 'DELETE', headers });
+        toast.success('Agendamento deletado');
+        fetchSchedules();
+        fetchStats();
+        setConfirmAction(null);
+      },
+    });
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -186,35 +204,35 @@ export default function AgendaPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-[1400px] mx-auto">
+      <div className="px-4 lg:px-6 max-w-[1400px] mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Agenda</h1>
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Agenda</h1>
             <p className="text-sm text-gray-500">Agendamentos de ligações da IA e consultoras</p>
           </div>
-          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl hover:bg-[#5558e6] transition-colors text-sm font-medium">
+          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl hover:bg-[#5558e6] transition-colors text-sm font-medium w-fit">
             <Plus className="w-4 h-4" /> Novo Agendamento
           </button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
           {[
             { label: 'Hoje', value: stats.today, color: 'text-[#6366f1]', bg: 'bg-[#6366f1]/10' },
             { label: 'Pendentes', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'Concluídos', value: stats.completed, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Cancelados', value: stats.cancelled, color: 'text-gray-500', bg: 'bg-gray-50' },
           ].map(s => (
-            <div key={s.label} className={`${s.bg} rounded-xl p-4`}>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1">{s.label}</p>
+            <div key={s.label} className={`${s.bg} rounded-xl p-3 lg:p-4`}>
+              <p className={`text-xl lg:text-2xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[11px] lg:text-xs text-gray-500 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             <Calendar className="w-4 h-4 inline mr-1.5" />Calendário
           </button>
@@ -237,7 +255,7 @@ export default function AgendaPage() {
         {loading ? (
           <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>
         ) : view === 'calendar' ? (
-          <div className="flex gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Calendar */}
             <div className="flex-1 bg-white rounded-xl border border-gray-200 p-5">
               <div className="flex items-center justify-between mb-4">
@@ -423,6 +441,16 @@ export default function AgendaPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* Confirm Modal */}
+      {confirmAction && (
+        <ConfirmModal
+          open={!!confirmAction}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          onConfirm={confirmAction.onConfirm}
+          onCancel={() => setConfirmAction(null)}
+        />
       )}
     </AppLayout>
   );
