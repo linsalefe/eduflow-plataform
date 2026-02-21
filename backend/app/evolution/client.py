@@ -112,6 +112,42 @@ async def send_text(instance_name: str, to: str, text: str) -> dict:
         return res.json()
 
 
+async def send_media(instance_name: str, to: str, media_type: str, base64_data: str, filename: str, mimetype: str, caption: str = "") -> dict:
+    """Envia mídia (imagem, vídeo, documento) via Evolution API."""
+    number = to.replace("+", "").replace("-", "").replace(" ", "")
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        res = await client.post(
+            f"{EVOLUTION_API_URL}/message/sendMedia/{instance_name}",
+            headers=HEADERS,
+            json={
+                "number": number,
+                "mediatype": media_type,
+                "media": base64_data,
+                "fileName": filename,
+                "mimetype": mimetype,
+                "caption": caption,
+            },
+        )
+        return res.json()
+
+
+async def send_audio(instance_name: str, to: str, base64_data: str) -> dict:
+    """Envia áudio como mensagem de voz via Evolution API."""
+    number = to.replace("+", "").replace("-", "").replace(" ", "")
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        res = await client.post(
+            f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{instance_name}",
+            headers=HEADERS,
+            json={
+                "number": number,
+                "audio": base64_data,
+            },
+        )
+        return res.json()
+
+
 async def list_instances() -> list:
     """Lista todas as instâncias criadas."""
     async with httpx.AsyncClient(timeout=15) as client:

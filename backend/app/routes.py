@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import base64
+import uuid
 
 SP_TZ = timezone(timedelta(hours=-3))
 
@@ -286,6 +288,71 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
         await db.commit()
 
     return result
+
+
+@router.post("/send/media")
+async def send_media(
+    file: UploadFile = File(...),
+    to: str = Form(...),
+    channel_id: int = Form(1),
+    type: str = Form("image"),  # image, audio, document
+    db: AsyncSession = Depends(get_db),
+):
+    """Envia mídia (imagem, áudio, documento) via Evolution API."""
+    channel = await get_channel(channel_id, db)
+
+    if not channel.provider == "evolution" or not channel.instance_name:
+        raise HTTPException(status_code=400, detail="Envio de mídia só suportado via Evolution API por enquanto")
+
+    file_bytes = await file.read()
+    b64 = base64.b64encode(file_bytes).decode("utf-8")
+    b64_data = f"data:{file.content_type};base64,{b64}"
+    wa_id = to.replace("+", "").replace("-", "").replace(" ", "")
+    filename = file.filename or "arquivo"
+
+    from app.evolution.client import send_media as evo_send_media, send_audio as evo_send_audio
+
+    if type == "audio":
+        result = await evo_send_audio(channel.instance_name, wa_id, b64_data)
+        message_type = "audio"
+        content = f"🎤 Áudio"
+    elif type == "image":
+        media_type = "image"
+        if file.content_type and file.content_type.startswith("video"):
+            media_type = "video"
+        result = await evo_send_media(channel.instance_name, wa_id, media_type, b64_data, filename, file.content_type or "image/jpeg")
+        message_type = media_type
+        content = f"📷 {media_type.capitalize()}"
+    else:
+        result = await evo_send_media(channel.instance_name, wa_id, "document", b64_data, filename, file.content_type or "application/octet-stream")
+        message_type = "document"
+        content = f"📄 {filename}"
+
+    # Salvar mensagem no banco
+    msg_id = str(uuid.uuid4())
+    if isinstance(result, dict):
+        msg_id = result.get("key", {}).get("id", msg_id)
+
+    contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+    contact = contact_result.scalar_one_or_none()
+    if not contact:
+        contact = Contact(wa_id=wa_id, name="", channel_id=channel_id)
+        db.add(contact)
+        await db.flush()
+
+    message = Message(
+        wa_message_id=msg_id,
+        contact_wa_id=wa_id,
+        channel_id=channel_id,
+        direction="outbound",
+        message_type=message_type,
+        content=content,
+        timestamp=datetime.now(SP_TZ).replace(tzinfo=None),
+        status="sent",
+    )
+    db.add(message)
+    await db.commit()
+    return {"status": "ok", "message_id": msg_id}
 
 
 # === Contatos ===
