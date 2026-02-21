@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
+import json
 from app.models import Channel, Contact, Message
 from app.evolution import client
 
@@ -279,6 +280,58 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
 
             await db.commit()
+            # === AGENTE IA: Responder se ai_active ===
+            for msg in messages:
+                key = msg.get("key", {})
+                if key.get("fromMe", False):
+                    continue
+                remote_jid = key.get("remoteJid", "")
+                if "@g.us" in remote_jid:
+                    continue
+
+                phone = remote_jid.replace("@s.whatsapp.net", "")
+                sender_name = msg.get("pushName", phone)
+
+                message_content = msg.get("message", {})
+                text = (
+                    message_content.get("conversation", "")
+                    or message_content.get("extendedTextMessage", {}).get("text", "")
+                )
+                if not text:
+                    continue
+
+                # Verificar se IA está ativa para este contato
+                contact_check = await db.execute(
+                    select(Contact).where(Contact.wa_id == phone)
+                )
+                ct = contact_check.scalar_one_or_none()
+                if not ct or not ct.ai_active:
+                    continue
+
+                # Processar com agente IA
+                from app.evolution.ai_agent import process_message
+                result = await process_message(
+                    wa_id=phone,
+                    user_message=text,
+                    contact_name=sender_name,
+                    instance_name=instance_name,
+                    channel_id=channel_id,
+                    db=db,
+                )
+
+                action = result.get("action", "continue")
+                print(f"🤖 IA respondeu para {phone}: {result.get('message', '')[:80]} [action={action}]")
+
+                # Disparar ligação se lead aceitou
+                if action == "trigger_call":
+                    try:
+                        from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
+                        notes = json.loads(ct.notes or "{}")
+                        course = notes.get("course", "Pós-graduação")
+                        await make_outbound_call(phone, sender_name, course)
+                        print(f"📞 Ligação disparada para {phone}")
+                    except Exception as e:
+                        print(f"❌ Erro ao disparar ligação: {e}")
 
         return {"status": "ok"}
 

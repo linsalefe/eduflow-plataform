@@ -245,15 +245,28 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     contact = existing_contact.scalar_one_or_none()
 
     if not contact:
+        import json as json_lib
         contact = Contact(
             wa_id=phone_clean,
             name=data.get("name", ""),
             lead_status="novo",
             channel_id=page.channel_id,
+            ai_active=True,
+            notes=json_lib.dumps({"course": data.get("course", ""), "source": "landing_page"}, ensure_ascii=False),
         )
         db.add(contact)
-
+    else:
+        import json as json_lib
+        contact.ai_active = True
+        try:
+            existing_notes = json_lib.loads(contact.notes or "{}")
+        except (json_lib.JSONDecodeError, TypeError):
+            existing_notes = {}
+        existing_notes["course"] = data.get("course", "")
+        existing_notes["source"] = "landing_page"
+        contact.notes = json_lib.dumps(existing_notes, ensure_ascii=False)
     await db.commit()
+    
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
         from app.voice_ai.routes import receive_new_lead, NewLeadRequest
