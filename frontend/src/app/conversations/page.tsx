@@ -134,6 +134,9 @@ export default function ConversationsPage() {
   const [notesValue, setNotesValue] = useState('');
   const [togglingAI, setTogglingAI] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [selectedBulk, setSelectedBulk] = useState<Set<string>>(new Set());
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
+  const [showBulkTag, setShowBulkTag] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [exactLeadResults, setExactLeadResults] = useState<ExactLeadResult[]>([]);
   const [showLeadSuggestions, setShowLeadSuggestions] = useState(false);
@@ -639,6 +642,43 @@ export default function ConversationsPage() {
     setShowFilters(false);
   };
 
+  const toggleBulkSelect = (waId: string) => {
+    setSelectedBulk(prev => {
+      const next = new Set(prev);
+      if (next.has(waId)) next.delete(waId);
+      else next.add(waId);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    if (selectedBulk.size === filteredContacts.length) {
+      setSelectedBulk(new Set());
+    } else {
+      setSelectedBulk(new Set(filteredContacts.map(c => c.wa_id)));
+    }
+  };
+
+  const bulkUpdateStatus = async (status: string) => {
+    try {
+      await api.post('/contacts/bulk-update', { wa_ids: Array.from(selectedBulk), lead_status: status });
+      toast.success(`${selectedBulk.size} contatos atualizados`);
+      setSelectedBulk(new Set());
+      setShowBulkStatus(false);
+      loadContacts();
+    } catch { toast.error('Erro ao atualizar contatos'); }
+  };
+
+  const bulkAddTag = async (tagId: number) => {
+    try {
+      await api.post('/contacts/bulk-tag', { wa_ids: Array.from(selectedBulk), tag_id: tagId });
+      toast.success(`Tag adicionada a ${selectedBulk.size} contatos`);
+      setSelectedBulk(new Set());
+      setShowBulkTag(false);
+      loadContacts();
+    } catch { toast.error('Erro ao adicionar tag'); }
+  };
+
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   messages.forEach((msg) => {
     const date = formatDate(msg.timestamp);
@@ -902,19 +942,55 @@ export default function ConversationsPage() {
               </div>
             ) : (
               <div>
+                {/* Select all row */}
+                <button
+                  onClick={selectAllVisible}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-[#8696a0] hover:bg-[#202c33] transition-colors border-b border-[#222d34]"
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                    selectedBulk.size > 0 && selectedBulk.size === filteredContacts.length
+                      ? 'bg-[#00a884] border-[#00a884]'
+                      : selectedBulk.size > 0
+                        ? 'bg-[#00a884]/40 border-[#00a884]'
+                        : 'border-[#3b4a54]'
+                  }`}>
+                    {selectedBulk.size > 0 && <Check className="w-3 h-3 text-white" />}
+                  </div>
+                  {selectedBulk.size > 0
+                    ? `${selectedBulk.size} selecionado${selectedBulk.size > 1 ? 's' : ''}`
+                    : 'Selecionar todos'}
+                </button>
+
                 {filteredContacts.map((contact) => {
                   const st = getStatusConfig(contact.lead_status);
                   const isSelected = selectedContact?.wa_id === contact.wa_id;
+                  const isBulkSelected = selectedBulk.has(contact.wa_id);
                   return (
-                    <button
+                    <div
                       key={contact.wa_id}
-                      onClick={() => setSelectedContact(contact)}
-                      className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-all duration-150 ${
-                        isSelected
-                          ? 'bg-[#2a3942]'
-                          : 'hover:bg-[#202c33]'
+                      className={`w-full flex items-center gap-0 text-left transition-all duration-150 ${
+                        isSelected ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'
                       }`}
                     >
+                      {/* Checkbox */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleBulkSelect(contact.wa_id); }}
+                        className="pl-2 pr-0.5 py-3 flex items-center flex-shrink-0"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                          isBulkSelected
+                            ? 'bg-[#00a884] border-[#00a884]'
+                            : 'border-[#3b4a54] hover:border-[#8696a0]'
+                        }`}>
+                          {isBulkSelected && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                      </button>
+
+                      {/* Contact row */}
+                      <button
+                        onClick={() => setSelectedContact(contact)}
+                        className="flex-1 flex items-center gap-3 pr-3 py-3"
+                      >
                       <div className="relative flex-shrink-0">
                         {profilePics[contact.wa_id] ? (
                           <img src={profilePics[contact.wa_id]!} alt="" className="w-[49px] h-[49px] rounded-full object-cover" onError={() => setProfilePics(prev => ({ ...prev, [contact.wa_id]: null }))} />
@@ -962,15 +1038,80 @@ export default function ConversationsPage() {
                         </div>
                       </div>
                     </button>
+                    </div>
                   );
                 })}
               </div>
             )}
           </div>
 
-        </div>
+          {/* Bulk Actions Bar */}
+          {selectedBulk.size > 0 && (
+            <div className="px-3 py-2.5 bg-[#1a2730] border-t border-[#2a3942]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-medium text-[#e9edef]">
+                  {selectedBulk.size} selecionado{selectedBulk.size > 1 ? 's' : ''}
+                </span>
+                <button onClick={() => setSelectedBulk(new Set())} className="text-[11px] text-[#8696a0] hover:text-red-400 transition-colors">
+                  Cancelar
+                </button>
+              </div>
+              <div className="flex gap-1.5 relative">
+                {/* Status button */}
+                <div className="relative">
+                  <button
+                    onClick={() => { setShowBulkStatus(!showBulkStatus); setShowBulkTag(false); }}
+                    className="px-3 py-1.5 bg-[#00a884]/20 text-[#00a884] text-[11px] font-medium rounded-lg hover:bg-[#00a884]/30 transition-colors"
+                  >
+                    Mover status
+                  </button>
+                  {showBulkStatus && (
+                    <div className="absolute bottom-full left-0 mb-1.5 bg-[#233138] rounded-lg border border-[#2a3942] shadow-xl z-50 py-1 min-w-[140px]">
+                      {leadStatuses.map(s => (
+                        <button
+                          key={s.value}
+                          onClick={() => bulkUpdateStatus(s.value)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-[12px] text-[#e9edef] hover:bg-[#182229] transition-colors"
+                        >
+                          <span className={`w-2 h-2 rounded-full ${s.color}`} />
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-        {/* ÁREA DO CHAT */}
+                {/* Tag button */}
+                <div className="relative">
+                  <button
+                    onClick={() => { setShowBulkTag(!showBulkTag); setShowBulkStatus(false); }}
+                    className="px-3 py-1.5 bg-purple-500/20 text-purple-400 text-[11px] font-medium rounded-lg hover:bg-purple-500/30 transition-colors"
+                  >
+                    Adicionar tag
+                  </button>
+                  {showBulkTag && allTags.length > 0 && (
+                    <div className="absolute bottom-full left-0 mb-1.5 bg-[#233138] rounded-lg border border-[#2a3942] shadow-xl z-50 py-1 min-w-[140px]">
+                      {allTags.map(tag => {
+                        const tc = getTagColorConfig(tag.color);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() => bulkAddTag(tag.id)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] hover:bg-[#182229] transition-colors ${tc.text}`}
+                          >
+                            <Hash className="w-3 h-3" />
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
         <div className={`${selectedContact ? 'flex' : 'hidden lg:flex'} flex-1 flex-col min-w-0`}>
           {selectedContact ? (
             <>
