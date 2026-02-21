@@ -820,6 +820,180 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
 
     await db.commit()
     return {"status": "assigned", "assigned_to": user_id}
+# === Dashboard Avançado ===
+
+@router.get("/dashboard/advanced")
+async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+    from app.models import User, Activity
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seven_days_ago = today_start - timedelta(days=7)
+    fourteen_days_ago = today_start - timedelta(days=14)
+
+    contact_filter = [] if not channel_id else [Contact.channel_id == channel_id]
+    message_filter = [] if not channel_id else [Message.channel_id == channel_id]
+
+    # --- Métricas por atendente ---
+    agent_stats_q = await db.execute(
+        select(
+            Contact.assigned_to,
+            func.count(Contact.id)
+        ).where(
+            Contact.assigned_to.isnot(None),
+            *contact_filter
+        ).group_by(Contact.assigned_to)
+    )
+    agent_leads = {row[0]: row[1] for row in agent_stats_q.all()}
+
+    agent_msgs_q = await db.execute(
+        select(
+            Message.channel_id,  # placeholder
+            func.count(Message.id)
+        ).where(
+            Message.direction == "outbound",
+            Message.timestamp >= seven_days_ago,
+            *message_filter
+        )
+    )
+    total_outbound_week = agent_msgs_q.scalar() or 0
+
+    # Buscar nomes dos usuários
+    users_q = await db.execute(select(User).where(User.is_active == True))
+    users_map = {u.id: u.name for u in users_q.scalars().all()}
+
+    agents = []
+    for user_id, lead_count in agent_leads.items():
+        # Mensagens enviadas por contatos deste atendente nos últimos 7 dias
+        assigned_contacts_q = await db.execute(
+            select(Contact.wa_id).where(Contact.assigned_to == user_id, *contact_filter)
+        )
+        assigned_wa_ids = [r[0] for r in assigned_contacts_q.all()]
+
+        msg_count = 0
+        if assigned_wa_ids:
+            mc = await db.execute(
+                select(func.count(Message.id)).where(
+                    Message.direction == "outbound",
+                    Message.timestamp >= seven_days_ago,
+                    Message.contact_wa_id.in_(assigned_wa_ids),
+                    *message_filter
+                )
+            )
+            msg_count = mc.scalar() or 0
+
+        agents.append({
+            "user_id": user_id,
+            "name": users_map.get(user_id, f"#{user_id}"),
+            "leads": lead_count,
+            "messages_week": msg_count,
+        })
+
+    agents.sort(key=lambda x: x["leads"], reverse=True)
+
+    # --- Não atribuídos ---
+    unassigned_q = await db.execute(
+        select(func.count(Contact.id)).where(
+            Contact.assigned_to.is_(None),
+            *contact_filter
+        )
+    )
+    unassigned_count = unassigned_q.scalar() or 0
+
+    # --- Taxa de conversão ---
+    total_q = await db.execute(select(func.count(Contact.id)).where(*contact_filter))
+    total = total_q.scalar() or 0
+    converted_q = await db.execute(
+        select(func.count(Contact.id)).where(Contact.lead_status == "convertido", *contact_filter)
+    )
+    converted = converted_q.scalar() or 0
+    conversion_rate = round((converted / total * 100), 1) if total > 0 else 0
+
+    # --- Leads por tag (top 8) ---
+    from app.models import contact_tags, Tag
+    tags_q = await db.execute(
+        select(
+            Tag.name,
+            Tag.color,
+            func.count(contact_tags.c.contact_wa_id)
+        ).join(Tag, Tag.id == contact_tags.c.tag_id)
+        .group_by(Tag.name, Tag.color)
+        .order_by(func.count(contact_tags.c.contact_wa_id).desc())
+        .limit(8)
+    )
+    tags_data = [{"name": r[0], "color": r[1], "count": r[2]} for r in tags_q.all()]
+
+    # --- Novos leads: esta semana vs semana passada ---
+    new_this_week_q = await db.execute(
+        select(func.count(Contact.id)).where(
+            Contact.created_at >= seven_days_ago, *contact_filter
+        )
+    )
+    new_this_week = new_this_week_q.scalar() or 0
+
+    new_last_week_q = await db.execute(
+        select(func.count(Contact.id)).where(
+            Contact.created_at >= fourteen_days_ago,
+            Contact.created_at < seven_days_ago,
+            *contact_filter
+        )
+    )
+    new_last_week = new_last_week_q.scalar() or 0
+
+    trend_pct = round(((new_this_week - new_last_week) / max(new_last_week, 1)) * 100, 1)
+
+    # --- Tempo médio de primeira resposta (últimos 7 dias) ---
+    # Calcula tempo entre primeira msg inbound e primeira msg outbound por contato
+    avg_response = None
+    try:
+        from sqlalchemy import and_
+        recent_contacts_q = await db.execute(
+            select(Contact.wa_id).where(
+                Contact.created_at >= seven_days_ago, *contact_filter
+            ).limit(50)
+        )
+        recent_wa_ids = [r[0] for r in recent_contacts_q.all()]
+
+        response_times = []
+        for wa_id in recent_wa_ids:
+            first_in_q = await db.execute(
+                select(Message.timestamp).where(
+                    Message.contact_wa_id == wa_id,
+                    Message.direction == "inbound"
+                ).order_by(Message.timestamp.asc()).limit(1)
+            )
+            first_in = first_in_q.scalar()
+
+            if first_in:
+                first_out_q = await db.execute(
+                    select(Message.timestamp).where(
+                        Message.contact_wa_id == wa_id,
+                        Message.direction == "outbound",
+                        Message.timestamp > first_in
+                    ).order_by(Message.timestamp.asc()).limit(1)
+                )
+                first_out = first_out_q.scalar()
+                if first_out:
+                    diff = (first_out - first_in).total_seconds() / 60  # em minutos
+                    if diff < 1440:  # ignora se > 24h (provavelmente fora de horário)
+                        response_times.append(diff)
+
+        if response_times:
+            avg_response = round(sum(response_times) / len(response_times), 1)
+    except Exception:
+        avg_response = None
+
+    return {
+        "agents": agents,
+        "unassigned_leads": unassigned_count,
+        "conversion_rate": conversion_rate,
+        "converted": converted,
+        "total": total,
+        "tags": tags_data,
+        "new_this_week": new_this_week,
+        "new_last_week": new_last_week,
+        "trend_pct": trend_pct,
+        "avg_response_minutes": avg_response,
+    }
 
 
 
