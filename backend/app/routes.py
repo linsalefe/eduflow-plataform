@@ -10,7 +10,7 @@ import uuid
 SP_TZ = timezone(timedelta(hours=-3))
 
 from app.database import get_db
-from app.models import Channel, Contact, Message, Tag, contact_tags
+from app.models import Channel, Contact, Message, Tag, contact_tags, Activity
 from app.whatsapp import send_text_message, send_template_message
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -468,9 +468,12 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
     if req.name is not None:
         contact.name = req.name
     if req.lead_status is not None:
+        old_status = contact.lead_status
         contact.lead_status = req.lead_status
+        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}")
     if req.notes is not None:
         contact.notes = req.notes
+        await log_activity(db, wa_id, "note", "Notas atualizadas")
 
     await db.commit()
     return {"status": "updated"}
@@ -478,16 +481,22 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
 
 @router.post("/contacts/{wa_id}/tags/{tag_id}")
 async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db)):
+    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id))
+    tag = tag_result.scalar_one_or_none()
     await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=tag_id))
+    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}")
     await db.commit()
     return {"status": "tag added"}
 
 
 @router.delete("/contacts/{wa_id}/tags/{tag_id}")
 async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db)):
+    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id))
+    tag = tag_result.scalar_one_or_none()
     await db.execute(
         contact_tags.delete().where(contact_tags.c.contact_wa_id == wa_id, contact_tags.c.tag_id == tag_id)
     )
+    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}")
     await db.commit()
     return {"status": "tag removed"}
 
@@ -740,3 +749,45 @@ async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db
     )
     await db.commit()
     return {"removed": len(req.wa_ids)}
+async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None):
+    """Helper para registrar atividade na timeline"""
+    activity = Activity(
+        contact_wa_id=contact_wa_id,
+        type=activity_type,
+        description=description,
+        metadata=metadata,
+    )
+    db.add(activity)
+
+
+@router.get("/contacts/{wa_id}/activities")
+async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """Retorna timeline de atividades de um contato"""
+    result = await db.execute(
+        select(Activity)
+        .where(Activity.contact_wa_id == wa_id)
+        .order_by(Activity.created_at.desc())
+        .limit(limit)
+    )
+    activities = result.scalars().all()
+
+    return [
+        {
+            "id": a.id,
+            "type": a.type,
+            "description": a.description,
+            "metadata": a.metadata,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        }
+        for a in activities
+    ]
+
+
+
+
+
+
+
+
+
+

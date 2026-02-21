@@ -244,3 +244,12 @@ class Schedule(Base):
 
     contact = relationship("Contact", backref="schedules")
     channel = relationship("Channel", backref="schedules")
+    
+class Activity(Base):
+    __tablename__ = "activities"
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    type = Column(String(30), nullable=False)
+    description = Column(Text, nullable=False)
+    metadata = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
