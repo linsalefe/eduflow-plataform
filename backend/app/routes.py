@@ -623,3 +623,55 @@ async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depen
         media_type=url_data.get("mime_type", "application/octet-stream"),
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+# === Busca Global ===
+
+@router.get("/search")
+async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
+    """Busca contatos por nome ou telefone (wa_id)"""
+    if not q or len(q.strip()) < 2:
+        return {"contacts": [], "pages": []}
+
+    term = f"%{q.strip()}%"
+
+    result = await db.execute(
+        select(Contact)
+        .where(
+            (Contact.name.ilike(term)) | (Contact.wa_id.ilike(term))
+        )
+        .order_by(Contact.name.asc())
+        .limit(10)
+    )
+    contacts = result.scalars().all()
+
+    contacts_list = []
+    for c in contacts:
+        tag_result = await db.execute(
+            select(Tag).join(contact_tags).where(contact_tags.c.contact_wa_id == c.wa_id)
+        )
+        tags = tag_result.scalars().all()
+
+        contacts_list.append({
+            "wa_id": c.wa_id,
+            "name": c.name or c.wa_id,
+            "lead_status": c.lead_status or "novo",
+            "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
+        })
+
+    # Busca de páginas estática (match no label)
+    pages = [
+        {"label": "Dashboard", "href": "/dashboard", "icon": "LayoutDashboard"},
+        {"label": "Conversas", "href": "/conversations", "icon": "MessageCircle"},
+        {"label": "Pipeline", "href": "/pipeline", "icon": "GitBranch"},
+        {"label": "Campanhas", "href": "/dashboard-roi", "icon": "BarChart3"},
+        {"label": "Landing Pages", "href": "/landing-pages", "icon": "FileText"},
+        {"label": "Usuários", "href": "/users", "icon": "Users"},
+        {"label": "Automações", "href": "/automacoes", "icon": "Zap"},
+        {"label": "Voice AI", "href": "/voice-ai", "icon": "PhoneCall"},
+        {"label": "Agenda", "href": "/agenda", "icon": "Calendar"},
+        {"label": "Canais", "href": "/canais", "icon": "Radio"},
+    ]
+    q_lower = q.strip().lower()
+    matched_pages = [p for p in pages if q_lower in p["label"].lower()]
+
+    return {"contacts": contacts_list, "pages": matched_pages}

@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
+from app.schedule_routes import router as schedule_router
 from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
@@ -130,6 +131,7 @@ app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
 app.include_router(voice_ai_router)
 app.include_router(evolution_router)
+app.include_router(schedule_router)
 
 @app.get("/webhook")
 async def verify_webhook(
