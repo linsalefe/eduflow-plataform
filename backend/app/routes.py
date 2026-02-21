@@ -517,6 +517,19 @@ async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db)):
     ]
 
 
+@router.get("/contacts/{wa_id}/picture")
+async def get_contact_picture(wa_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db)):
+    """Busca a URL da foto de perfil do contato via Evolution API."""
+    channel = await get_channel(channel_id, db)
+
+    if not channel.provider == "evolution" or not channel.instance_name:
+        return {"profilePictureUrl": None}
+
+    from app.evolution.client import get_profile_picture
+    url = await get_profile_picture(channel.instance_name, wa_id)
+    return {"profilePictureUrl": url}
+
+
 # === Tags ===
 
 @router.get("/tags")

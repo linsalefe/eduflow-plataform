@@ -148,6 +148,25 @@ async def send_audio(instance_name: str, to: str, base64_data: str) -> dict:
         return res.json()
 
 
+async def get_profile_picture(instance_name: str, number: str) -> str | None:
+    """Busca a URL da foto de perfil de um contato via Evolution API."""
+    number = number.replace("+", "").replace("-", "").replace(" ", "")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.post(
+                f"{EVOLUTION_API_URL}/chat/fetchProfilePictureUrl/{instance_name}",
+                headers=HEADERS,
+                json={"number": number},
+            )
+            data = res.json()
+            if isinstance(data, dict):
+                return data.get("profilePictureUrl") or data.get("profilePicUrl") or None
+            return None
+    except Exception:
+        return None
+
+
 async def list_instances() -> list:
     """Lista todas as instâncias criadas."""
     async with httpx.AsyncClient(timeout=15) as client:
