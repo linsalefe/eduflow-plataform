@@ -846,10 +846,7 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     agent_leads = {row[0]: row[1] for row in agent_stats_q.all()}
 
     agent_msgs_q = await db.execute(
-        select(
-            Message.channel_id,  # placeholder
-            func.count(Message.id)
-        ).where(
+        select(func.count(Message.id)).where(
             Message.direction == "outbound",
             Message.timestamp >= seven_days_ago,
             *message_filter
