@@ -24,9 +24,11 @@ import {
   Image as ImageIcon,
   FileText
 } from 'lucide-react';
-import EmojiPicker, { Theme } from 'emoji-picker-react';
+import dynamic from 'next/dynamic';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
+
+const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 interface ChannelInfo {
   id: number;
@@ -76,22 +78,22 @@ interface Message {
 }
 
 const leadStatuses = [
-  { value: 'novo', label: 'Novo', color: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  { value: 'em_contato', label: 'Em contato', color: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  { value: 'qualificado', label: 'Qualificado', color: 'bg-purple-500', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
-  { value: 'negociando', label: 'Negociando', color: 'bg-cyan-500', bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
-  { value: 'convertido', label: 'Convertido', color: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  { value: 'perdido', label: 'Perdido', color: 'bg-red-500', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  { value: 'novo', label: 'Novo', color: 'bg-blue-500', bg: 'bg-blue-500/20', text: 'text-blue-400', border: 'border-blue-500/30' },
+  { value: 'em_contato', label: 'Em contato', color: 'bg-amber-500', bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/30' },
+  { value: 'qualificado', label: 'Qualificado', color: 'bg-purple-500', bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' },
+  { value: 'negociando', label: 'Negociando', color: 'bg-cyan-500', bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30' },
+  { value: 'convertido', label: 'Convertido', color: 'bg-emerald-500', bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  { value: 'perdido', label: 'Perdido', color: 'bg-red-500', bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' },
 ];
 
 const tagColors = [
-  { value: 'blue', bg: 'bg-blue-100', text: 'text-blue-700' },
-  { value: 'green', bg: 'bg-emerald-100', text: 'text-emerald-700' },
-  { value: 'red', bg: 'bg-red-100', text: 'text-red-700' },
-  { value: 'purple', bg: 'bg-purple-100', text: 'text-purple-700' },
-  { value: 'amber', bg: 'bg-amber-100', text: 'text-amber-700' },
-  { value: 'pink', bg: 'bg-pink-100', text: 'text-pink-700' },
-  { value: 'cyan', bg: 'bg-cyan-100', text: 'text-cyan-700' },
+  { value: 'blue', bg: 'bg-blue-500/20', text: 'text-blue-400' },
+  { value: 'green', bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+  { value: 'red', bg: 'bg-red-500/20', text: 'text-red-400' },
+  { value: 'purple', bg: 'bg-purple-500/20', text: 'text-purple-400' },
+  { value: 'amber', bg: 'bg-amber-500/20', text: 'text-amber-400' },
+  { value: 'pink', bg: 'bg-pink-500/20', text: 'text-pink-400' },
+  { value: 'cyan', bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
 ];
 
 export default function ConversationsPage() {
@@ -141,6 +143,7 @@ export default function ConversationsPage() {
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const loadedPicsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -194,8 +197,12 @@ export default function ConversationsPage() {
       }
       // Carregar fotos de perfil dos contatos novos
       if (activeChannel) {
-        const newContacts = res.data.filter((c: Contact) => !(c.wa_id in profilePics));
-        newContacts.forEach((c: Contact) => loadProfilePic(c.wa_id));
+        res.data.forEach((c: Contact) => {
+          if (!loadedPicsRef.current.has(c.wa_id)) {
+            loadedPicsRef.current.add(c.wa_id);
+            loadProfilePic(c.wa_id);
+          }
+        });
       }
     } catch (err) {
       console.error('Erro:', err);
@@ -533,10 +540,10 @@ export default function ConversationsPage() {
   const formatFullDate = (ts: string) => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const getStatusIcon = (s: string) => {
     switch (s) {
-      case 'sent': return <Check className="w-3.5 h-3.5 text-[#8696a0]" />;
-      case 'delivered': return <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />;
+      case 'sent': return <Check className="w-3.5 h-3.5 text-[#b3d1cb]" />;
+      case 'delivered': return <CheckCheck className="w-3.5 h-3.5 text-[#b3d1cb]" />;
       case 'read': return <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />;
-      default: return <Clock className="w-3.5 h-3.5 text-[#8696a0]" />;
+      default: return <Clock className="w-3.5 h-3.5 text-[#b3d1cb]" />;
     }
   };
   const getStatusConfig = (s: string) => leadStatuses.find(x => x.value === s) || leadStatuses[0];
@@ -729,7 +736,7 @@ export default function ConversationsPage() {
                     >
                       <div className="relative flex-shrink-0">
                         {profilePics[contact.wa_id] ? (
-                          <img src={profilePics[contact.wa_id]!} alt="" className="w-[49px] h-[49px] rounded-full object-cover" />
+                          <img src={profilePics[contact.wa_id]!} alt="" className="w-[49px] h-[49px] rounded-full object-cover" onError={() => setProfilePics(prev => ({ ...prev, [contact.wa_id]: null }))} />
                         ) : (
                           <div className={`w-[49px] h-[49px] rounded-full bg-gradient-to-br ${getAvatarColor(contact.name)} flex items-center justify-center text-white font-semibold text-sm`}>
                             {getInitials(contact.name || contact.wa_id)}
@@ -794,7 +801,7 @@ export default function ConversationsPage() {
                   </button>
 
                   {profilePics[selectedContact.wa_id] ? (
-                    <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-10 h-10 rounded-full object-cover" />
+                    <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-10 h-10 rounded-full object-cover" onError={() => setProfilePics(prev => ({ ...prev, [selectedContact.wa_id]: null }))} />
                   ) : (
                     <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-semibold text-xs`}>
                       {getInitials(selectedContact.name || selectedContact.wa_id)}
@@ -893,9 +900,9 @@ export default function ConversationsPage() {
                                 <p className="text-[14.2px] whitespace-pre-wrap break-words leading-[19px]">{msg.content}</p>
                               )}
 
-                              <div className={`flex items-center justify-end gap-1 mt-0.5 ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>
-                                {msg.sent_by_ai && <span className="text-[10px] font-medium">🤖 Nat</span>}
-                                <span className="text-[11px] tabular-nums">{formatTime(msg.timestamp)}</span>
+                              <div className="flex items-center justify-end gap-1 mt-0.5">
+                                {msg.sent_by_ai && <span className={`text-[10px] font-medium ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>🤖 Nat</span>}
+                                <span className={`text-[11px] tabular-nums ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>{formatTime(msg.timestamp)}</span>
                                 {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                               </div>
                             </div>
@@ -951,7 +958,7 @@ export default function ConversationsPage() {
                             <div className="absolute bottom-12 left-0 z-50">
                               <EmojiPicker
                                 onEmojiClick={onEmojiClick}
-                                theme={Theme.DARK}
+                                theme={'dark' as any}
                                 width={320}
                                 height={400}
                                 searchPlaceHolder="Pesquisar emoji"
@@ -1057,7 +1064,7 @@ export default function ConversationsPage() {
                       {/* Perfil */}
                       <div className="text-center pb-5 border-b border-[#2a3942]">
                         {profilePics[selectedContact.wa_id] ? (
-                          <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-16 h-16 rounded-full object-cover shadow-md mx-auto" />
+                          <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-16 h-16 rounded-full object-cover shadow-md mx-auto" onError={() => setProfilePics(prev => ({ ...prev, [selectedContact.wa_id]: null }))} />
                         ) : (
                           <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
                             {getInitials(selectedContact.name || selectedContact.wa_id)}
