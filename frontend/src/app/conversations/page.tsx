@@ -17,8 +17,14 @@ import {
   Calendar,
   ChevronDown,
   Radio,
-  Loader2
+  Loader2,
+  Smile,
+  Paperclip,
+  Mic,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 
@@ -121,8 +127,19 @@ export default function ConversationsPage() {
   const [exactLeadResults, setExactLeadResults] = useState<ExactLeadResult[]>([]);
   const [showLeadSuggestions, setShowLeadSuggestions] = useState(false);
   const [searchingLeads, setSearchingLeads] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -366,6 +383,122 @@ export default function ConversationsPage() {
     setNewChatPhone(lead.phone1 || '');
     setNewChatName(lead.name || '');
     setShowNewChat(true);
+  };
+
+  // Fechar emoji picker e menu de anexo ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const onEmojiClick = (emojiData: any) => {
+    setNewMessage(prev => prev + emojiData.emoji);
+  };
+
+  const handleFileUpload = async (file: File, type: 'image' | 'document') => {
+    if (!selectedContact || !activeChannel) return;
+    setSending(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('to', selectedContact.wa_id);
+      formData.append('channel_id', String(activeChannel.id));
+      formData.append('type', type);
+      await api.post('/send/media', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      await loadMessages(selectedContact.wa_id);
+      await loadContacts();
+    } catch (err) {
+      console.error('Erro ao enviar arquivo:', err);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg; codecs=opus' });
+        if (audioBlob.size > 0 && selectedContact && activeChannel) {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'audio.ogg');
+          formData.append('to', selectedContact.wa_id);
+          formData.append('channel_id', String(activeChannel.id));
+          formData.append('type', 'audio');
+          try {
+            await api.post('/send/media', formData, {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            await loadMessages(selectedContact.wa_id);
+            await loadContacts();
+          } catch (err) {
+            console.error('Erro ao enviar áudio:', err);
+          }
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Erro ao acessar microfone:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    setRecordingTime(0);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = () => {
+        mediaRecorderRef.current?.stream?.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (recordingIntervalRef.current) {
+      clearInterval(recordingIntervalRef.current);
+      recordingIntervalRef.current = null;
+    }
+    setRecordingTime(0);
+  };
+
+  const formatRecordingTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
   const getInitials = (name: string) => name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -751,23 +884,144 @@ export default function ConversationsPage() {
 
                   {/* Input */}
                   <div className="px-3 py-2 bg-[#202c33]">
-                    <div className="flex items-end gap-2">
-                      <textarea
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Digite uma mensagem"
-                        rows={1}
-                        className="flex-1 px-3 py-2.5 bg-[#2a3942] rounded-lg text-[14px] text-[#e9edef] placeholder:text-[#8696a0] resize-none focus:outline-none transition-all"
-                      />
-                      <button
-                        onClick={handleSend}
-                        disabled={!newMessage.trim() || sending}
-                        className="flex items-center justify-center w-[42px] h-[42px] bg-[#00a884] rounded-full text-white hover:bg-[#06cf9c] active:scale-95 transition-all disabled:opacity-40 disabled:active:scale-100 flex-shrink-0"
-                      >
-                        {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                      </button>
-                    </div>
+                    {isRecording ? (
+                      /* Modo gravação */
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={cancelRecording}
+                          className="p-2 rounded-full hover:bg-[#2a3942] text-red-400 hover:text-red-300 transition-all"
+                          title="Cancelar gravação"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                        <div className="flex-1 flex items-center gap-3 px-4 py-2.5 bg-[#2a3942] rounded-lg">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                          <span className="text-[14px] text-[#e9edef] tabular-nums font-mono">{formatRecordingTime(recordingTime)}</span>
+                          <div className="flex-1 flex items-center gap-0.5">
+                            {[...Array(20)].map((_, i) => (
+                              <div key={i} className="w-1 bg-[#00a884] rounded-full animate-pulse" style={{ height: `${Math.random() * 16 + 4}px`, animationDelay: `${i * 0.05}s` }} />
+                            ))}
+                          </div>
+                        </div>
+                        <button
+                          onClick={stopRecording}
+                          className="flex items-center justify-center w-[42px] h-[42px] bg-[#00a884] rounded-full text-white hover:bg-[#06cf9c] active:scale-95 transition-all flex-shrink-0"
+                          title="Enviar áudio"
+                        >
+                          <Send className="w-5 h-5" />
+                        </button>
+                      </div>
+                    ) : (
+                      /* Modo normal */
+                      <div className="flex items-end gap-2">
+                        {/* Emoji button */}
+                        <div className="relative" ref={emojiPickerRef}>
+                          <button
+                            onClick={() => { setShowEmojiPicker(!showEmojiPicker); setShowAttachMenu(false); }}
+                            className={`p-2 rounded-full transition-all ${showEmojiPicker ? 'text-[#00a884]' : 'text-[#8696a0] hover:text-[#e9edef]'}`}
+                            title="Emoji"
+                          >
+                            <Smile className="w-6 h-6" />
+                          </button>
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-12 left-0 z-50">
+                              <EmojiPicker
+                                onEmojiClick={onEmojiClick}
+                                theme={Theme.DARK}
+                                width={320}
+                                height={400}
+                                searchPlaceHolder="Pesquisar emoji"
+                                previewConfig={{ showPreview: false }}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Attach button */}
+                        <div className="relative" ref={attachMenuRef}>
+                          <button
+                            onClick={() => { setShowAttachMenu(!showAttachMenu); setShowEmojiPicker(false); }}
+                            className={`p-2 rounded-full transition-all ${showAttachMenu ? 'text-[#00a884] rotate-45' : 'text-[#8696a0] hover:text-[#e9edef]'}`}
+                            title="Anexar"
+                          >
+                            <Paperclip className="w-6 h-6 transition-transform" />
+                          </button>
+                          {showAttachMenu && (
+                            <div className="absolute bottom-12 left-0 z-50 bg-[#233138] rounded-xl border border-[#2a3942] shadow-xl overflow-hidden min-w-[180px]">
+                              <button
+                                onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false); }}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#182229] transition-colors text-left"
+                              >
+                                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                                  <ImageIcon className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-[14px] text-[#e9edef]">Fotos e vídeos</span>
+                              </button>
+                              <button
+                                onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#182229] transition-colors text-left"
+                              >
+                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                  <FileText className="w-4 h-4 text-white" />
+                                </div>
+                                <span className="text-[14px] text-[#e9edef]">Documento</span>
+                              </button>
+                            </div>
+                          )}
+                          <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(file, 'image');
+                              e.target.value = '';
+                            }}
+                          />
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip,.rar"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileUpload(file, 'document');
+                              e.target.value = '';
+                            }}
+                          />
+                        </div>
+
+                        {/* Text input */}
+                        <textarea
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          placeholder="Digite uma mensagem"
+                          rows={1}
+                          className="flex-1 px-3 py-2.5 bg-[#2a3942] rounded-lg text-[14px] text-[#e9edef] placeholder:text-[#8696a0] resize-none focus:outline-none transition-all"
+                        />
+
+                        {/* Mic or Send */}
+                        {newMessage.trim() ? (
+                          <button
+                            onClick={handleSend}
+                            disabled={sending}
+                            className="flex items-center justify-center w-[42px] h-[42px] bg-[#00a884] rounded-full text-white hover:bg-[#06cf9c] active:scale-95 transition-all disabled:opacity-40 flex-shrink-0"
+                          >
+                            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={startRecording}
+                            className="flex items-center justify-center w-[42px] h-[42px] rounded-full text-[#8696a0] hover:text-[#e9edef] transition-all flex-shrink-0"
+                            title="Gravar áudio"
+                          >
+                            <Mic className="w-6 h-6" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
