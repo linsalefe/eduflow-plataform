@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   Send,
   Search,
@@ -218,7 +219,7 @@ export default function ConversationsPage() {
         setActiveChannel(res.data[0]);
       }
     } catch (err) {
-      console.error('Erro:', err);
+      // silent
     }
   };
 
@@ -241,7 +242,7 @@ export default function ConversationsPage() {
         });
       }
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro ao carregar contatos');
     } finally {
       setLoading(false);
     }
@@ -278,7 +279,7 @@ export default function ConversationsPage() {
 
       setMessages(newMsgs);
     } catch (err) {
-      console.error('Erro:', err);
+      // silent
     }
   };
 
@@ -287,7 +288,7 @@ export default function ConversationsPage() {
       const res = await api.get('/tags');
       setAllTags(res.data);
     } catch (err) {
-      console.error('Erro:', err);
+      // silent
     }
   };
 
@@ -304,7 +305,7 @@ export default function ConversationsPage() {
       await loadMessages(selectedContact.wa_id);
       await loadContacts();
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro ao enviar mensagem');
     } finally {
       setSending(false);
     }
@@ -321,9 +322,10 @@ export default function ConversationsPage() {
       const newValue = !selectedContact.ai_active;
       await api.patch(`/ai/contacts/${selectedContact.wa_id}/toggle`, { ai_active: newValue });
       setSelectedContact({ ...selectedContact, ai_active: newValue });
+      toast.success(newValue ? 'IA ativada' : 'IA desativada');
       loadContacts();
     } catch (err) {
-      console.error("Erro ao alternar IA:", err);
+      toast.error("Erro ao alternar IA");
     } finally {
       setTogglingAI(false);
     }
@@ -334,43 +336,48 @@ export default function ConversationsPage() {
     try {
       await api.patch(`/contacts/${selectedContact.wa_id}`, { lead_status: status });
       setShowStatusMenu(false);
+      toast.success('Status atualizado');
       await loadContacts();
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao atualizar status'); }
   };
 
   const saveNotes = async () => {
     if (!selectedContact) return;
     try {
       await api.patch(`/contacts/${selectedContact.wa_id}`, { notes: notesValue });
+      toast.success('Notas salvas');
       setEditingNotes(false);
       await loadContacts();
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao salvar notas'); }
   };
 
   const addTag = async (tagId: number) => {
     if (!selectedContact) return;
     try {
       await api.post(`/contacts/${selectedContact.wa_id}/tags/${tagId}`);
+      toast.success('Tag adicionada');
       await loadContacts();
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao adicionar tag'); }
   };
 
   const removeTag = async (tagId: number) => {
     if (!selectedContact) return;
     try {
       await api.delete(`/contacts/${selectedContact.wa_id}/tags/${tagId}`);
+      toast.success('Tag removida');
       await loadContacts();
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao remover tag'); }
   };
 
   const createTag = async () => {
     if (!newTagName.trim()) return;
     try {
       const res = await api.post('/tags', { name: newTagName, color: newTagColor });
+      toast.success('Tag criada');
       setAllTags([...allTags, res.data]);
       setNewTagName('');
       if (selectedContact) await addTag(res.data.id);
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao criar tag'); }
   };
 
   const loadTemplates = async () => {
@@ -379,7 +386,7 @@ export default function ConversationsPage() {
     try {
       const res = await api.get(`/channels/${activeChannel.id}/templates`);
       setTemplates(res.data);
-    } catch (err) { console.error('Erro:', err); }
+    } catch (err) { toast.error('Erro ao carregar templates'); }
     finally { setLoadingTemplates(false); }
   };
 
@@ -423,7 +430,7 @@ export default function ConversationsPage() {
       setTemplateParams([]);
       await loadContacts();
     } catch (err) {
-      console.error('Erro:', err);
+      toast.error('Erro ao enviar template');
     } finally {
       setSendingTemplate(false);
     }
@@ -441,7 +448,7 @@ export default function ConversationsPage() {
       setExactLeadResults(res.data);
       setShowLeadSuggestions(true);
     } catch (err) {
-      console.error('Erro ao buscar leads:', err);
+      toast.error('Erro ao buscar leads');
     } finally {
       setSearchingLeads(false);
     }
@@ -493,7 +500,7 @@ export default function ConversationsPage() {
       await loadMessages(selectedContact.wa_id);
       await loadContacts();
     } catch (err) {
-      console.error('Erro ao enviar arquivo:', err);
+      toast.error('Erro ao enviar arquivo');
     } finally {
       setSending(false);
     }
@@ -526,7 +533,7 @@ export default function ConversationsPage() {
             await loadMessages(selectedContact.wa_id);
             await loadContacts();
           } catch (err) {
-            console.error('Erro ao enviar áudio:', err);
+            toast.error('Erro ao enviar áudio');
           }
         }
       };
@@ -538,7 +545,7 @@ export default function ConversationsPage() {
         setRecordingTime(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      console.error('Erro ao acessar microfone:', err);
+      toast.error('Erro ao acessar microfone');
     }
   };
 

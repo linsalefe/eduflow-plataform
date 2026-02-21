@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
+import { Toaster } from "sonner";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -22,6 +23,14 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={geist.className}>
         <AuthProvider>{children}</AuthProvider>
+        <Toaster
+          position="top-right"
+          richColors
+          toastOptions={{
+            duration: 3000,
+            style: { fontSize: '13px' },
+          }}
+        />
       </body>
     </html>
   );
