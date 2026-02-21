@@ -1,323 +1,420 @@
 'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/auth-context';
+import { useEffect, useState, useRef } from 'react';
+import {
+  Users, UserPlus, MessageCircle, GraduationCap, CheckCircle, XCircle,
+  Loader2, RefreshCw, Phone, Mail, Clock, ArrowRight, Search,
+  Sparkles, FileText, ChevronRight
+} from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { toast } from 'sonner';
-import { UserPlus, Shield, User, Mail, Loader2, Eye, EyeOff, X, AlertCircle, Lock, Users } from 'lucide-react';
 
-interface UserInfo {
-  id: number;
+interface Lead {
+  wa_id: string;
   name: string;
-  email: string;
-  role: string;
-  is_active: boolean;
-  created_at: string | null;
+  lead_status: string;
+  notes: string | null;
+  ai_active: boolean;
+  channel_id: number;
+  created_at: string;
+  updated_at: string;
+  tags: { id: number; name: string; color: string }[];
 }
 
-export default function UsersPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [users, setUsers] = useState<UserInfo[]>([]);
+const columns = [
+  { key: 'novo', label: 'Novos Leads', icon: UserPlus, color: '#6366f1', bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-700', badge: 'bg-indigo-100' },
+  { key: 'em_contato', label: 'Em Contato', icon: MessageCircle, color: '#f59e0b', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100' },
+  { key: 'qualificado', label: 'Qualificados', icon: Sparkles, color: '#8b5cf6', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100' },
+  { key: 'negociando', label: 'Em Matrícula', icon: FileText, color: '#06b6d4', bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', badge: 'bg-cyan-100' },
+  { key: 'convertido', label: 'Matriculados', icon: CheckCircle, color: '#10b981', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100' },
+  { key: 'perdido', label: 'Perdidos', icon: XCircle, color: '#ef4444', bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', badge: 'bg-red-100' },
+];
+
+export default function PipelinePage() {
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('atendente');
-  const [showPassword, setShowPassword] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState('');
-  const [mounted, setMounted] = useState(false);
+  const [moving, setMoving] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [draggedWaId, setDraggedWaId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
-
-  useEffect(() => {
-    if (user && user.role !== 'admin') router.push('/dashboard');
-    if (user) loadUsers();
-  }, [user]);
-
-  const loadUsers = async () => {
+  const loadLeads = async () => {
     try {
-      const res = await api.get('/auth/users');
-      setUsers(res.data);
+      const res = await api.get('/contacts');
+      setLeads(res.data);
     } catch (err) {
-      toast.error('Erro ao carregar usuários');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreate = async () => {
-    if (!newName.trim() || !newEmail.trim() || !newPassword.trim()) return;
-    setCreating(true);
-    setError('');
-    try {
-      await api.post('/auth/register', {
-        name: newName,
-        email: newEmail,
-        password: newPassword,
-        role: newRole,
-      });
-      toast.success('Usuário criado');
-      setShowModal(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPassword('');
-      setNewRole('atendente');
-      await loadUsers();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Erro ao criar usuário');
-    } finally {
-      setCreating(false);
-    }
-  };
+  useEffect(() => {
+    loadLeads();
+    const interval = setInterval(loadLeads, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const toggleActive = async (u: UserInfo) => {
+  const moveLead = async (waId: string, newStatus: string) => {
+    // Optimistic update
+    setLeads(prev => prev.map(l => l.wa_id === waId ? { ...l, lead_status: newStatus } : l));
+    if (selectedLead?.wa_id === waId) {
+      setSelectedLead(prev => prev ? { ...prev, lead_status: newStatus } : null);
+    }
+
     try {
-      await api.patch(`/auth/users/${u.id}`, { is_active: !u.is_active });
-      await loadUsers();
+      await api.patch(`/contacts/${waId}`, { lead_status: newStatus });
     } catch (err) {
-      toast.error('Erro ao alterar status');
+      console.error(err);
+      loadLeads(); // Revert on error
     }
   };
 
-  const getRoleLabel = (role: string) => role === 'admin' ? 'Administrador' : 'Atendente';
-  const getRoleColor = (role: string) => role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700';
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  const getAvatarColor = (name: string) => {
-    const c = ['from-blue-500 to-blue-600','from-purple-500 to-purple-600','from-emerald-500 to-emerald-600','from-orange-500 to-orange-600','from-pink-500 to-pink-600'];
-    return c[name.charCodeAt(0) % c.length];
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, waId: string) => {
+    setDraggedWaId(waId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', waId);
+    // Make drag image slightly transparent
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
   };
 
-  const activeCount = users.filter(u => u.is_active).length;
-  const adminCount = users.filter(u => u.role === 'admin').length;
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedWaId(null);
+    setDropTarget(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTarget(columnKey);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only clear if leaving the column container itself
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDropTarget(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, columnKey: string) => {
+    e.preventDefault();
+    setDropTarget(null);
+    const waId = e.dataTransfer.getData('text/plain');
+    if (waId && draggedWaId) {
+      const lead = leads.find(l => l.wa_id === waId);
+      if (lead && lead.lead_status !== columnKey) {
+        moveLead(waId, columnKey);
+      }
+    }
+    setDraggedWaId(null);
+  };
+
+  const getLeadsByStatus = (status: string) => {
+    return leads
+      .filter(l => l.lead_status === status)
+      .filter(l => {
+        if (!search) return true;
+        const s = search.toLowerCase();
+        return (l.name || '').toLowerCase().includes(s) || l.wa_id.includes(s);
+      });
+  };
+
+  const formatDate = (d: string) => {
+    return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const totalLeads = leads.length;
 
   return (
     <AppLayout>
-      <div className="space-y-4 lg:space-y-6 max-w-4xl mx-auto h-full overflow-y-auto pb-6">
+      <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className={`flex items-center justify-between gap-3 transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div>
-            <p className="text-sm text-gray-400 mb-0.5">Administração</p>
-            <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">Usuários</h1>
-          </div>
-          <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-3 lg:px-4 py-2.5 bg-[#6366f1] text-white text-[13px] font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span className="hidden sm:inline">Novo usuário</span>
-          </button>
-        </div>
+        <div className="px-4 lg:px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg lg:text-xl font-bold text-[#27273D]">Pipeline</h1>
+                <p className="text-[12px] text-gray-400">
+                  Funil de matrículas · {totalLeads} leads
+                </p>
+              </div>
+            </div>
 
-        {/* Stats resumo */}
-        <div className={`grid grid-cols-3 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-75 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Users className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-blue-600" />
-            </div>
-            <div>
-              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{users.length}</p>
-              <p className="text-[11px] lg:text-[12px] text-gray-400">Total</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{activeCount}</p>
-              <p className="text-[11px] lg:text-[12px] text-gray-400">Ativos</p>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 lg:w-10 lg:h-10 bg-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Shield className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-purple-600" />
-            </div>
-            <div>
-              <p className="text-lg lg:text-xl font-bold text-[#27273D] tabular-nums">{adminCount}</p>
-              <p className="text-[11px] lg:text-[12px] text-gray-400">Admins</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Users List */}
-        <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-700 ease-out delay-150 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#6366f1] animate-spin" />
-            </div>
-          ) : users.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <User className="w-10 h-10 mb-2 text-gray-300" />
-              <p className="text-sm">Nenhum usuário cadastrado</p>
-            </div>
-          ) : (
-            <div>
-              {/* Table header */}
-              <div className="hidden sm:grid grid-cols-[1fr_140px_100px_90px] px-6 py-3 border-b border-gray-100 bg-gray-50/50">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Usuário</span>
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Função</span>
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</span>
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider text-right">Ação</span>
+            <div className="flex items-center gap-2 lg:gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar lead..."
+                  className="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-[13px] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 w-40 lg:w-52"
+                />
               </div>
 
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="grid grid-cols-1 sm:grid-cols-[1fr_140px_100px_90px] items-center px-6 py-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors gap-3 sm:gap-0"
-                >
-                  {/* Info */}
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getAvatarColor(u.name)} flex items-center justify-center text-white font-semibold text-xs shadow-sm flex-shrink-0 ${!u.is_active ? 'opacity-40' : ''}`}>
-                      {getInitials(u.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className={`font-medium text-[13px] truncate ${u.is_active ? 'text-[#27273D]' : 'text-gray-400'}`}>
-                        {u.name}
-                        {u.id === user?.id && (
-                          <span className="ml-1.5 text-[10px] text-gray-400 font-normal">(você)</span>
-                        )}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Mail className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                        <span className="text-[12px] text-gray-400 truncate">{u.email}</span>
+              <button
+                onClick={() => { setLoading(true); loadLeads(); }}
+                className="p-2.5 rounded-xl border border-gray-200 bg-white text-gray-500 hover:text-indigo-600 hover:border-indigo-200 transition-all"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Stats pills */}
+          <div className="flex gap-3 mt-4 overflow-x-auto">
+            {columns.map(col => {
+              const count = leads.filter(l => l.lead_status === col.key).length;
+              return (
+                <div key={col.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${col.badge} flex-shrink-0`}>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: col.color }} />
+                  <span className={`text-[12px] font-medium ${col.text}`}>
+                    {col.label}: {count}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Board */}
+        <div className="flex-1 overflow-x-auto p-4 lg:p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            </div>
+          ) : (
+            <div className="flex gap-4 h-full min-w-max">
+              {columns.map(col => {
+                const colLeads = getLeadsByStatus(col.key);
+                const Icon = col.icon;
+                const isDropping = dropTarget === col.key && draggedWaId !== null;
+
+                return (
+                  <div key={col.key} className="w-[280px] flex flex-col">
+                    {/* Column Header */}
+                    <div className={`px-4 py-3 rounded-t-2xl ${col.bg} border ${col.border} border-b-0`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Icon className="w-4 h-4" style={{ color: col.color }} />
+                          <span className={`text-[13px] font-semibold ${col.text}`}>{col.label}</span>
+                        </div>
+                        <span className={`text-[12px] font-bold ${col.text} ${col.badge} px-2 py-0.5 rounded-full`}>
+                          {colLeads.length}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Role */}
-                  <div>
-                    <span className={`inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-md ${getRoleColor(u.role)}`}>
-                      {getRoleLabel(u.role)}
-                    </span>
-                  </div>
+                    {/* Drop Zone */}
+                    <div
+                      className={`flex-1 border ${col.border} border-t-0 rounded-b-2xl p-2.5 space-y-2.5 overflow-y-auto transition-all duration-200 ${
+                        isDropping
+                          ? 'bg-opacity-100 ring-2 ring-offset-1'
+                          : 'bg-white/50'
+                      }`}
+                      style={isDropping ? { boxShadow: `0 0 0 2px ${col.color}`, backgroundColor: `${col.color}08` } : {}}
+                      onDragOver={(e) => handleDragOver(e, col.key)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, col.key)}
+                    >
+                      {/* Drop indicator */}
+                      {isDropping && colLeads.length === 0 && (
+                        <div
+                          className="border-2 border-dashed rounded-xl p-4 text-center transition-all"
+                          style={{ borderColor: col.color }}
+                        >
+                          <p className="text-[12px] font-medium" style={{ color: col.color }}>Soltar aqui</p>
+                        </div>
+                      )}
 
-                  {/* Status */}
-                  <div>
-                    <span className={`inline-flex items-center gap-1.5 text-[12px] font-medium ${u.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                      {u.is_active ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </div>
+                      {!isDropping && colLeads.length === 0 && (
+                        <div className="text-center py-10 text-gray-300">
+                          <Icon className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                          <p className="text-[12px]">Nenhum lead</p>
+                        </div>
+                      )}
 
-                  {/* Action */}
-                  <div className="flex justify-end">
-                    {u.id !== user?.id && (
-                      <button
-                        onClick={() => toggleActive(u)}
-                        className={`px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all ${
-                          u.is_active
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                        }`}
-                      >
-                        {u.is_active ? 'Desativar' : 'Ativar'}
-                      </button>
-                    )}
+                      {colLeads.map(lead => (
+                        <div
+                          key={lead.wa_id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, lead.wa_id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => setSelectedLead(lead)}
+                          className={`bg-white rounded-xl border border-gray-100 p-3.5 cursor-grab active:cursor-grabbing hover:border-gray-200 hover:shadow-sm transition-all select-none ${
+                            draggedWaId === lead.wa_id ? 'opacity-50 scale-[0.98]' : ''
+                          }`}
+                        >
+                          {/* Name + Avatar */}
+                          <div className="flex items-center gap-2.5 mb-2">
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-[12px] font-bold flex-shrink-0"
+                              style={{ backgroundColor: col.color }}
+                            >
+                              {(lead.name || '?')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-semibold text-gray-800 truncate">
+                                {lead.name || 'Sem nome'}
+                              </p>
+                              <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                +{lead.wa_id}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Tags */}
+                          {lead.tags && lead.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mb-2">
+                              {lead.tags.slice(0, 3).map(tag => (
+                                <span key={tag.id} className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">
+                                  {tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Notes preview */}
+                          {lead.notes && (
+                            <p className="text-[11px] text-gray-400 line-clamp-2 mb-2">{lead.notes}</p>
+                          )}
+
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                            <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDate(lead.created_at)}
+                            </span>
+                            {lead.ai_active && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">
+                                🤖 IA
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl mx-4 border border-gray-100" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-semibold text-[#27273D]">Novo Usuário</h2>
-                <button onClick={() => setShowModal(false)} aria-label="Fechar" className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors">
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
+        {/* Modal Lead Detail */}
+        {selectedLead && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setSelectedLead(null)}>
+            <div className="bg-white rounded-2xl w-[calc(100vw-2rem)] lg:w-[500px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="p-6 space-y-5">
+
+                {/* Header */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center">
+                      <span className="text-lg font-bold text-indigo-600">
+                        {(selectedLead.name || '?')[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-[16px] font-bold text-gray-900">{selectedLead.name || 'Sem nome'}</p>
+                      <p className="text-[12px] text-gray-400 flex items-center gap-1.5">
+                        <Phone className="w-3 h-3" /> +{selectedLead.wa_id}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedLead(null)} aria-label="Fechar" className="text-gray-400 hover:text-gray-600 text-xl">×</button>
+                </div>
+
+                {/* Info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">Entrada</p>
+                      <p className="text-[12px] text-gray-700 font-medium">{formatDate(selectedLead.created_at)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50">
+                    <Sparkles className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase">IA Ativa</p>
+                      <p className="text-[12px] text-gray-700 font-medium">{selectedLead.ai_active ? 'Sim' : 'Não'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                {selectedLead.tags && selectedLead.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedLead.tags.map(tag => (
+                      <span key={tag.id} className="text-[11px] px-2 py-1 rounded-lg bg-gray-100 text-gray-600 font-medium">
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selectedLead.notes && (
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Observações</p>
+                    <p className="text-[13px] text-gray-600 bg-gray-50 rounded-xl px-4 py-3">{selectedLead.notes}</p>
+                  </div>
+                )}
+
+                {/* Move Status */}
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Mover para</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {columns.map(col => (
+                      <button
+                        key={col.key}
+                        onClick={() => moveLead(selectedLead.wa_id, col.key)}
+                        disabled={moving === selectedLead.wa_id || selectedLead.lead_status === col.key}
+                        className={`py-2 rounded-xl text-[11px] font-medium border transition-all ${
+                          selectedLead.lead_status === col.key
+                            ? `${col.bg} ${col.border} ${col.text}`
+                            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                        } disabled:opacity-50`}
+                      >
+                        {col.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <a
+                    href="/conversations"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#0f1b2d] text-white text-[13px] font-medium hover:bg-[#1a2d42] transition-all"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Abrir Conversa
+                  </a>
+                  <a
+                    href={`https://wa.me/${selectedLead.wa_id}`}
+                    target="_blank"
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-[13px] font-medium hover:bg-emerald-600 transition-all"
+                  >
+                    <Phone className="w-4 h-4" />
+                    WhatsApp
+                  </a>
+                </div>
               </div>
-
-              {error && (
-                <div className="mb-5 flex items-center gap-2.5 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
-                  <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                  <span className="text-sm text-red-600">{error}</span>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Nome</label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={newName}
-                      onChange={e => setNewName(e.target.value)}
-                      placeholder="Nome completo"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="email"
-                      value={newEmail}
-                      onChange={e => setNewEmail(e.target.value)}
-                      placeholder="email@exemplo.com"
-                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Senha</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      placeholder="Mínimo 6 caracteres"
-                      className="w-full pl-10 pr-12 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white outline-none transition-all"
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label="Mostrar senha" className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[13px] font-medium text-gray-500 mb-1.5">Função</label>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setNewRole('atendente')}
-                      className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium border transition-all ${
-                        newRole === 'atendente' ? 'border-[#6366f1] bg-[#6366f1]/5 text-[#6366f1]' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      Atendente
-                    </button>
-                    <button
-                      onClick={() => setNewRole('admin')}
-                      className={`flex-1 py-2.5 rounded-xl text-[13px] font-medium border transition-all ${
-                        newRole === 'admin' ? 'border-purple-400 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      Administrador
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleCreate}
-                disabled={creating || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
-                className="w-full mt-6 py-3 bg-[#6366f1] text-white font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all disabled:opacity-40 disabled:active:scale-100 flex items-center justify-center gap-2"
-              >
-                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                {creating ? 'Criando...' : 'Criar usuário'}
-              </button>
             </div>
           </div>
         )}
