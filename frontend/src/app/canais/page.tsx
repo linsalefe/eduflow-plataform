@@ -314,7 +314,7 @@ export default function ChannelsPage() {
                       <button
                         onClick={() => reconnectChannel(ch)}
                         className="p-2 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all"
-                        title="Reconectar"
+                        title="Reconectar" aria-label="Reconectar"
                       >
                         <QrCode className="w-4 h-4" />
                       </button>
@@ -325,7 +325,7 @@ export default function ChannelsPage() {
                       <button
                         onClick={() => logoutChannel(ch)}
                         className="p-2 rounded-lg text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-all"
-                        title="Desconectar WhatsApp"
+                        title="Desconectar WhatsApp" aria-label="Desconectar WhatsApp"
                       >
                         <LogOut className="w-4 h-4" />
                       </button>
@@ -334,7 +334,7 @@ export default function ChannelsPage() {
                     <button
                       onClick={() => deleteChannel(ch)}
                       className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                      title="Remover canal"
+                      title="Remover canal" aria-label="Remover canal"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

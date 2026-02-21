@@ -126,6 +126,7 @@ export default function ConversationsPage() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [notesValue, setNotesValue] = useState('');
   const [togglingAI, setTogglingAI] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [exactLeadResults, setExactLeadResults] = useState<ExactLeadResult[]>([]);
   const [showLeadSuggestions, setShowLeadSuggestions] = useState(false);
@@ -191,6 +192,8 @@ export default function ConversationsPage() {
     if (selectedContact) {
       prevMsgCountRef.current = 0;
       setShowScrollDown(false);
+      setLoadingMessages(true);
+      setMessages([]);
       loadMessages(selectedContact.wa_id);
       api.post(`/contacts/${selectedContact.wa_id}/read`);
       setNotesValue(selectedContact.notes || '');
@@ -278,7 +281,9 @@ export default function ConversationsPage() {
       prevMsgCountRef.current = newMsgs.length;
 
       setMessages(newMsgs);
+      setLoadingMessages(false);
     } catch (err) {
+      setLoadingMessages(false);
       // silent
     }
   };
@@ -672,7 +677,7 @@ export default function ConversationsPage() {
               <button
                 onClick={() => setShowNewChat(true)}
                 className="p-2 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] transition-all"
-                title="Nova conversa"
+                title="Nova conversa" aria-label="Nova conversa"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -692,7 +697,7 @@ export default function ConversationsPage() {
                   className="w-full pl-10 pr-8 py-2 bg-[#202c33] rounded-lg text-[13px] text-[#e9edef] placeholder:text-[#8696a0] focus:outline-none transition-all"
                 />
                 {search && (
-                  <button onClick={() => { setSearch(''); setExactLeadResults([]); setShowLeadSuggestions(false); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <button onClick={() => { setSearch(''); setExactLeadResults([]); setShowLeadSuggestions(false); }} aria-label="Limpar busca" className="absolute right-2.5 top-1/2 -translate-y-1/2">
                     <XCircle className="w-4 h-4 text-[#8696a0] hover:text-[#e9edef] transition-colors" />
                   </button>
                 )}
@@ -762,13 +767,16 @@ export default function ConversationsPage() {
           {/* Contacts List */}
           <div className="flex-1 overflow-y-auto border-t border-[#2a3942]">
             {loading ? (
-              <div className="animate-pulse space-y-0 p-2">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
-                    <div className="w-11 h-11 bg-[#2a3942] rounded-full flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3.5 bg-[#2a3942] rounded w-28" />
-                      <div className="h-3 bg-[#2a3942] rounded w-40" />
+              <div className="space-y-0 p-1">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-3 py-3" style={{ opacity: 1 - i * 0.08 }}>
+                    <div className="w-[49px] h-[49px] bg-[#2a3942] rounded-full flex-shrink-0 animate-pulse" />
+                    <div className="flex-1 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className={`h-3.5 bg-[#2a3942] rounded-md animate-pulse`} style={{ width: `${70 + (i % 3) * 20}px` }} />
+                        <div className="h-2.5 bg-[#2a3942] rounded-md animate-pulse w-10" />
+                      </div>
+                      <div className={`h-3 bg-[#2a3942]/60 rounded-md animate-pulse`} style={{ width: `${100 + (i % 4) * 25}px` }} />
                     </div>
                   </div>
                 ))}
@@ -855,7 +863,7 @@ export default function ConversationsPage() {
               {/* Chat Header */}
               <div className="px-4 py-2.5 border-b border-[#2a3942] bg-[#202c33] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setSelectedContact(null)} className="lg:hidden p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
+                  <button onClick={() => setSelectedContact(null)} aria-label="Voltar para lista" className="lg:hidden p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-[#8696a0]" />
                   </button>
 
@@ -886,7 +894,7 @@ export default function ConversationsPage() {
                       window.dispatchEvent(new CustomEvent('eduflow-call', { detail: { phone } }));
                     }}
                     className="p-2 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#00a884] transition-all duration-200"
-                    title="Ligar para o lead"
+                    title="Ligar para o lead" aria-label="Ligar para o lead"
                   >
                     <Phone className="w-5 h-5" />
                   </button>
@@ -898,7 +906,7 @@ export default function ConversationsPage() {
                         ? 'bg-[#2a3942] text-[#00a884]'
                         : 'hover:bg-[#2a3942] text-[#8696a0]'
                     }`}
-                    title="Painel CRM"
+                    title="Painel CRM" aria-label="Painel CRM"
                   >
                     <User className="w-5 h-5" />
                   </button>
@@ -916,6 +924,27 @@ export default function ConversationsPage() {
                       if (c) setShowScrollDown(c.scrollHeight - c.scrollTop - c.clientHeight > 150);
                     }}
                     className="flex-1 overflow-y-auto px-[4%] py-4 space-y-1 bg-[#0b141a] relative" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
+
+                    {loadingMessages ? (
+                      <div className="space-y-3 py-4">
+                        {[
+                          { dir: 'in', w: '55%' },
+                          { dir: 'in', w: '35%' },
+                          { dir: 'out', w: '45%' },
+                          { dir: 'in', w: '60%' },
+                          { dir: 'out', w: '40%' },
+                          { dir: 'out', w: '50%' },
+                        ].map((s, i) => (
+                          <div key={i} className={`flex ${s.dir === 'out' ? 'justify-end' : 'justify-start'}`}>
+                            <div
+                              className={`rounded-xl animate-pulse ${s.dir === 'out' ? 'bg-[#005c4b]/40' : 'bg-[#202c33]/80'}`}
+                              style={{ width: s.w, height: `${32 + (i % 3) * 12}px`, opacity: 1 - i * 0.1 }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                    <>
                     {groupedMessages.map((group) => (
                       <div key={group.date}>
                         <div className="flex justify-center my-3">
@@ -982,6 +1011,8 @@ export default function ConversationsPage() {
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
+                    </>
+                    )}
 
                     {/* Botão scroll para baixo */}
                     {showScrollDown && (
@@ -990,7 +1021,7 @@ export default function ConversationsPage() {
                           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
                           setShowScrollDown(false);
                         }}
-                        className="sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 bg-[#202c33] border border-[#2a3942] rounded-full flex items-center justify-center shadow-lg hover:bg-[#2a3942] transition-all z-10"
+                        aria-label="Rolar para baixo" className="sticky bottom-4 left-1/2 -translate-x-1/2 w-10 h-10 bg-[#202c33] border border-[#2a3942] rounded-full flex items-center justify-center shadow-lg hover:bg-[#2a3942] transition-all z-10"
                       >
                         <ChevronDown className="w-5 h-5 text-[#8696a0]" />
                       </button>
@@ -1004,6 +1035,7 @@ export default function ConversationsPage() {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={cancelRecording}
+                          aria-label="Cancelar gravação"
                           className="p-2 rounded-full hover:bg-[#2a3942] text-red-400 hover:text-red-300 transition-all"
                           title="Cancelar gravação"
                         >
@@ -1020,6 +1052,7 @@ export default function ConversationsPage() {
                         </div>
                         <button
                           onClick={stopRecording}
+                          aria-label="Enviar áudio"
                           className="flex items-center justify-center w-[42px] h-[42px] bg-[#00a884] rounded-full text-white hover:bg-[#06cf9c] active:scale-95 transition-all flex-shrink-0"
                           title="Enviar áudio"
                         >
@@ -1234,7 +1267,7 @@ export default function ConversationsPage() {
                             return (
                               <span key={tag.id} className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg ${tc.bg} ${tc.text}`}>
                                 {tag.name}
-                                <button onClick={() => removeTag(tag.id)} className="hover:opacity-60 transition-opacity">
+                                <button onClick={() => removeTag(tag.id)} aria-label="Remover tag" className="hover:opacity-60 transition-opacity">
                                   <X className="w-3 h-3" />
                                 </button>
                               </span>
@@ -1350,7 +1383,7 @@ export default function ConversationsPage() {
             <div className="bg-[#111b21] rounded-lg p-6 w-full max-w-lg shadow-2xl mx-4 max-h-[90vh] overflow-y-auto border border-[#2a3942]" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-lg font-normal text-[#e9edef]">Nova Conversa</h2>
-                <button onClick={() => { setShowNewChat(false); setSelectedTemplate(null); setTemplateParams([]); }} className="p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
+                <button onClick={() => { setShowNewChat(false); setSelectedTemplate(null); setTemplateParams([]); }} aria-label="Fechar" className="p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
                   <X className="w-5 h-5 text-[#8696a0]" />
                 </button>
               </div>

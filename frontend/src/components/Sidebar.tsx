@@ -126,6 +126,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           {onMobileClose && (
             <button
               onClick={onMobileClose}
+              aria-label="Fechar menu"
               className="lg:hidden p-1.5 text-gray-500 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
@@ -213,6 +214,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
         <button
           onClick={handleLogout}
+          aria-label="Sair"
           className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-500 hover:text-red-400 hover:bg-red-400/[0.06] transition-all duration-200 text-[13px] ${collapsed ? 'lg:justify-center' : ''}`}
         >
           <LogOut className="w-[16px] h-[16px] flex-shrink-0" />
@@ -221,6 +223,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
           className={`hidden lg:flex w-full items-center gap-2.5 px-3 py-2 rounded-xl text-gray-600 hover:text-gray-300 hover:bg-white/[0.04] transition-all duration-200 text-[13px] ${collapsed ? 'justify-center' : ''}`}
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Recolher</span></>}

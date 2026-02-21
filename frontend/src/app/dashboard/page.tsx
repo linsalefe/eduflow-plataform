@@ -9,6 +9,7 @@ import {
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 
 interface Stats {
   total_contacts: number;
@@ -77,7 +78,7 @@ export default function DashboardPage() {
       const res = await api.get('/dashboard/stats');
       setStats(res.data);
     } catch (err) {
-      console.error('Erro ao carregar stats:', err);
+      toast.error('Erro ao carregar dashboard');
     } finally {
       setLoading(false);
     }
@@ -152,6 +153,35 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Gráfico + Funil ── */}
+        {stats.total_contacts === 0 ? (
+          <div className={`bg-white rounded-2xl border border-gray-100 p-6 lg:p-10 transition-all duration-700 ease-out delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="flex flex-col items-center text-center max-w-md mx-auto">
+              <div className="w-16 h-16 bg-[#6366f1]/10 rounded-2xl flex items-center justify-center mb-4">
+                <MessageSquare className="w-8 h-8 text-[#6366f1]" />
+              </div>
+              <h2 className="text-lg font-semibold text-[#27273D] mb-2">Bem-vindo ao EduFlow!</h2>
+              <p className="text-[13px] text-gray-400 leading-relaxed mb-6">
+                Para começar a receber mensagens e acompanhar seus leads, conecte seu primeiro canal do WhatsApp.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <button
+                  onClick={() => router.push('/canais')}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#6366f1] text-white text-[13px] font-medium rounded-xl hover:bg-[#4f46e5] transition-all"
+                >
+                  <Activity className="w-4 h-4" />
+                  Conectar canal
+                </button>
+                <button
+                  onClick={() => router.push('/conversations')}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-600 text-[13px] font-medium rounded-xl hover:bg-gray-200 transition-all"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Ver conversas
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className={`grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
           {/* Gráfico de barras */}
@@ -264,6 +294,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* ── Resumo rodapé ── */}
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>

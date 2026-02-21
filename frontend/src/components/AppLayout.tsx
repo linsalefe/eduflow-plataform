@@ -2,42 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Loader2, 
-  Menu,
-  LayoutDashboard,
-  MessageCircle,
-  Users,
-  ChevronLeft,
-  ChevronRight,
-  LogOut,
-  Zap,
-  Bot,
-  Columns3,
-  GitBranch,
-  Radio,
-  FileText,
-  BarChart3,
-  FlaskConical,
-  PhoneCall,
-  CalendarDays,
-  X 
-} from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import Sidebar from './Sidebar';
-
-const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/conversations', label: 'Conversas', icon: MessageCircle },
-  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-  { href: '/users', label: 'Usuários', icon: Users },
-  { href: '/automacoes', label: 'Automações', icon: Zap },
-  { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
-  { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
-  { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
-  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/canais', label: 'Canais', icon: Radio },
-];
 
 export default function AppLayout({ children, fullWidth = false }: { children: React.ReactNode; fullWidth?: boolean }) {
   const { user, loading } = useAuth();
@@ -71,6 +38,7 @@ export default function AppLayout({ children, fullWidth = false }: { children: R
           <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[#0f1b2d] border-b border-white/[0.06]">
             <button
               onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir menu"
               className="p-1.5 text-gray-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-colors"
             >
               <Menu className="w-6 h-6" />
@@ -83,6 +51,7 @@ export default function AppLayout({ children, fullWidth = false }: { children: R
         {fullWidth && (
           <button
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Abrir menu"
             className="lg:hidden fixed top-3 left-3 z-40 p-2 bg-[#0f1b2d] text-gray-400 hover:text-white rounded-xl shadow-lg border border-white/[0.06] transition-colors"
           >
             <Menu className="w-5 h-5" />

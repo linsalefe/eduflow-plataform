@@ -47,6 +47,7 @@ export default function ConfirmModal({
             </div>
             <button
               onClick={onCancel}
+              aria-label="Fechar"
               className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
             >
               <X className="w-4 h-4" />
