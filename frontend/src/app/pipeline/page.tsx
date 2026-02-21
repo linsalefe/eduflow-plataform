@@ -139,28 +139,28 @@ export default function PipelinePage() {
       <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-          <div className="flex items-center justify-between">
+        <div className="px-4 lg:px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                 <Users className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#27273D]">Pipeline</h1>
+                <h1 className="text-lg lg:text-xl font-bold text-[#27273D]">Pipeline</h1>
                 <p className="text-[12px] text-gray-400">
-                  Funil de matrículas · {totalLeads} leads · Arraste os cards entre colunas
+                  Funil de matrículas · {totalLeads} leads
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 lg:gap-3">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Buscar lead..."
-                  className="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-[13px] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 w-52"
+                  className="pl-9 pr-4 py-2 rounded-xl border border-gray-200 text-[13px] bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-200 w-40 lg:w-52"
                 />
               </div>
 
@@ -190,7 +190,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Board */}
-        <div className="flex-1 overflow-x-auto p-6">
+        <div className="flex-1 overflow-x-auto p-4 lg:p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
@@ -317,7 +317,7 @@ export default function PipelinePage() {
         {/* Modal Lead Detail */}
         {selectedLead && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setSelectedLead(null)}>
-            <div className="bg-white rounded-2xl w-[500px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl w-[calc(100vw-2rem)] lg:w-[500px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="p-6 space-y-5">
 
                 {/* Header */}

@@ -196,14 +196,14 @@ export default function KanbanPage() {
       <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
-          <div className="flex items-center justify-between">
+        <div className="px-4 lg:px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#27273D]">Kanban — Atendimentos IA</h1>
+                <h1 className="text-lg lg:text-xl font-bold text-[#27273D]">Kanban — Atendimentos IA</h1>
                 <p className="text-[12px] text-gray-400">
                   Acompanhe todos os leads atendidos pela Nat
                   {stats && ` · ${stats.total} total`}
@@ -211,7 +211,7 @@ export default function KanbanPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 lg:gap-3">
               {/* Filtro Canal */}
               <select
                 value={filterChannel || ''}
@@ -235,9 +235,9 @@ export default function KanbanPage() {
 
           {/* Stats */}
           {stats && (
-            <div className="flex gap-4 mt-4">
+            <div className="flex gap-3 lg:gap-4 mt-4 overflow-x-auto pb-1">
               {columns.map(col => (
-                <div key={col.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${col.badgeBg}`}>
+                <div key={col.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${col.badgeBg} whitespace-nowrap flex-shrink-0`}>
                   <div className={`w-2 h-2 rounded-full ${col.dotColor}`} />
                   <span className={`text-[12px] font-medium ${col.textColor}`}>
                     {col.label}: {stats[col.key as keyof KanbanStats] || 0}
@@ -257,7 +257,7 @@ export default function KanbanPage() {
         </div>
 
         {/* Board */}
-        <div className="flex-1 overflow-x-auto p-6">
+        <div className="flex-1 overflow-x-auto p-4 lg:p-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
@@ -269,7 +269,7 @@ export default function KanbanPage() {
                 const Icon = col.icon;
 
                 return (
-                  <div key={col.key} className="w-[340px] flex flex-col">
+                  <div key={col.key} className="w-[280px] lg:w-[340px] flex flex-col flex-shrink-0">
                     {/* Column Header */}
                     <div className={`px-4 py-3 rounded-t-2xl ${col.bgHeader} border ${col.borderColor} border-b-0`}>
                       <div className="flex items-center justify-between">
@@ -403,7 +403,7 @@ export default function KanbanPage() {
         {/* Modal Card Detail */}
         {selectedCard && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setSelectedCard(null)}>
-            <div className="bg-white rounded-2xl w-[520px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-2xl w-[calc(100vw-2rem)] lg:w-[520px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="p-6 space-y-5">
 
                 {/* Header */}

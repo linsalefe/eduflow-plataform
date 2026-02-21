@@ -119,43 +119,43 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-7xl mx-auto overflow-y-auto h-full pb-6">
+      <div className="space-y-4 lg:space-y-6 max-w-7xl mx-auto overflow-y-auto h-full pb-6">
 
         {/* ── Header ── */}
         <div className={`transition-all duration-700 ease-out ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
           <p className="text-sm text-gray-400 mb-0.5">{getGreeting()},</p>
-          <h1 className="text-2xl font-semibold text-[#27273D] tracking-tight">
+          <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">
             {user.name.split(' ')[0]}
           </h1>
         </div>
 
         {/* ── Stats Cards ── */}
-        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ease-out delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-100 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {statCards.map((card) => {
             const Icon = card.icon;
             const value = stats[card.key as keyof Stats] as number;
             return (
               <div
                 key={card.key}
-                className="bg-white rounded-2xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"
+                className="bg-white rounded-2xl p-4 lg:p-5 border border-gray-100 hover:border-gray-200 hover:shadow-sm transition-all duration-200 group"
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-10 h-10 ${card.iconBg} rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200`}>
-                    <Icon className={`w-[18px] h-[18px] ${card.iconColor}`} />
+                <div className="flex items-center justify-between mb-3 lg:mb-4">
+                  <div className={`w-9 h-9 lg:w-10 lg:h-10 ${card.iconBg} rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200`}>
+                    <Icon className={`w-4 h-4 lg:w-[18px] lg:h-[18px] ${card.iconColor}`} />
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-[#27273D] tabular-nums">{value}</p>
-                <p className="text-[13px] text-gray-400 mt-0.5">{card.label}</p>
+                <p className="text-xl lg:text-2xl font-bold text-[#27273D] tabular-nums">{value}</p>
+                <p className="text-[12px] lg:text-[13px] text-gray-400 mt-0.5">{card.label}</p>
               </div>
             );
           })}
         </div>
 
         {/* ── Gráfico + Funil ── */}
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-4 transition-all duration-700 ease-out delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-200 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
           {/* Gráfico de barras */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100">
+          <div className="lg:col-span-2 bg-white rounded-2xl p-4 lg:p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-[15px] font-semibold text-[#27273D]">Mensagens na semana</h2>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-end justify-between gap-2 h-48">
+            <div className="flex items-end justify-between gap-1 lg:gap-2 h-36 lg:h-48">
               {stats.daily_messages.map((day, i) => {
                 const pct = (day.count / maxDailyCount) * 100;
                 const isHovered = hoveredBar === i;
@@ -218,7 +218,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Funil de Matrículas */}
-          <div className="bg-white rounded-2xl p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl p-4 lg:p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-[15px] font-semibold text-[#27273D]">Funil de Matrículas</h2>
@@ -266,7 +266,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Resumo rodapé ── */}
-        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-700 ease-out delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 transition-all duration-700 ease-out delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           {[
             { label: 'Mensagens hoje', value: stats.messages_today, icon: MessageSquare, color: 'text-[#6366f1]', bg: 'bg-[#6366f1]/8' },
             { label: 'Matriculados', value: stats.status_counts['convertido'] || 0, icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -275,13 +275,13 @@ export default function DashboardPage() {
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <div key={item.label} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-4">
-                <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                  <Icon className={`w-[18px] h-[18px] ${item.color}`} />
+              <div key={item.label} className="bg-white rounded-2xl p-3 lg:p-4 border border-gray-100 flex items-center gap-3 lg:gap-4">
+                <div className={`w-9 h-9 lg:w-10 lg:h-10 ${item.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                  <Icon className={`w-4 h-4 lg:w-[18px] lg:h-[18px] ${item.color}`} />
                 </div>
                 <div>
-                  <p className={`text-xl font-bold tabular-nums ${item.color}`}>{item.value}</p>
-                  <p className="text-[12px] text-gray-400">{item.label}</p>
+                  <p className={`text-lg lg:text-xl font-bold tabular-nums ${item.color}`}>{item.value}</p>
+                  <p className="text-[11px] lg:text-[12px] text-gray-400">{item.label}</p>
                 </div>
               </div>
             );
