@@ -13,29 +13,25 @@ import {
   ChevronRight,
   LogOut,
   Zap,
-  Bot,
-  Columns3,
   GitBranch,
   Radio,
   FileText,
   BarChart3,
-  FlaskConical,
   PhoneCall,
+  CalendarDays,
   X,
 } from 'lucide-react';
 
 const menuItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/conversations', label: 'Conversas', icon: MessageCircle },
+  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
   { href: '/users', label: 'Usuários', icon: Users },
   { href: '/automacoes', label: 'Automações', icon: Zap },
   { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
-  { href: '/ai-config', label: 'Config IA', icon: Bot },
   { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
   { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
-  { href: '/kanban', label: 'Kanban IA', icon: Columns3 },
-  { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-  { href: '/ai-test', label: 'Teste IA', icon: FlaskConical },
+  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/canais', label: 'Canais', icon: Radio },
 ];
 
