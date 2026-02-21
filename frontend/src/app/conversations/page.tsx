@@ -592,7 +592,7 @@ export default function ConversationsPage() {
   const formatFullDate = (ts: string) => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
   const getStatusIcon = (s: string) => {
     switch (s) {
-      case 'sent': return <Check className="w-3.5 h-3.5 text-[#b3d1cb]" />;
+      case 'sent': return <CheckCheck className="w-3.5 h-3.5 text-[#b3d1cb]" />;
       case 'delivered': return <CheckCheck className="w-3.5 h-3.5 text-[#b3d1cb]" />;
       case 'read': return <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />;
       default: return <Clock className="w-3.5 h-3.5 text-[#b3d1cb]" />;
@@ -820,7 +820,7 @@ export default function ConversationsPage() {
                               </div>
                             )}
                             <p className="text-[13px] text-[#8696a0] truncate">
-                              {contact.direction === 'outbound' && '✓ '}
+                              {contact.direction === 'outbound' && '✓✓ '}
                               {contact.last_message || 'Sem mensagens'}
                             </p>
                           </div>
@@ -924,6 +924,12 @@ export default function ConversationsPage() {
                                 ? 'bg-[#005c4b] text-[#e9edef] rounded-lg rounded-tr-none'
                                 : 'bg-[#202c33] text-[#e9edef] rounded-lg rounded-tl-none'
                             }`}>
+                              {/* Tail */}
+                              {msg.direction === 'outbound' ? (
+                                <span className="absolute -right-2 top-0 w-0 h-0 border-t-[8px] border-t-[#005c4b] border-r-[8px] border-r-transparent" />
+                              ) : (
+                                <span className="absolute -left-2 top-0 w-0 h-0 border-t-[8px] border-t-[#202c33] border-l-[8px] border-l-transparent" />
+                              )}
                               {msg.type === 'image' && msg.content.startsWith('media:') ? (
                                 <img
                                   src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
