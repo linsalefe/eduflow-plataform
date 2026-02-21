@@ -27,10 +27,12 @@ import {
   SlidersHorizontal,
   Bot,
   Hash,
+  Users,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import AppLayout from '@/components/AppLayout';
 import ActivityTimeline from '@/components/ActivityTimeline';
+import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -109,6 +111,7 @@ const tagColors = [
 ];
 
 export default function ConversationsPage() {
+  const { user } = useAuth();
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [activeChannel, setActiveChannel] = useState<ChannelInfo | null>(null);
   const [showChannelMenu, setShowChannelMenu] = useState(false);
@@ -121,6 +124,7 @@ export default function ConversationsPage() {
   const [tagFilter, setTagFilter] = useState<number[]>([]);
   const [unreadFilter, setUnreadFilter] = useState(false);
   const [aiFilter, setAiFilter] = useState<'all' | 'on' | 'off'>('all');
+  const [assignFilter, setAssignFilter] = useState<'all' | 'mine' | 'unassigned' | number>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -662,16 +666,21 @@ export default function ConversationsPage() {
     const mtag = tagFilter.length === 0 || c.tags.some(t => tagFilter.includes(t.id));
     const mur = !unreadFilter || c.unread > 0;
     const mai = aiFilter === 'all' || (aiFilter === 'on' ? c.ai_active : !c.ai_active);
-    return ms && mst && mtag && mur && mai;
+    const masn = assignFilter === 'all'
+      || (assignFilter === 'mine' && c.assigned_to === user?.id)
+      || (assignFilter === 'unassigned' && !c.assigned_to)
+      || (typeof assignFilter === 'number' && c.assigned_to === assignFilter);
+    return ms && mst && mtag && mur && mai && masn;
   });
 
-  const hasActiveFilters = tagFilter.length > 0 || unreadFilter || aiFilter !== 'all';
+  const hasActiveFilters = tagFilter.length > 0 || unreadFilter || aiFilter !== 'all' || assignFilter !== 'all';
 
   const clearAllFilters = () => {
     setStatusFilter('todos');
     setTagFilter([]);
     setUnreadFilter(false);
     setAiFilter('all');
+    setAssignFilter('all');
     setShowFilters(false);
   };
 
@@ -935,6 +944,45 @@ export default function ConversationsPage() {
                     <Bot className="w-3 h-3" />
                     IA off
                   </button>
+                </div>
+
+                {/* Assign filter */}
+                <div>
+                  <p className="text-[10px] font-semibold text-[#8696a0] uppercase tracking-wider mb-1.5">Atendente</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setAssignFilter(assignFilter === 'mine' ? 'all' : 'mine')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                        assignFilter === 'mine' ? 'bg-[#6366f1]/20 text-[#818cf8]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                      }`}
+                    >
+                      <User className="w-3 h-3" />
+                      Meus leads
+                    </button>
+                    <button
+                      onClick={() => setAssignFilter(assignFilter === 'unassigned' ? 'all' : 'unassigned')}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                        assignFilter === 'unassigned' ? 'bg-amber-500/20 text-amber-400' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                      }`}
+                    >
+                      <Users className="w-3 h-3" />
+                      Sem atribuição
+                    </button>
+                    {teamUsers.filter(u => u.id !== user?.id).map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => setAssignFilter(assignFilter === u.id ? 'all' : u.id)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                          assignFilter === u.id ? 'bg-[#6366f1]/20 text-[#818cf8]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                        }`}
+                      >
+                        <div className="w-4 h-4 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[7px] font-bold">
+                          {u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        {u.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Clear all */}
