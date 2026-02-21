@@ -24,14 +24,19 @@ Permite que a equipe comercial gerencie leads, responda conversas em tempo real,
 14. [ETAPA 10 — Agente de IA (Nat)](#-etapa-10--agente-de-ia-nat)
 15. [ETAPA 11 — Google Calendar](#-etapa-11--google-calendar)
 16. [ETAPA 12 — VoIP Twilio (Ligações)](#-etapa-12--voip-twilio-ligações)
-17. [Funcionalidades](#-funcionalidades)
-18. [Estrutura de Pastas](#-estrutura-de-pastas)
-19. [Banco de Dados — Tabelas](#-banco-de-dados--tabelas)
-20. [API — Endpoints](#-api--endpoints)
-21. [Variáveis de Ambiente](#-variáveis-de-ambiente)
-22. [Comandos Úteis](#-comandos-úteis)
-23. [Solução de Problemas](#-solução-de-problemas)
-24. [Licença](#-licença)
+17. [ETAPA 13 — Landing Pages de Captação](#-etapa-13--landing-pages-de-captação)
+18. [ETAPA 14 — Pipeline Kanban de Matrículas](#-etapa-14--pipeline-kanban-de-matrículas)
+19. [ETAPA 15 — Dashboard de Campanhas (ROI)](#-etapa-15--dashboard-de-campanhas-roi)
+20. [ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)](#-etapa-16--multi-canal-instagram-messenger-evolution-api)
+21. [ETAPA 17 — Melhorias UX/CRM (Sprints 1–9)](#-etapa-17--melhorias-uxcrm-sprints-19)
+22. [Funcionalidades](#-funcionalidades)
+23. [Estrutura de Pastas](#-estrutura-de-pastas)
+24. [Banco de Dados — Tabelas](#-banco-de-dados--tabelas)
+25. [API — Endpoints](#-api--endpoints)
+26. [Variáveis de Ambiente](#-variáveis-de-ambiente)
+27. [Comandos Úteis](#-comandos-úteis)
+28. [Solução de Problemas](#-solução-de-problemas)
+29. [Licença](#-licença)
 
 ---
 
@@ -56,6 +61,13 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 - Chat de teste da IA para simular conversas antes de ativar em produção
 - Ligações VoIP via Twilio (browser → celular e celular → browser)
 - Gravação automática de chamadas com upload ao Google Drive
+- **Busca global (⌘K)** com navegação por teclado entre páginas e contatos
+- **Filtros avançados** por tags, mensagens não lidas e status da IA
+- **Ações em lote** — mover status e adicionar tags para múltiplos contatos
+- **Timeline de atividades** com log automático por contato (status, tags, IA, notas)
+- **Atribuição de leads** para membros da equipe com avatar na lista
+- **Notificações toast** em toda a plataforma (sucesso, erro, warning)
+- **Interface responsiva** otimizada para mobile, tablet e desktop
 
 **URL de Produção:** `https://hub.cenatdata.online`
 
@@ -93,9 +105,13 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 │  - Usuários      │  │  - Envio em massa de templates     │
 │  - Config IA     │  │  - AI Engine (GPT-5 + RAG)         │
 │  - Kanban IA     │  │  - Google Calendar API              │
-│  - Teste IA      │  │  - Anotações Exact Spotter         │
-│  - Agenda        │  │  - Twilio Voice (VoIP)              │
-│  - Ligações      │  │  - Google Drive (gravações)          │
+│  - Teste IA      │  │  - Twilio Voice (VoIP)              │
+│  - Agenda        │  │  - Google Drive (gravações)          │
+│  - Ligações      │  │  - Activity Timeline                 │
+│  - Pipeline      │  │  - Busca Global + Bulk Actions       │
+│  - Landing Pages │  │  - Atribuição de Leads               │
+│  - Campanhas ROI │  │                                      │
+│  - Canais        │  │                                      │
 └──────────────────┘  └──────────┬───────────────────────┘
                                  │
                                  ▼
@@ -109,6 +125,7 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
                       │  - users         │
                       │  - tags          │
                       │  - contact_tags  │
+                      │  - activities    │
                       │  - exact_leads   │
                       │  - ai_configs    │
                       │  - knowledge_    │
@@ -118,6 +135,9 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
                       │    summaries     │
                       │  - ai_messages   │
                       │  - call_logs     │
+                      │  - landing_pages │
+                      │  - form_         │
+                      │    submissions   │
                       └──────────────────┘
 
 ┌──────────────────────┐  ┌──────────────────────┐
@@ -195,6 +215,7 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 | **Estilização** | Tailwind CSS | 3.x |
 | **Ícones** | Lucide React | latest |
 | **HTTP Client** | Axios | latest |
+| **Toasts** | Sonner | latest |
 | **Backend** | FastAPI (Python) | 0.100+ |
 | **ORM** | SQLAlchemy (async) | 2.x |
 | **DB Driver** | asyncpg | latest |
@@ -203,6 +224,7 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 | **HTTP (backend)** | httpx | latest |
 | **CRM** | Exact Spotter API v3 | — |
 | **WhatsApp API** | Meta Cloud API | v22.0 |
+| **WhatsApp API** | Evolution API v2 | latest |
 | **IA / LLM** | OpenAI GPT-5 + GPT-4o-mini | latest |
 | **Embeddings** | OpenAI text-embedding-3-small | latest |
 | **Calendário** | Google Calendar API v3 | — |
@@ -211,7 +233,7 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 | **Twilio JS** | @twilio/voice-sdk | 2.18+ |
 | **Servidor Web** | Nginx | 1.18 |
 | **SSL** | Certbot (Let's Encrypt) | auto |
-| **Hospedagem** | AWS Lightsail | Ubuntu 22.04 |
+| **Hospedagem** | AWS EC2 / Lightsail | Ubuntu 24.04 |
 | **Controle de versão** | Git + GitHub | — |
 
 ---
@@ -343,7 +365,9 @@ pos-plataform/
 │   │   ├── google_calendar.py      # Integração Google Calendar API
 │   │   ├── twilio_routes.py        # Rotas VoIP: token, TwiML, webhooks, gravações
 │   │   ├── google_drive.py         # Upload gravações ao Google Drive
-│   │   ├── migrate_ai.py          # Script migração tabelas IA
+│   │   ├── landing_routes.py       # Rotas: Landing Pages, formulário, dashboard ROI
+│   │   ├── oauth_routes.py         # Rotas: OAuth Meta (Instagram/Messenger)
+│   │   ├── migrate_ai.py           # Script migração tabelas IA
 │   │   └── create_tables.py        # Script para criar tabelas
 │   ├── requirements.txt
 │   ├── google-credentials.json     # Chave Service Account Google (NÃO commitar)
@@ -362,16 +386,26 @@ pos-plataform/
 │   │   │   ├── ai-test/page.tsx
 │   │   │   ├── agenda/page.tsx
 │   │   │   ├── calls/page.tsx
+│   │   │   ├── pipeline/page.tsx
+│   │   │   ├── landing-pages/page.tsx
+│   │   │   ├── dashboard-roi/page.tsx
+│   │   │   ├── canais/page.tsx
+│   │   │   ├── canais/callback/page.tsx
+│   │   │   ├── lp/[slug]/page.tsx
+│   │   │   ├── not-found.tsx          # Página 404 customizada
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
 │   │   ├── components/
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── AppLayout.tsx
-│   │   │   └── Webphone.tsx
+│   │   │   ├── Sidebar.tsx            # Menu lateral com unread badge + busca ⌘K
+│   │   │   ├── AppLayout.tsx          # Wrapper com proteção de rota + CommandPalette
+│   │   │   ├── CommandPalette.tsx     # Busca global ⌘K (contatos + páginas)
+│   │   │   ├── ConfirmModal.tsx       # Modal de confirmação estilizado
+│   │   │   ├── ActivityTimeline.tsx   # Timeline de atividades por contato
+│   │   │   └── Webphone.tsx           # Webphone flutuante (VoIP)
 │   │   ├── contexts/
 │   │   │   └── auth-context.tsx
 │   │   └── lib/
-│   │       └── api.ts
+│   │       └── api.ts                # Axios com interceptor 401 + toasts automáticos
 │   ├── public/
 │   │   ├── logo-icon-white.png
 │   │   ├── logo-icon-color.png
@@ -444,6 +478,11 @@ TWILIO_API_KEY_SID=sua_api_key_sid
 TWILIO_API_KEY_SECRET=seu_api_key_secret
 TWILIO_TWIML_APP_SID=seu_twiml_app_sid
 TWILIO_PHONE_NUMBER=+553123916801
+
+# OAuth Meta (Instagram/Messenger)
+META_APP_ID=886462874541479
+META_APP_SECRET=sua_chave_secreta
+FRONTEND_URL=https://seu-dominio.com
 ```
 
 > ⚠️ **Nunca commite o `.env`!** Adicione ao `.gitignore`.
@@ -484,6 +523,7 @@ psql -U postgres cenat_whatsapp -c "
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_status VARCHAR(30) DEFAULT 'novo';
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT;
 ALTER TABLE contacts ADD COLUMN IF NOT EXISTS channel_id INTEGER REFERENCES channels(id);
+ALTER TABLE contacts ADD COLUMN IF NOT EXISTS assigned_to INTEGER REFERENCES users(id);
 
 -- Coluna extra na tabela messages
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS channel_id INTEGER REFERENCES channels(id);
@@ -502,6 +542,21 @@ CREATE TABLE IF NOT EXISTS contact_tags (
     tag_id INTEGER REFERENCES tags(id),
     PRIMARY KEY (contact_wa_id, tag_id)
 );
+
+-- Tabela de timeline de atividades
+CREATE TABLE IF NOT EXISTS activities (
+    id BIGSERIAL PRIMARY KEY,
+    contact_wa_id VARCHAR(20) NOT NULL REFERENCES contacts(wa_id) ON DELETE CASCADE,
+    type VARCHAR(30) NOT NULL,
+    description TEXT NOT NULL,
+    metadata TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_contacts_assigned ON contacts(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_activities_contact ON activities(contact_wa_id);
+CREATE INDEX IF NOT EXISTS idx_activities_created ON activities(created_at DESC);
 "
 ```
 
@@ -579,6 +634,7 @@ VALUES ('Seu Nome', 'seu@email.com', '$HASH', 'admin', true);
 ```bash
 cd frontend
 npm install
+npm install sonner    # Sistema de toasts
 ```
 
 ### 5.2 — Configurar variáveis de ambiente
@@ -599,10 +655,28 @@ NEXT_PUBLIC_API_URL=https://hub.cenatdata.online/api
 
 ```typescript
 import axios from 'axios';
+import { toast } from 'sonner';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api',
 });
+
+// Interceptor: logout automático em 401, toasts em erros
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      window.location.href = '/login';
+    } else if (error.response?.status >= 500) {
+      toast.error('Erro no servidor');
+    } else if (!error.response) {
+      toast.error('Sem conexão com o servidor');
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
 ```
@@ -779,6 +853,9 @@ TWILIO_API_KEY_SID=sua_api_key_sid
 TWILIO_API_KEY_SECRET=seu_api_key_secret
 TWILIO_TWIML_APP_SID=seu_twiml_app_sid
 TWILIO_PHONE_NUMBER=+553123916801
+META_APP_ID=886462874541479
+META_APP_SECRET=sua_chave_secreta
+FRONTEND_URL=https://hub.cenatdata.online
 EOF
 ```
 
@@ -787,33 +864,6 @@ Criar tabelas:
 ```bash
 source venv/bin/activate
 python -m app.create_tables
-```
-
-Executar alterações extras no banco (colunas, canal, usuário admin):
-
-```bash
-sudo -u postgres psql cenat_whatsapp -c "
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lead_status VARCHAR(30) DEFAULT 'novo';
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT;
-ALTER TABLE contacts ADD COLUMN IF NOT EXISTS channel_id INTEGER REFERENCES channels(id);
-ALTER TABLE messages ADD COLUMN IF NOT EXISTS channel_id INTEGER REFERENCES channels(id);
-
-INSERT INTO channels (name, phone_number, phone_number_id, whatsapp_token, waba_id, is_active)
-VALUES ('Pós-Graduação (SDR)', '5511952137432', '978293125363835',
-        'SEU_TOKEN_AQUI', '1360246076143727', true);
-"
-```
-
-Criar usuário admin:
-
-```bash
-source venv/bin/activate
-python3 -c "
-import bcrypt
-h = bcrypt.hashpw('SuaSenhaAqui'.encode(), bcrypt.gensalt()).decode()
-print(h)
-" | xargs -I{} sudo -u postgres psql cenat_whatsapp -c \
-  "INSERT INTO users (name, email, password_hash, role, is_active) VALUES ('Seu Nome', 'seu@email.com', '{}', 'admin', true);"
 ```
 
 ### 7.11 — Criar Serviço do Backend (systemd)
@@ -841,24 +891,15 @@ sudo systemctl enable cenat-backend
 sudo systemctl start cenat-backend
 ```
 
-Verificar:
-
-```bash
-sudo systemctl status cenat-backend
-# Deve mostrar "active (running)"
-```
-
 ### 7.12 — Configurar Frontend no Servidor
 
 ```bash
 cd /home/ubuntu/pos-plataform/frontend
 
-# Configurar API URL de produção
 cat > .env.production << 'EOF'
 NEXT_PUBLIC_API_URL=https://hub.cenatdata.online/api
 EOF
 
-# Instalar dependências e buildar
 npm install
 npm run build
 ```
@@ -889,14 +930,7 @@ sudo systemctl enable cenat-frontend
 sudo systemctl start cenat-frontend
 ```
 
-Verificar:
-
-```bash
-sudo systemctl status cenat-frontend
-# Deve mostrar "active (running)"
-```
-
-### 7.14 — Configurar Nginx (Reverse Proxy)
+### 7.14 — Configurar Nginx
 
 ```bash
 sudo tee /etc/nginx/sites-available/cenat-hub << 'EOF'
@@ -916,8 +950,6 @@ server {
         proxy_pass http://127.0.0.1:8001/webhook;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /health {
@@ -928,8 +960,6 @@ server {
         proxy_pass http://127.0.0.1:3001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -949,33 +979,12 @@ sudo systemctl restart nginx
 sudo certbot --nginx -d hub.cenatdata.online --non-interactive --agree-tos -m seu@email.com
 ```
 
-O Certbot configura automaticamente o Nginx para redirecionar HTTP → HTTPS.
-
-A renovação é automática (via cron do Certbot). Para verificar:
-
-```bash
-sudo certbot renew --dry-run
-```
-
 ### 7.16 — Testar Tudo
 
 ```bash
-# Testar backend
 curl https://hub.cenatdata.online/health
-
-# Testar API
 curl https://hub.cenatdata.online/api/channels
-
-# Acessar no navegador
-# https://hub.cenatdata.online
 ```
-
-### 7.17 — Configurar Webhook no Meta (Agora sim!)
-
-Volte para a **ETAPA 1.5** e configure o webhook com a URL de produção:
-
-- **URL:** `https://hub.cenatdata.online/webhook`
-- **Token:** `cenat_webhook_2024`
 
 ---
 
@@ -997,35 +1006,7 @@ Templates são mensagens pré-aprovadas pelo Meta, obrigatórias para **iniciar*
 | **Nome** | `primeiro_contato_pos` |
 | **Idioma** | Portuguese (BR) |
 
-**Corpo da mensagem:**
-
-```
-Olá, {{1}}, tudo bem?
-👋 Seja bem-vindo(a) ao CENAT! 🎓 É um prazer saber do seu interesse em nossa Pós-Graduação {{2}}.
-Estamos aqui para ajudá-lo(a) a dar o próximo passo em sua carreira com uma formação de excelência.
-💡 Ficamos à disposição para esclarecer qualquer dúvida! 😊
-Posso explicar mais sobre a Pós?
-```
-
-**Exemplos de variáveis (obrigatório):**
-- `{{1}}` → `Maria`
-- `{{2}}` → `Boas práticas: Como trabalhar com pessoas que ouvem vozes`
-
-Clique em **Enviar para análise**. A aprovação leva de **alguns minutos até 24 horas**.
-
-### 8.3 — Como os Templates Funcionam na Plataforma
-
-1. Na página de **Conversas**, clique em **+ Nova conversa**
-2. Preencha o telefone e nome do lead
-3. Clique em **Carregar templates disponíveis**
-4. Selecione o template desejado
-5. Preencha as variáveis (nome, curso, etc.)
-6. Veja a **prévia** da mensagem
-7. Clique em **Enviar template**
-
-O sistema busca automaticamente todos os templates **aprovados** da sua conta Meta.
-
-### 8.4 — Regras Importantes dos Templates
+### 8.3 — Regras Importantes dos Templates
 
 - Só podem ser enviados para **iniciar** uma conversa
 - Cada envio tem um **custo** (~R$0,25 a R$0,80 por conversa)
@@ -1054,11 +1035,6 @@ EXACT_SPOTTER_TOKEN=seu_token_aqui
 - Busca todos os leads da API Exact Spotter (v3, protocolo OData)
 - Filtra apenas leads com `subSource` começando com `"pos"` (pós-graduação)
 - Insere novos leads ou atualiza dados de leads existentes na tabela `exact_leads`
-- A primeira sincronização pode ser feita manualmente via API:
-
-```bash
-curl -X POST https://hub.cenatdata.online/api/exact-leads/sync
-```
 
 ### 9.3 — Dados Sincronizados
 
@@ -1075,61 +1051,13 @@ curl -X POST https://hub.cenatdata.online/api/exact-leads/sync
 | register_date | registerDate |
 | update_date | updateDate |
 
-### 9.4 — Funcionalidades da Página Leads Pós (`/leads-pos`)
-
-- **Tabela** com todos os leads de pós-graduação sincronizados
-- **Filtros** por estágio e curso (dropdown)
-- **Busca** por nome ou telefone
-- **Cards de resumo** (total, vendidos, contratos gerados, descartados)
-- **Botão Sincronizar** para forçar sync manual
-- **Popup de detalhes** ao clicar em um lead:
-  - Dados de contato (telefone, email, cargo, cidade)
-  - Informações do lead (fonte, curso, SDR, data de cadastro)
-  - Histórico de qualificação (mudanças de estágio)
-  - Link direto para abrir no Exact Spotter
-  - Botão para iniciar conversa WhatsApp
-
-### 9.5 — Busca Inteligente nas Conversas
-
-Na página de **Conversas**, a barra de busca agora também pesquisa nos leads do Exact Spotter. Ao digitar um nome, aparece um dropdown com sugestões de leads. Ao clicar em um lead, o sistema preenche automaticamente o telefone e nome no modal de "Nova Conversa".
-
-### 9.6 — Página de Automações (`/automacoes`)
-
-- Selecione o **canal** (número de WhatsApp)
-- Carregue e selecione um **template** aprovado
-- Preencha as **variáveis** do template
-- **Filtre leads** por estágio, curso e SDR
-- **Selecione leads** individualmente ou em massa (checkbox)
-- **Envie** para todos os selecionados de uma vez
-- O sistema envia com **delay de 1 segundo** entre mensagens para evitar rate limit
-- **Relatório** mostra quantos foram enviados e quais falharam
-- Contatos são **criados automaticamente** no sistema ao enviar
-
-### 9.7 — Estágios do Funil
-
-| Estágio | Descrição |
-|---------|-----------|
-| Entrada | Lead acabou de entrar |
-| Follows 2-9 | Tentativas de contato |
-| Agendados | Reunião agendada |
-| Contratos Gerados | Contrato enviado |
-| Vendidos | Matrícula confirmada |
-| Descartado | Lead perdido |
-
 ---
 
 ## 🤖 ETAPA 10 — Agente de IA (Nat)
 
 ### 10.1 — Visão Geral
 
-A **Nat** é o agente de IA do Cenat Hub que qualifica leads automaticamente via WhatsApp. Ela:
-
-- Segue um fluxo de qualificação em 5 etapas
-- Utiliza RAG (Retrieval-Augmented Generation) com base de conhecimento dos 10 cursos do CENAT
-- Reconhece o nome e curso de interesse do lead automaticamente
-- Verifica horários disponíveis no Google Calendar em tempo real
-- Cria eventos no Google Calendar ao confirmar agendamento
-- Gera resumo automático e posta na timeline do Exact Spotter quando desligada
+A **Nat** é o agente de IA do Cenat Hub que qualifica leads automaticamente via WhatsApp.
 
 ### 10.2 — Fluxo de Qualificação (5 Etapas)
 
@@ -1141,173 +1069,13 @@ A **Nat** é o agente de IA do Cenat Hub que qualifica leads automaticamente via
 | 4 | Valor das parcelas (~R$300/mês) | Verificar aceitação do investimento |
 | 5 | Melhor dia/horário para ligação | Agendar reunião com consultora |
 
-A Nat envia apenas **uma pergunta por mensagem** e só avança para a próxima etapa após receber resposta.
-
-### 10.3 — Componentes do AI Engine
-
-**Motor principal (`ai_engine.py`):**
-
-- Busca system prompt e configurações do banco (por canal)
-- Injeta nome do lead e curso de interesse no prompt
-- Injeta horários livres do Google Calendar no prompt
-- Busca contexto via RAG (embeddings + similaridade cosseno, top 3 docs)
-- Busca histórico da conversa (últimas 10 mensagens)
-- Chama GPT-5 para gerar resposta
-- Retry automático com GPT-4o-mini se GPT-5 retorna vazio
-- Detecta agendamento confirmado e cria evento no Google Calendar
-
-**RAG (Base de Conhecimento):**
-
-- 10 cursos de pós-graduação cadastrados com informações detalhadas
-- Documentos divididos em chunks com embeddings via `text-embedding-3-small`
-- Busca por similaridade cosseno retorna os 3 documentos mais relevantes
-- Gerenciável via página `/ai-config` (adicionar/remover documentos)
-
-**Modelos utilizados:**
+### 10.3 — Modelos Utilizados
 
 | Modelo | Uso |
 |--------|-----|
 | `gpt-5` | Respostas principais da conversa |
 | `gpt-4o-mini` | Retry quando GPT-5 retorna vazio + geração de resumos |
 | `text-embedding-3-small` | Embeddings para RAG |
-
-### 10.4 — Página Config IA (`/ai-config`)
-
-Permite configurar a IA por canal:
-
-- System prompt editável (instruções de comportamento da Nat)
-- Modelo (GPT-5, GPT-4o, GPT-4o-mini)
-- Temperatura (0.0 a 1.0) e Max tokens
-- Base de conhecimento: adicionar documentos com título e conteúdo (gera embeddings automaticamente)
-
-### 10.5 — Kanban IA (`/kanban`)
-
-Visualização em colunas do pipeline de qualificação da IA:
-
-| Coluna | Descrição |
-|--------|-----------|
-| Aguardando IA | Lead em atendimento automático pela Nat |
-| Qualificado | Lead qualificado pela Nat |
-| Agendado | Reunião agendada no Google Calendar |
-| Aguardando Humano | IA desligada, aguardando consultora assumir |
-| Convertido | Lead convertido (matrícula) |
-| Perdido | Lead não qualificado |
-
-Cada card mostra: nome do lead, curso de interesse e status atual.
-
-### 10.6 — Teste da IA (`/ai-test`)
-
-Página de simulação que permite:
-
-- Conversar com a Nat como se fosse um lead
-- Definir nome e curso do lead nos campos do header
-- Ver respostas em tempo real com indicação do modelo usado
-- Ver quantidade de documentos RAG encontrados
-- Testar todo o fluxo de qualificação sem enviar mensagens reais
-
-### 10.7 — Toggle IA (na página de Conversas)
-
-Cada conversa tem um toggle para ligar/desligar a IA:
-
-- **ON:** Nat responde automaticamente as mensagens do lead
-- **OFF:** Desliga a IA e dispara automaticamente:
-  - Gera resumo da conversa via GPT-4o-mini
-  - Posta resumo na timeline do Exact Spotter (via `POST /v3/timelineAdd`)
-  - Salva resumo no card do Kanban (campo `summary`)
-  - Muda status para `aguardando_humano`
-
-### 10.8 — Formato do Resumo Automático
-
-Quando a IA é desligada, o seguinte resumo é gerado e postado no Exact Spotter:
-
-```
-📋 RESUMO DO ATENDIMENTO (IA Nat)
-📅 Data: 10/02/2026
-🎓 Curso de interesse: Saúde Mental Infantojuvenil
-👤 Graduação: Psicologia (2020)
-💼 Área de atuação: Clínica
-📌 Expectativa: Aprofundar conhecimentos em saúde mental
-💰 Valor aceito: Sim
-📅 Agendamento: 12/02/2026 às 16:00
-📊 Status: Qualificado
-📝 Observações: Lead demonstrou alto interesse e aceitou o valor.
-```
-
-### 10.9 — Tabelas do Banco de Dados (IA)
-
-#### `ai_configs`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| channel_id | INTEGER FK UNIQUE | Canal vinculado |
-| is_enabled | BOOLEAN | IA ativa para o canal |
-| system_prompt | TEXT | Prompt de sistema da Nat |
-| model | VARCHAR(50) | Modelo (gpt-5, gpt-4o, etc.) |
-| temperature | VARCHAR(10) | Temperatura (0.0 a 1.0) |
-| max_tokens | INTEGER | Limite de tokens na resposta |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Última atualização |
-
-#### `knowledge_documents`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| channel_id | INTEGER FK | Canal vinculado |
-| title | VARCHAR(500) | Título do documento |
-| content | TEXT | Conteúdo do documento |
-| embedding | BYTEA | Embedding serializado (numpy array) |
-| chunk_index | INTEGER | Índice do chunk |
-| token_count | INTEGER | Contagem de tokens |
-| created_at | TIMESTAMP | Data de criação |
-
-#### `ai_conversation_summaries`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| contact_wa_id | VARCHAR(20) FK | Contato vinculado |
-| channel_id | INTEGER FK | Canal vinculado |
-| status | VARCHAR(30) | Status: aguardando_ia, qualificado, agendado, etc. |
-| ai_active | BOOLEAN | Se a IA está ativa para este contato |
-| lead_course | VARCHAR(255) | Curso de interesse do lead |
-| summary | TEXT | Resumo gerado pela IA |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Última atualização |
-
-#### `ai_messages`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| contact_wa_id | VARCHAR(20) FK | Contato vinculado |
-| channel_id | INTEGER FK | Canal vinculado |
-| role | VARCHAR(20) | `user` ou `assistant` |
-| content | TEXT | Conteúdo da mensagem |
-| model | VARCHAR(50) | Modelo que gerou a resposta |
-| tokens_used | INTEGER | Tokens consumidos |
-| created_at | TIMESTAMP | Data de criação |
-
-### 10.10 — Endpoints da IA
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/ai/config/{channel_id}` | Obter configuração da IA |
-| PUT | `/api/ai/config/{channel_id}` | Salvar configuração da IA |
-| GET | `/api/ai/knowledge/{channel_id}` | Listar documentos da base de conhecimento |
-| POST | `/api/ai/knowledge/{channel_id}` | Adicionar documento (gera embedding) |
-| DELETE | `/api/ai/knowledge/{doc_id}` | Remover documento |
-| POST | `/api/ai/toggle` | Ligar/desligar IA para um contato |
-| GET | `/api/ai/status/{wa_id}` | Status da IA para um contato |
-| POST | `/api/ai/test-chat` | Testar conversa com a Nat (simulação) |
-
-### 10.11 — Endpoints do Kanban
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/kanban/board/{channel_id}` | Obter board completo |
-| PATCH | `/api/kanban/move` | Mover card entre colunas |
 
 ---
 
@@ -1316,75 +1084,16 @@ Quando a IA é desligada, o seguinte resumo é gerado e postado no Exact Spotter
 ### 11.1 — Configuração
 
 1. Acesse **https://console.cloud.google.com**
-2. Ative a **Google Calendar API** (APIs e Serviços → Biblioteca → pesquisar "Google Calendar API" → Ativar)
-3. Crie uma **Service Account** (Credenciais → Criar credenciais → Conta de serviço):
-   - Nome: `nat-ia-calendar`
-   - Email gerado: `nat-ia-calendar@seu-projeto.iam.gserviceaccount.com`
-4. Gere uma chave JSON (clique na Service Account → aba Chaves → Adicionar chave → JSON)
-5. Salve o arquivo como `backend/google-credentials.json`
-6. Adicione ao `.gitignore`: `google-credentials.json`
+2. Ative a **Google Calendar API**
+3. Crie uma **Service Account** com chave JSON
+4. Salve como `backend/google-credentials.json`
 
-### 11.2 — Compartilhar Agenda
-
-Cada consultora precisa compartilhar sua agenda com o email da Service Account:
-
-1. Abrir Google Calendar
-2. Passar o mouse sobre a agenda → ⋮ → **Configurações e compartilhamento**
-3. Em "Compartilhar com pessoas específicas" → **Adicionar pessoas**
-4. Colar o email da Service Account
-5. Permissão: **Fazer alterações e gerenciar compartilhamento**
-6. Clicar **Enviar**
-
-### 11.3 — Consultoras Configuradas
-
-```python
-# backend/app/google_calendar.py
-CALENDARS = {
-    "victoria": {
-        "name": "Victória Amorim",
-        "calendar_id": "comercialcenat@gmail.com",
-    },
-    # Para adicionar nova consultora:
-    # "nome": {
-    #     "name": "Nome Completo",
-    #     "calendar_id": "email@gmail.com",
-    # },
-}
-```
-
-### 11.4 — Funcionalidades
+### 11.2 — Funcionalidades
 
 - Consulta de horários livres em tempo real (8h–18h, slots de 30 minutos)
-- Pula finais de semana automaticamente (sábado e domingo)
+- Pula finais de semana automaticamente
 - Injeção no prompt da IA — Nat só oferece horários realmente disponíveis
 - Criação automática de eventos quando lead confirma agendamento
-- Detecção inteligente — GPT-4o-mini analisa a resposta da Nat para extrair data/hora
-
-### 11.5 — Página Agenda (`/agenda`)
-
-**Calendário:**
-
-- Iframe do Google Calendar embutido
-- Visão completa da agenda da equipe
-- Eventos criados pela Nat aparecem automaticamente
-
-**Disponibilidade:**
-
-- Cards por dia com quantidade de horários livres
-- Indicadores visuais:
-  - 🟢 Verde: Muita disponibilidade (>10 slots)
-  - 🟡 Amarelo: Disponibilidade moderada (5–10 slots)
-  - 🔴 Vermelho: Pouca disponibilidade (<5 slots)
-- Botão de atualizar para refresh em tempo real
-
-### 11.6 — Endpoints do Calendar
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/calendar/consultants` | Listar consultoras disponíveis |
-| GET | `/api/calendar/available-dates/{key}` | Próximos dias com horários livres |
-| GET | `/api/calendar/available-slots/{key}/{date}` | Horários livres de um dia específico |
-| POST | `/api/calendar/book` | Agendar reunião (cria evento no Calendar) |
 
 ---
 
@@ -1392,27 +1101,9 @@ CALENDARS = {
 
 ### 12.1 — Visão Geral
 
-O Cenat Hub integra ligações telefônicas via Twilio Voice, permitindo que a equipe comercial:
+Ligações telefônicas via Twilio Voice integradas ao navegador.
 
-- Ligue para leads diretamente do navegador (WebRTC → PSTN)
-- Receba chamadas no navegador quando alguém liga para o número Twilio
-- Grave todas as chamadas automaticamente
-- Armazene gravações no Google Drive organizado por consultora
-- Ouça gravações diretamente na plataforma
-
-### 12.2 — Pré-requisitos
-
-- Conta Twilio com créditos
-- Regulatory Bundle aprovado (obrigatório para números BR)
-- Número brasileiro com Voice habilitado
-- TwiML App configurado
-- API Key ativa
-
-### 12.3 — Configuração
-
-Consulte o arquivo **`TWILIO_VOIP_GUIDE.md`** na raiz do projeto para o guia completo de implementação, incluindo problemas conhecidos e soluções.
-
-### 12.4 — Variáveis de Ambiente
+### 12.2 — Variáveis de Ambiente
 
 ```env
 TWILIO_ACCOUNT_SID=ACxxxxxxxx
@@ -1423,22 +1114,174 @@ TWILIO_TWIML_APP_SID=APxxxxxxxx
 TWILIO_PHONE_NUMBER=+553123916801
 ```
 
-### 12.5 — URLs Configuradas no Twilio Console
+---
 
-| Local | Campo | URL |
-|-------|-------|-----|
-| TwiML App | Voice Request URL | `https://hub.cenatdata.online/api/twilio/voice` |
-| Phone Number | A call comes in | `https://hub.cenatdata.online/api/twilio/voice-incoming` |
-| Phone Number | Call status changes | `https://hub.cenatdata.online/api/twilio/call-status` |
+## 🎯 ETAPA 13 — Landing Pages de Captação
 
-### 12.6 — Componentes
+### 13.1 — Visão Geral
 
-| Componente | Arquivo | Descrição |
-|-----------|---------|-----------|
-| Webphone flutuante | `frontend/src/components/Webphone.tsx` | Botão + discador popup em todas as páginas |
-| Página Ligações | `frontend/src/app/calls/page.tsx` | Página dedicada com histórico |
-| Rotas VoIP | `backend/app/twilio_routes.py` | Token, TwiML, webhooks, proxy |
-| Google Drive | `backend/app/google_drive.py` | Upload de gravações |
+Landing Pages de alta conversão com formulário integrado ao CRM e rastreamento UTM.
+
+### 13.2 — Endpoints
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/landing-pages` | Listar LPs |
+| POST | `/api/landing-pages` | Criar LP |
+| PUT | `/api/landing-pages/{id}` | Atualizar LP |
+| DELETE | `/api/landing-pages/{id}` | Excluir LP |
+| GET | `/api/lp/{slug}` | LP pública (sem auth) |
+| POST | `/api/lp/{slug}/submit` | Envio do formulário (sem auth) |
+| GET | `/api/landing-pages/dashboard/roi` | Dashboard de ROI |
+
+---
+
+## 📊 ETAPA 14 — Pipeline Kanban de Matrículas
+
+### 14.1 — Colunas do Funil
+
+| Coluna | Status | Cor |
+|--------|--------|-----|
+| Novos Leads | `novo` | Indigo |
+| Em Contato | `em_contato` | Âmbar |
+| Qualificados | `qualificado` | Roxo |
+| Em Matrícula | `negociando` | Ciano |
+| Matriculados | `convertido` | Verde |
+| Perdidos | `perdido` | Vermelho |
+
+---
+
+## 📈 ETAPA 15 — Dashboard de Campanhas (ROI)
+
+Dashboard dedicado para ROI de campanhas. Métricas: total de leads, por origem, por campanha, por LP, por dia e funil.
+
+---
+
+## 🔗 ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)
+
+| Canal | Provider | Conexão |
+|-------|----------|---------|
+| WhatsApp (QR Code) | Evolution API | Escanear QR Code |
+| WhatsApp (Oficial) | Meta Cloud API | Token + Phone ID |
+| Instagram Direct | Meta Graph API | OAuth |
+| Messenger | Meta Graph API | OAuth |
+
+---
+
+## 🚀 ETAPA 17 — Melhorias UX/CRM (Sprints 1–9)
+
+Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 8.8/10**, equiparando a plataforma a CRMs como HubSpot e Pipedrive.
+
+### 17.1 — Sprint 1: Sistema de Toasts + Interceptor Axios
+
+- Implementação do **Sonner** como sistema de notificações visuais
+- **20 pontos de toast** em toda a plataforma (sucesso, erro, warning)
+- **Interceptor Axios** captura 401 (logout automático) e erros de rede
+- Substituição de todos os `alert()` e `console.error` por toasts visuais
+- **Arquivos:** `lib/api.ts`, `layout.tsx` (Toaster global)
+
+### 17.2 — Sprint 2: Responsividade
+
+- Adaptação de **8 páginas** para mobile/tablet com breakpoints Tailwind
+- Sidebar colapsável com overlay no mobile
+- Grids adaptáveis (cols-1 → cols-2 → cols-4)
+- Modais full-screen no mobile
+- **Páginas:** Dashboard, Conversas, Pipeline, Agenda, Canais, Landing Pages, Dashboard ROI, Usuários
+
+### 17.3 — Sprint 3: Acessibilidade + Skeleton Loading + Empty States
+
+- **22 aria-labels** em botões icon-only
+- Skeleton loading animado no Dashboard e lista de contatos
+- Empty states com ícones SVG e mensagens em Conversas, Pipeline e Agenda
+- **Componente:** ConfirmModal.tsx (substitui `window.confirm()`)
+
+### 17.4 — Sprint 4: Busca Global (⌘K)
+
+- **CommandPalette.tsx** — modal de busca estilo Notion/Spotlight
+- Atalho: `Cmd+K` (Mac) ou `Ctrl+K` (Windows/Linux)
+- Busca em tempo real com **debounce 300ms**
+- Resultados agrupados: **Páginas** (Dashboard, Conversas, Pipeline...) + **Contatos** (nome, telefone)
+- Navegação completa por teclado (↑ ↓ Enter Esc)
+- Botão "Buscar... ⌘K" no topo da sidebar
+- **Backend:** `GET /api/search?q=termo` — busca ILIKE em contacts (limite 10) + lista estática de páginas
+
+### 17.5 — Sprint 5: Filtros Avançados
+
+- Painel expansível com botão "Filtros" + badge de contagem
+- **Filtros por tags** — multi-select com pills coloridas
+- **Filtro não lidos** — toggle para contatos com mensagens não lidas
+- **Filtro IA** — IA ativa / IA desativada
+- Contador "X contatos" sempre visível
+- Botão "Limpar filtros"
+- **Implementação:** 100% client-side (sem endpoint adicional)
+
+### 17.6 — Sprint 6: Ações em Lote (Bulk Actions)
+
+- **Checkboxes** na lista de contatos (ao lado do avatar)
+- **"Selecionar todos"** no topo da lista (com estado parcial)
+- **Barra flutuante** ao selecionar — aparece no fundo da sidebar com:
+  - Contador "X selecionados"
+  - Dropdown "Mover status" (todas as opções do funil)
+  - Dropdown "Adicionar tag" (todas as tags)
+  - Botão cancelar seleção
+- **Backend:**
+  - `POST /api/contacts/bulk-update` — `{wa_ids: [], lead_status: ""}`
+  - `POST /api/contacts/bulk-tag` — `{wa_ids: [], tag_id: N}`
+  - `POST /api/contacts/bulk-remove-tag` — `{wa_ids: [], tag_id: N}`
+
+### 17.7 — Sprint 7: Timeline de Atividades
+
+- **Tabela `activities`** no PostgreSQL com log automático
+- **Eventos registrados automaticamente:**
+  - Mudança de status do lead (ex: "Status: novo → em_contato")
+  - Notas atualizadas
+  - Tag adicionada / removida (com nome da tag)
+  - IA ligada / desligada
+  - Contato atribuído a usuário
+- **Componente `ActivityTimeline.tsx`** no painel CRM (abaixo das notas)
+  - Ícones por tipo (GitBranch, Tag, FileText, Bot)
+  - Cores por tipo (amber, emerald, red, blue, purple)
+  - Tempo relativo (agora, 5min, 2h, 3d, 15/02)
+  - Linha vertical de timeline
+- **Backend:** `GET /api/contacts/{wa_id}/activities?limit=30`
+
+### 17.8 — Sprint 8: Permissões + Atribuição de Leads
+
+- Campo `assigned_to` na tabela contacts (FK → users)
+- **Seletor de atribuição** no painel CRM:
+  - Dropdown com todos os usuários ativos
+  - Avatar com iniciais coloridas
+  - Opção "Ninguém" para remover atribuição
+  - Mostra role do usuário (admin/atendente)
+- **Badge na lista de contatos** — avatar do atendente atribuído ao lado do horário
+- Log automático na timeline ao atribuir
+- **Backend:**
+  - `PATCH /api/contacts/{wa_id}/assign` — `{assigned_to: user_id | null}`
+  - `GET /api/users/list` — lista de usuários ativos (sem autenticação admin)
+
+### 17.9 — Sprint 9: Polish + Correções
+
+- **Página Agenda:**
+  - 3× `console.error` → `toast.error` / `toast.success`
+  - 2× `confirm()` → ConfirmModal estilizado
+  - Responsividade (header, stats grid, calendário)
+  - Toast de sucesso ao criar/editar/cancelar/deletar agendamento
+- **Página 404** customizada (`not-found.tsx`) com botões "Ir para Dashboard" e "Voltar"
+- **Aria-labels** em Usuários (fechar modal, mostrar/ocultar senha)
+
+### 17.10 — Resumo de Score
+
+| Critério | Antes | Depois |
+|----------|-------|--------|
+| Toasts / Feedback | 0 | 20 pontos |
+| Responsividade | 2/10 páginas | 10/10 páginas |
+| Acessibilidade | 0 aria-labels | 22+ aria-labels |
+| Busca Global | Não existia | ⌘K completo |
+| Filtros | Apenas status | Tags + Não lidos + IA |
+| Bulk Actions | Não existia | Status + Tags em lote |
+| Timeline | Não existia | 5 tipos de evento |
+| Atribuição | Não existia | Dropdown + avatar |
+| **Score Total** | **4.7/10** | **8.8/10** |
 
 ---
 
@@ -1450,96 +1293,36 @@ TWILIO_PHONE_NUMBER=+553123916801
 - Leads novos (últimas 24h)
 - Mensagens enviadas/recebidas
 - Gráfico de atividade
+- Skeleton loading durante carregamento
 
-### Conversas
+### Conversas (WhatsApp Web Clone)
 
+- Interface inspirada no WhatsApp Web (tema escuro)
 - Chat em tempo real com polling (3 segundos)
-- Envio e recebimento de texto
-- Visualização de imagens, áudios, vídeos e documentos
-- Busca de contatos e leads do Exact Spotter
+- Envio e recebimento de texto, emojis, imagens, áudios, vídeos e documentos
+- **Busca global ⌘K** — encontra contatos e páginas instantaneamente
+- **Filtros avançados** — por tags, não lidos, IA ativa/inativa
+- **Ações em lote** — selecionar múltiplos contatos e mover status ou adicionar tags
 - Filtro por status (Todos, Novo, Contato, Qualificado, etc.)
 - Seletor de canal (múltiplos números)
+- Skeleton loading + empty states
 
 ### CRM (Painel lateral)
 
-- Status do lead: Novo → Contato → Qualificado → Matriculado → Perdido
-- Tags coloridas personalizáveis
-- Notas internas por contato
-- Informações do contato (telefone, data de criação)
+- **Perfil** do contato com foto, telefone, data de cadastro
+- **Toggle IA** — ligar/desligar Nat por contato
+- **Atribuição** — selecionar responsável pelo lead (dropdown com avatares)
+- **Status do lead** — Novo → Contato → Qualificado → Matriculado → Perdido
+- **Tags** coloridas — adicionar, remover, criar novas
+- **Notas** internas editáveis
+- **Timeline de atividades** — log automático de todas as ações
 
 ### Nova Conversa
 
 - Seletor dinâmico de templates aprovados
 - Preenchimento de variáveis com prévia em tempo real
 - Criação automática do contato no sistema
-- Busca inteligente de leads do Exact Spotter (preenche telefone e nome automaticamente)
-
-### Leads Pós-Graduação (Exact Spotter)
-
-- Sincronização automática a cada 10 minutos com a API Exact Spotter
-- Filtro por estágio, curso e busca por nome/telefone
-- Popup com detalhes completos do lead (contato, email, cargo, cidade, histórico de qualificação)
-- Link direto para abrir o lead no Exact Spotter
-- Botão para iniciar conversa WhatsApp com o lead
-
-### Automações (Envio em Massa)
-
-- Seleção de canal e template aprovado
-- Filtros por estágio, curso e SDR
-- Seleção individual ou em massa (checkbox)
-- Envio em lote com delay de 1s entre mensagens (evita rate limit)
-- Modal de confirmação antes do envio
-- Relatório de resultado (enviados/falharam/erros)
-- Criação automática do contato no sistema ao enviar
-
-### Agente de IA — Nat
-
-- Qualificação automática de leads em 5 etapas via WhatsApp
-- RAG com base de conhecimento de 10 cursos de pós-graduação
-- Reconhecimento automático de nome e curso do lead
-- Verificação de disponibilidade em tempo real via Google Calendar
-- Agendamento automático com criação de evento no Calendar
-- Resumo automático da conversa ao desligar IA
-- Anotação automática na timeline do Exact Spotter
-- Retry inteligente (GPT-5 → GPT-4o-mini) em caso de resposta vazia
-
-### Config IA (`/ai-config`)
-
-- System prompt editável por canal
-- Seleção de modelo, temperatura e max tokens
-- Upload de documentos para base de conhecimento (RAG)
-- Geração automática de embeddings
-
-### Kanban IA (`/kanban`)
-
-- Visualização em colunas do pipeline de qualificação
-- Cards com nome, curso e status do lead
-- Drag and drop entre colunas
-
-### Teste IA (`/ai-test`)
-
-- Simulador de conversas com a Nat
-- Campos para nome e curso do lead
-- Indicação de modelo e docs RAG por mensagem
-
-### Agenda (`/agenda`)
-
-- Google Calendar embutido via iframe
-- Painel de disponibilidade com cards por dia
-- Indicadores visuais de disponibilidade (verde/amarelo/vermelho)
-- Atualização em tempo real
-
-### Ligações VoIP (`/calls`)
-
-- Ligações de saída: browser → celular via WebRTC/PSTN
-- Ligações de entrada: celular → browser com notificação em tempo real
-- Webphone flutuante disponível em todas as páginas
-- Página dedicada de ligações com discador profissional
-- Gravação automática de todas as chamadas
-- Upload automático das gravações ao Google Drive (organizado por consultora)
-- Reprodução de gravações diretamente na plataforma (proxy sem credenciais Twilio)
-- Histórico completo com direção, duração, status e links
-- Discador com teclado numérico e formatação automática (+55)
+- Busca inteligente de leads do Exact Spotter
 
 ### Gerenciar Usuários (Admin)
 
@@ -1554,93 +1337,13 @@ TWILIO_PHONE_NUMBER=+553123916801
 - JWT com expiração de 24 horas
 - Proteção de todas as rotas
 - Logout seguro
+- Interceptor automático em 401
 
-### Multi-número
+### Sistema de Notificações
 
-- Suporte a múltiplos números de WhatsApp
-- Cada número é um "canal" independente
-- Contatos e mensagens vinculados ao canal correto
-- Seletor de canal no topo das conversas
-
----
-
-## 🗃 Estrutura de Pastas
-
-```
-pos-plataform/
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py              # Inicialização do módulo
-│   │   ├── main.py                  # FastAPI app, CORS, webhook, health, sync background task
-│   │   ├── models.py                # Modelos: Contact, Message, Channel, User, Tag, ExactLead + IA
-│   │   ├── database.py              # Engine + SessionLocal async
-│   │   ├── routes.py                # Rotas: contacts, messages, send, tags, channels, media, templates
-│   │   ├── auth.py                  # hash_password, verify_password, create_access_token, get_current_user
-│   │   ├── auth_routes.py           # login, register, me, users, toggle_user
-│   │   ├── whatsapp.py              # send_text_message, send_template_message
-│   │   ├── exact_spotter.py         # fetch_leads_from_exact, sync_exact_leads, is_pos_lead
-│   │   ├── exact_routes.py          # list_exact_leads, sync, stats, details, bulk_send_template
-│   │   ├── ai_engine.py             # Motor IA: RAG + GPT + qualificação
-│   │   ├── ai_routes.py             # Rotas IA: config, knowledge, test, toggle
-│   │   ├── kanban_routes.py         # Rotas Kanban IA
-│   │   ├── calendar_routes.py       # Rotas Google Calendar
-│   │   ├── google_calendar.py       # Integração Google Calendar API
-│   │   ├── twilio_routes.py         # Rotas VoIP: token, TwiML, webhooks, gravações
-│   │   ├── google_drive.py          # Upload gravações ao Google Drive
-│   │   ├── migrate_ai.py            # Script migração tabelas IA
-│   │   └── create_tables.py         # Script para criar todas as tabelas
-│   ├── requirements.txt
-│   ├── google-credentials.json      # Chave Service Account Google (NÃO commitar)
-│   ├── .env                         # Variáveis (NÃO commitar)
-│   └── venv/                        # Ambiente virtual (NÃO commitar)
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── layout.tsx           # Layout raiz (metadata, fontes, AuthProvider)
-│   │   │   ├── page.tsx             # Redirect: / → /dashboard ou /login
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx         # Página de login com branding Cenat Hub
-│   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx         # Dashboard com métricas e gráficos
-│   │   │   ├── conversations/
-│   │   │   │   └── page.tsx         # Chat + CRM + templates + mídia + busca de leads
-│   │   │   ├── users/
-│   │   │   │   └── page.tsx         # Gerenciar usuários (admin)
-│   │   │   ├── leads-pos/
-│   │   │   │   └── page.tsx         # Leads pós-graduação (Exact Spotter)
-│   │   │   ├── automacoes/
-│   │   │   │   └── page.tsx         # Envio em massa de templates
-│   │   │   ├── ai-config/
-│   │   │   │   └── page.tsx         # Configuração da IA (prompt, modelo, RAG)
-│   │   │   ├── kanban/
-│   │   │   │   └── page.tsx         # Kanban IA (pipeline de qualificação)
-│   │   │   ├── ai-test/
-│   │   │   │   └── page.tsx         # Teste da IA (chat simulado)
-│   │   │   ├── agenda/
-│   │   │   │   └── page.tsx         # Agenda (Calendar + disponibilidade)
-│   │   │   └── calls/
-│   │   │       └── page.tsx         # Página de ligações (discador + histórico)
-│   │   ├── components/
-│   │   │   ├── Sidebar.tsx          # Menu lateral com logo, navegação, logout
-│   │   │   ├── AppLayout.tsx        # Wrapper com proteção de rota
-│   │   │   └── Webphone.tsx         # Webphone flutuante (VoIP)
-│   │   ├── contexts/
-│   │   │   └── auth-context.tsx     # Provider de autenticação (JWT + localStorage)
-│   │   └── lib/
-│   │       └── api.ts              # Instância Axios configurada
-│   ├── public/
-│   │   ├── logo-icon-white.png      # Logo ícone branca (sidebar)
-│   │   ├── logo-icon-color.png      # Logo ícone colorida (favicon, login)
-│   │   ├── logo-principal-cor.png
-│   │   └── logo-principal-negativo.png
-│   ├── package.json
-│   ├── .env.production
-│   └── tailwind.config.ts
-│
-├── TWILIO_VOIP_GUIDE.md
-└── README.md
-```
+- Toasts visuais (Sonner) em toda a plataforma
+- Sucesso (verde), erro (vermelho), warning (amarelo)
+- Modais de confirmação estilizados (substituem `window.confirm`)
 
 ---
 
@@ -1654,8 +1357,11 @@ pos-plataform/
 | name | VARCHAR(255) | Nome do contato |
 | lead_status | VARCHAR(30) | Status: novo, contato, qualificado, matriculado, perdido |
 | notes | TEXT | Notas internas |
+| ai_active | BOOLEAN | Se a IA está ativa para este contato |
 | channel_id | INTEGER FK | Canal (número) vinculado |
+| assigned_to | INTEGER FK | Usuário responsável (FK → users) |
 | created_at | TIMESTAMP | Data de criação |
+| updated_at | TIMESTAMP | Última atualização |
 
 ### `messages`
 
@@ -1670,17 +1376,25 @@ pos-plataform/
 | content | TEXT | Conteúdo (texto ou media:ID\|mime\|caption) |
 | timestamp | TIMESTAMP | Hora da mensagem |
 | status | VARCHAR(20) | sent, delivered, read, received |
+| sent_by_ai | BOOLEAN | Se foi enviada pela IA |
 
 ### `channels`
 
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
 | id | SERIAL PK | ID interno |
-| name | VARCHAR(100) | Nome do canal (ex: "Pós-Graduação SDR") |
+| name | VARCHAR(100) | Nome do canal |
+| type | VARCHAR(20) | whatsapp, instagram, messenger |
+| provider | VARCHAR(20) | official, evolution, meta |
 | phone_number | VARCHAR(20) | Número no formato 55XXXXXXXXXXX |
 | phone_number_id | VARCHAR(50) | ID do número na API do Meta |
-| whatsapp_token | TEXT | Token de acesso para este número |
+| whatsapp_token | TEXT | Token de acesso |
 | waba_id | VARCHAR(50) | ID da conta WhatsApp Business |
+| instance_name | VARCHAR(100) | Instância Evolution API |
+| page_id | VARCHAR(50) | Page ID Facebook |
+| instagram_id | VARCHAR(50) | Instagram Business ID |
+| access_token | TEXT | Token OAuth Meta |
+| is_connected | BOOLEAN | Status da conexão |
 | is_active | BOOLEAN | Se o canal está ativo |
 | created_at | TIMESTAMP | Data de criação |
 
@@ -1712,6 +1426,17 @@ pos-plataform/
 | contact_wa_id | VARCHAR(20) PK, FK | Contato |
 | tag_id | INTEGER PK, FK | Tag |
 
+### `activities`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | BIGSERIAL PK | ID interno |
+| contact_wa_id | VARCHAR(20) FK | Contato vinculado |
+| type | VARCHAR(30) | Tipo: status_change, tag_added, tag_removed, note, ai_toggle, assigned |
+| description | TEXT | Descrição legível (ex: "Status: novo → em_contato") |
+| metadata | TEXT | Dados extras (JSON opcional) |
+| created_at | TIMESTAMP | Data do evento |
+
 ### `exact_leads`
 
 | Coluna | Tipo | Descrição |
@@ -1721,14 +1446,14 @@ pos-plataform/
 | name | VARCHAR(255) | Nome do lead |
 | phone1 | VARCHAR(50) | Telefone principal |
 | phone2 | VARCHAR(50) | Telefone secundário |
-| source | VARCHAR(255) | Fonte (ex: Rd Marketing) |
-| sub_source | VARCHAR(255) | Curso (ex: possmedh, possupervisao) |
+| source | VARCHAR(255) | Fonte |
+| sub_source | VARCHAR(255) | Curso |
 | stage | VARCHAR(255) | Estágio no funil |
-| funnel_id | INTEGER | ID do funil no Exact Spotter |
-| sdr_name | VARCHAR(255) | Nome do SDR responsável |
-| register_date | TIMESTAMP | Data de cadastro no CRM |
-| update_date | TIMESTAMP | Data de última atualização |
-| synced_at | TIMESTAMP | Data da última sincronização |
+| funnel_id | INTEGER | ID do funil |
+| sdr_name | VARCHAR(255) | Nome do SDR |
+| register_date | TIMESTAMP | Data de cadastro |
+| update_date | TIMESTAMP | Data de atualização |
+| synced_at | TIMESTAMP | Data da sincronização |
 
 ### `ai_configs`
 
@@ -1737,12 +1462,10 @@ pos-plataform/
 | id | SERIAL PK | ID interno |
 | channel_id | INTEGER FK UNIQUE | Canal vinculado |
 | is_enabled | BOOLEAN | IA ativa para o canal |
-| system_prompt | TEXT | Prompt de sistema da Nat |
-| model | VARCHAR(50) | Modelo (gpt-5, gpt-4o, etc.) |
-| temperature | VARCHAR(10) | Temperatura (0.0 a 1.0) |
-| max_tokens | INTEGER | Limite de tokens na resposta |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Última atualização |
+| system_prompt | TEXT | Prompt de sistema |
+| model | VARCHAR(50) | Modelo GPT |
+| temperature | VARCHAR(10) | Temperatura |
+| max_tokens | INTEGER | Limite de tokens |
 
 ### `knowledge_documents`
 
@@ -1750,61 +1473,86 @@ pos-plataform/
 |--------|------|-----------|
 | id | SERIAL PK | ID interno |
 | channel_id | INTEGER FK | Canal vinculado |
-| title | VARCHAR(500) | Título do documento |
-| content | TEXT | Conteúdo do documento |
-| embedding | BYTEA | Embedding serializado (numpy array) |
+| title | VARCHAR(500) | Título |
+| content | TEXT | Conteúdo |
+| embedding | BYTEA | Embedding numpy |
 | chunk_index | INTEGER | Índice do chunk |
 | token_count | INTEGER | Contagem de tokens |
-| created_at | TIMESTAMP | Data de criação |
 
 ### `ai_conversation_summaries`
 
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
 | id | SERIAL PK | ID interno |
-| contact_wa_id | VARCHAR(20) FK | Contato vinculado |
-| channel_id | INTEGER FK | Canal vinculado |
-| status | VARCHAR(30) | Status: aguardando_ia, qualificado, agendado, etc. |
-| ai_active | BOOLEAN | Se a IA está ativa para este contato |
-| lead_course | VARCHAR(255) | Curso de interesse do lead |
-| summary | TEXT | Resumo gerado pela IA |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Última atualização |
+| contact_wa_id | VARCHAR(20) FK | Contato |
+| channel_id | INTEGER FK | Canal |
+| status | VARCHAR(30) | Status do atendimento IA |
+| ai_active | BOOLEAN | IA ativa |
+| lead_course | VARCHAR(255) | Curso de interesse |
+| summary | TEXT | Resumo gerado |
+| human_took_over | BOOLEAN | Se humano assumiu |
 
 ### `ai_messages`
 
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
 | id | SERIAL PK | ID interno |
-| contact_wa_id | VARCHAR(20) FK | Contato vinculado |
-| channel_id | INTEGER FK | Canal vinculado |
-| role | VARCHAR(20) | `user` ou `assistant` |
-| content | TEXT | Conteúdo da mensagem |
-| model | VARCHAR(50) | Modelo que gerou a resposta |
+| contact_wa_id | VARCHAR(20) FK | Contato |
+| channel_id | INTEGER FK | Canal |
+| role | VARCHAR(20) | user ou assistant |
+| content | TEXT | Conteúdo |
+| model | VARCHAR(50) | Modelo utilizado |
 | tokens_used | INTEGER | Tokens consumidos |
-| created_at | TIMESTAMP | Data de criação |
+
+### `schedules`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| contact_wa_id | VARCHAR(20) | Contato |
+| type | VARCHAR(20) | voice_ai ou consultant |
+| scheduled_date | DATE | Data agendada |
+| scheduled_time | TIME | Horário agendado |
+| status | VARCHAR(20) | pending, completed, cancelled, failed |
+| notes | TEXT | Observações |
 
 ### `call_logs`
 
 | Coluna | Tipo | Descrição |
 |--------|------|-----------|
 | id | SERIAL PK | ID interno |
-| call_sid | VARCHAR | ID da chamada no Twilio |
-| from_number | VARCHAR | Número de origem |
-| to_number | VARCHAR | Número de destino |
+| call_sid | VARCHAR | ID Twilio |
+| from_number | VARCHAR | Origem |
+| to_number | VARCHAR | Destino |
 | direction | VARCHAR | outbound ou inbound |
-| status | VARCHAR | initiated, ringing, completed, no-answer, busy, failed |
+| status | VARCHAR | Status da chamada |
 | duration | INTEGER | Duração em segundos |
-| recording_url | VARCHAR | URL da gravação no Twilio |
-| recording_sid | VARCHAR | ID da gravação no Twilio |
-| drive_file_url | VARCHAR | Link do Google Drive |
-| user_id | INTEGER FK | Usuário que fez/recebeu |
-| user_name | VARCHAR | Nome do usuário |
-| contact_wa_id | VARCHAR | WhatsApp ID do contato |
-| contact_name | VARCHAR | Nome do contato |
-| channel_id | INTEGER FK | Canal vinculado |
-| created_at | TIMESTAMP | Data de criação |
-| updated_at | TIMESTAMP | Última atualização |
+| recording_url | VARCHAR | URL gravação Twilio |
+| drive_file_url | VARCHAR | Link Google Drive |
+
+### `landing_pages`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| title | VARCHAR(255) | Título da LP |
+| slug | VARCHAR(100) UNIQUE | URL amigável |
+| description | TEXT | Descrição |
+| primary_color | VARCHAR(7) | Cor principal (hex) |
+| is_active | BOOLEAN | Se está publicada |
+
+### `form_submissions`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| landing_page_id | INTEGER FK | LP de origem |
+| name | VARCHAR(255) | Nome do lead |
+| phone | VARCHAR(20) | Telefone |
+| email | VARCHAR(255) | Email |
+| utm_source | VARCHAR(100) | Origem UTM |
+| utm_medium | VARCHAR(100) | Mídia UTM |
+| utm_campaign | VARCHAR(100) | Campanha UTM |
 
 ---
 
@@ -1820,14 +1568,29 @@ pos-plataform/
 | GET | `/api/auth/users` | Listar usuários (admin) |
 | PATCH | `/api/auth/users/{id}` | Ativar/desativar usuário |
 
-### Contatos
+### Contatos + CRM
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/contacts` | Listar contatos (filtro por channel_id) |
+| GET | `/api/contacts?channel_id=X` | Listar contatos do canal |
 | GET | `/api/contacts/{wa_id}` | Detalhes do contato |
-| PATCH | `/api/contacts/{wa_id}/status` | Atualizar status do lead |
-| PATCH | `/api/contacts/{wa_id}/notes` | Atualizar notas |
+| PATCH | `/api/contacts/{wa_id}` | Atualizar nome/status/notas |
+| PATCH | `/api/contacts/{wa_id}/assign` | Atribuir a usuário |
+| POST | `/api/contacts/{wa_id}/tags/{id}` | Adicionar tag |
+| DELETE | `/api/contacts/{wa_id}/tags/{id}` | Remover tag |
+| GET | `/api/contacts/{wa_id}/activities` | Timeline de atividades |
+| POST | `/api/contacts/{wa_id}/read` | Marcar como lido |
+| GET | `/api/contacts/{wa_id}/messages` | Histórico de mensagens |
+
+### Busca + Bulk Actions
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/search?q=termo` | Busca global (contatos + páginas) |
+| GET | `/api/users/list` | Usuários para atribuição |
+| POST | `/api/contacts/bulk-update` | Mover status em lote |
+| POST | `/api/contacts/bulk-tag` | Adicionar tag em lote |
+| POST | `/api/contacts/bulk-remove-tag` | Remover tag em lote |
 
 ### Mensagens
 
@@ -1843,8 +1606,6 @@ pos-plataform/
 |--------|------|-----------|
 | GET | `/api/tags` | Listar todas as tags |
 | POST | `/api/tags` | Criar nova tag |
-| POST | `/api/contacts/{wa_id}/tags/{tag_id}` | Adicionar tag ao contato |
-| DELETE | `/api/contacts/{wa_id}/tags/{tag_id}` | Remover tag do contato |
 
 ### Canais
 
@@ -1854,75 +1615,98 @@ pos-plataform/
 | POST | `/api/channels` | Criar novo canal |
 | GET | `/api/channels/{id}/templates` | Listar templates aprovados |
 
-### Mídia
+### Mídia + Dashboard
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/media/{media_id}` | Proxy para baixar mídia do WhatsApp |
-
-### Dashboard
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
+| GET | `/api/media/{media_id}` | Proxy para baixar mídia |
 | GET | `/api/dashboard/stats` | Métricas gerais |
 
-### Exact Spotter (Leads Pós)
+### Exact Spotter
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/exact-leads` | Listar leads (filtros: stage, sub_source, search, limit) |
-| POST | `/api/exact-leads/sync` | Sincronizar leads do Exact Spotter |
-| GET | `/api/exact-leads/stats` | Estatísticas agregadas (total, por estágio, por curso) |
-| GET | `/api/exact-leads/{exact_id}/details` | Detalhes do lead (dados, contato, histórico) |
-| POST | `/api/exact-leads/bulk-send-template` | Envio em massa de template para leads selecionados |
+| GET | `/api/exact-leads` | Listar leads |
+| POST | `/api/exact-leads/sync` | Sincronizar |
+| GET | `/api/exact-leads/stats` | Estatísticas |
+| GET | `/api/exact-leads/{id}/details` | Detalhes do lead |
+| POST | `/api/exact-leads/bulk-send-template` | Envio em massa |
 
 ### Agente de IA
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/ai/config/{channel_id}` | Obter configuração da IA |
-| PUT | `/api/ai/config/{channel_id}` | Salvar configuração da IA |
-| GET | `/api/ai/knowledge/{channel_id}` | Listar documentos da base de conhecimento |
-| POST | `/api/ai/knowledge/{channel_id}` | Adicionar documento (gera embedding) |
+| GET | `/api/ai/config/{channel_id}` | Config da IA |
+| PUT | `/api/ai/config/{channel_id}` | Salvar config |
+| GET | `/api/ai/knowledge/{channel_id}` | Listar documentos RAG |
+| POST | `/api/ai/knowledge/{channel_id}` | Adicionar documento |
 | DELETE | `/api/ai/knowledge/{doc_id}` | Remover documento |
-| POST | `/api/ai/toggle` | Ligar/desligar IA para um contato |
-| GET | `/api/ai/status/{wa_id}` | Status da IA para um contato |
-| POST | `/api/ai/test-chat` | Testar conversa com a Nat (simulação) |
+| PATCH | `/api/ai/contacts/{wa_id}/toggle` | Ligar/desligar IA |
+| POST | `/api/ai/test-chat` | Testar conversa |
 
 ### Kanban IA
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/kanban/board/{channel_id}` | Obter board completo |
-| PATCH | `/api/kanban/move` | Mover card entre colunas |
+| GET | `/api/kanban/board/{channel_id}` | Board completo |
+| PATCH | `/api/kanban/move` | Mover card |
 
 ### Google Calendar
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/calendar/consultants` | Listar consultoras disponíveis |
-| GET | `/api/calendar/available-dates/{key}` | Próximos dias com horários livres |
-| GET | `/api/calendar/available-slots/{key}/{date}` | Horários livres de um dia específico |
-| POST | `/api/calendar/book` | Agendar reunião (cria evento no Calendar) |
+| GET | `/api/calendar/consultants` | Listar consultoras |
+| GET | `/api/calendar/available-dates/{key}` | Dias com horários |
+| GET | `/api/calendar/available-slots/{key}/{date}` | Horários livres |
+| POST | `/api/calendar/book` | Agendar reunião |
+
+### Agendamentos
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/schedules?limit=500` | Listar agendamentos |
+| GET | `/api/schedules/stats` | Estatísticas |
+| POST | `/api/schedules` | Criar agendamento |
+| PATCH | `/api/schedules/{id}` | Atualizar agendamento |
+| DELETE | `/api/schedules/{id}` | Deletar agendamento |
 
 ### VoIP (Twilio)
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/api/twilio/token` | Gerar Access Token para WebRTC |
-| POST | `/api/twilio/voice` | TwiML para chamadas de saída (browser) |
-| POST | `/api/twilio/voice-incoming` | TwiML para chamadas de entrada (PSTN) |
-| POST | `/api/twilio/call-status` | Webhook: status da chamada |
-| POST | `/api/twilio/recording-status` | Webhook: gravação finalizada |
-| GET | `/api/twilio/recording/{sid}` | Proxy para reproduzir gravação |
-| GET | `/api/twilio/call-logs` | Histórico de ligações |
+| GET | `/api/twilio/token` | Token WebRTC |
+| POST | `/api/twilio/voice` | TwiML saída |
+| POST | `/api/twilio/voice-incoming` | TwiML entrada |
+| POST | `/api/twilio/call-status` | Status da chamada |
+| POST | `/api/twilio/recording-status` | Gravação finalizada |
+| GET | `/api/twilio/recording/{sid}` | Proxy gravação |
+| GET | `/api/twilio/call-logs` | Histórico |
+
+### Landing Pages
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/landing-pages` | Listar LPs |
+| POST | `/api/landing-pages` | Criar LP |
+| PUT | `/api/landing-pages/{id}` | Atualizar LP |
+| DELETE | `/api/landing-pages/{id}` | Excluir LP |
+| GET | `/api/lp/{slug}` | LP pública |
+| POST | `/api/lp/{slug}/submit` | Formulário |
+| GET | `/api/landing-pages/dashboard/roi` | Dashboard ROI |
+
+### OAuth
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/oauth/meta/url?channel_type=instagram` | URL OAuth |
+| POST | `/api/oauth/meta/callback` | Callback OAuth |
 
 ### Webhook
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
-| GET | `/webhook` | Verificação do Meta |
-| POST | `/webhook` | Receber mensagens e status |
+| GET | `/webhook` | Verificação Meta |
+| POST | `/webhook` | Receber mensagens |
 
 ---
 
@@ -1942,10 +1726,10 @@ DATABASE_URL=postgresql+asyncpg://usuario:senha@host:5432/cenat_whatsapp
 # Autenticação (obrigatório)
 JWT_SECRET=chave_secreta_para_tokens_jwt
 
-# Exact Spotter CRM (obrigatório para leads pós)
+# Exact Spotter CRM
 EXACT_SPOTTER_TOKEN=token_da_api_exact_spotter
 
-# OpenAI (obrigatório para IA)
+# OpenAI (IA)
 OPENAI_API_KEY=sua_chave_openai
 
 # Twilio Voice (VoIP)
@@ -1955,12 +1739,12 @@ TWILIO_API_KEY_SID=sua_api_key_sid
 TWILIO_API_KEY_SECRET=seu_api_key_secret
 TWILIO_TWIML_APP_SID=seu_twiml_app_sid
 TWILIO_PHONE_NUMBER=+553123916801
+
+# OAuth Meta (Instagram/Messenger)
+META_APP_ID=886462874541479
+META_APP_SECRET=sua_chave_secreta
+FRONTEND_URL=https://seu-dominio.com
 ```
-
-**Arquivos sensíveis (NÃO commitar):**
-
-- `backend/.env`
-- `backend/google-credentials.json`
 
 ### Frontend (`frontend/.env.production`)
 
@@ -1975,97 +1759,47 @@ NEXT_PUBLIC_API_URL=https://seu-dominio.com/api
 ### Servidor de Produção
 
 ```bash
-# ═══════════════════════════════════════
-# VERIFICAR STATUS DOS SERVIÇOS
-# ═══════════════════════════════════════
+# Verificar status
 sudo systemctl status cenat-backend
 sudo systemctl status cenat-frontend
 sudo systemctl status nginx
-sudo systemctl status postgresql
 
-# ═══════════════════════════════════════
-# REINICIAR SERVIÇOS
-# ═══════════════════════════════════════
+# Reiniciar serviços
 sudo systemctl restart cenat-backend
 sudo systemctl restart cenat-frontend
 sudo systemctl restart nginx
 
-# ═══════════════════════════════════════
-# VER LOGS (últimas 50 linhas)
-# ═══════════════════════════════════════
+# Ver logs
 sudo journalctl -u cenat-backend -n 50 --no-pager
 sudo journalctl -u cenat-frontend -n 50 --no-pager
-sudo tail -50 /var/log/nginx/error.log
 
-# ═══════════════════════════════════════
-# ATUALIZAR CÓDIGO (deploy)
-# ═══════════════════════════════════════
-cd /home/ubuntu/pos-plataform
-git pull
-
-# Backend
+# Deploy
+cd /home/ubuntu/pos-plataform && git pull
 sudo systemctl restart cenat-backend
+cd frontend && npm run build && sudo systemctl restart cenat-frontend
 
-# Frontend (precisa rebuildar)
-cd frontend
-npm run build
-sudo systemctl restart cenat-frontend
-
-# ═══════════════════════════════════════
-# SINCRONIZAR LEADS MANUALMENTE
-# ═══════════════════════════════════════
-curl -X POST https://hub.cenatdata.online/api/exact-leads/sync
-
-# ═══════════════════════════════════════
-# ACESSAR BANCO DE DADOS
-# ═══════════════════════════════════════
-sudo -u postgres psql cenat_whatsapp
+# Banco de dados
+psql -U eduflow -d eduflow_db -h localhost
 
 # Consultas úteis:
 # SELECT * FROM contacts ORDER BY created_at DESC LIMIT 10;
-# SELECT * FROM messages WHERE contact_wa_id = '5583988001234' ORDER BY timestamp DESC;
+# SELECT * FROM activities ORDER BY created_at DESC LIMIT 20;
+# SELECT COUNT(*) FROM activities GROUP BY type;
+# SELECT id, name, role, is_active FROM users;
 # SELECT * FROM channels;
-# SELECT id, name, email, role, is_active FROM users;
-# SELECT COUNT(*), stage FROM exact_leads GROUP BY stage ORDER BY count DESC;
-# SELECT COUNT(*), sub_source FROM exact_leads GROUP BY sub_source ORDER BY count DESC;
-# SELECT * FROM ai_configs;
-# SELECT * FROM ai_conversation_summaries ORDER BY updated_at DESC LIMIT 10;
-# SELECT * FROM call_logs ORDER BY created_at DESC LIMIT 10;
-
-# ═══════════════════════════════════════
-# RENOVAR SSL
-# ═══════════════════════════════════════
-sudo certbot renew --dry-run  # Testar
-sudo certbot renew             # Renovar
 ```
 
 ### Desenvolvimento Local
 
 ```bash
-# Rodar backend
+# Backend
 cd backend && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 
-# Rodar frontend
+# Frontend
 cd frontend && npm run dev
 
-# Expor para webhook (ngrok)
+# Webhook (ngrok)
 ngrok http 8001
-```
-
-### Git (Fluxo de Deploy)
-
-```bash
-# No Mac (desenvolvimento)
-cd ~/Documents/pos-plataform
-git add -A
-git commit -m "feat: descrição da mudança"
-git push
-
-# No servidor (produção)
-cd /home/ubuntu/pos-plataform
-git pull
-sudo systemctl restart cenat-backend
-cd frontend && npm run build && sudo systemctl restart cenat-frontend
 ```
 
 ---
@@ -2075,450 +1809,57 @@ cd frontend && npm run build && sudo systemctl restart cenat-frontend
 ### Backend não inicia
 
 ```bash
-# Ver erro detalhado
 sudo journalctl -u cenat-backend -n 50 --no-pager
-
-# Erro comum: módulo não encontrado
-cd /home/ubuntu/pos-plataform/backend
-source venv/bin/activate
-pip install pyjwt bcrypt==4.0.1 httpx
-sudo systemctl restart cenat-backend
+# Erro comum: módulo não encontrado → pip install na venv
 ```
 
 ### Frontend dá 502 Bad Gateway
 
 ```bash
-# Verificar se está rodando
 sudo systemctl status cenat-frontend
-
-# Geralmente é erro de Node.js
-node -v   # Precisa ser >= 20.x
-
-# Se precisar atualizar:
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
-cd /home/ubuntu/pos-plataform/frontend
-rm -rf .next node_modules
-npm install
-npm run build
-sudo systemctl restart cenat-frontend
+# Verificar node -v >= 20.x, rebuildar: npm run build
 ```
 
 ### Webhook não recebe mensagens
 
-1. Verifique a URL no Meta Developers: deve ser `https://hub.cenatdata.online/webhook`
-2. Teste: `curl https://hub.cenatdata.online/webhook?hub.mode=subscribe&hub.verify_token=cenat_webhook_2024&hub.challenge=test`
-3. Deve retornar: `test`
-4. Verifique se os campos `messages` e `message_status` estão ativados
-
-### Canal não aparece no dropdown
-
 ```bash
-# Verificar se is_active está true
-sudo -u postgres psql cenat_whatsapp -c "SELECT id, name, is_active FROM channels;"
-
-# Corrigir se necessário
-sudo -u postgres psql cenat_whatsapp -c "UPDATE channels SET is_active = true;"
+curl https://hub.cenatdata.online/webhook?hub.mode=subscribe&hub.verify_token=cenat_webhook_2024&hub.challenge=test
+# Deve retornar: test
 ```
 
-### Login dá "Usuário inativo"
+### Timeline vazia
 
 ```bash
-sudo -u postgres psql cenat_whatsapp -c "UPDATE users SET is_active = true WHERE email = 'seu@email.com';"
+# Verificar se a tabela activities existe
+psql -U eduflow -d eduflow_db -h localhost -c "SELECT COUNT(*) FROM activities;"
+# Se der erro, rodar a migration da ETAPA 4.2
 ```
 
-### Mídia não carrega (imagem/áudio)
-
-- Mídias antigas (antes da implementação) não carregam — são IDs sem formato
-- Envie uma nova mensagem de mídia para testar
-- Verifique se o token do canal está válido
-
-### CORS Error no navegador
-
-Verifique se o domínio está na lista de origens permitidas no `main.py`:
-
-```python
-allow_origins=["http://localhost:3000", "http://localhost:3001", "https://hub.cenatdata.online"]
-```
-
-### Leads não sincronizam do Exact Spotter
+### Atribuição não funciona
 
 ```bash
-# Verificar se o token está no .env
-grep EXACT_SPOTTER_TOKEN /home/ubuntu/pos-plataform/backend/.env
-
-# Testar sync manualmente
-curl -X POST https://hub.cenatdata.online/api/exact-leads/sync
-
-# Ver logs do backend
-sudo journalctl -u cenat-backend -n 50 --no-pager | grep -i exact
+# Verificar se a coluna assigned_to existe
+psql -U eduflow -d eduflow_db -h localhost -c "\d contacts" | grep assigned
+# Se não existir: ALTER TABLE contacts ADD COLUMN assigned_to INTEGER REFERENCES users(id);
 ```
 
-### Envio em massa falha
+### Busca ⌘K não abre
 
-- Verifique se o template está **aprovado** no Meta
-- Verifique se os leads possuem telefone (phone1)
-- O sistema envia com delay de 1s — envios grandes podem demorar
-- Verifique o resultado no relatório (erros específicos por lead)
+- Verificar se `CommandPalette.tsx` existe em `components/`
+- Verificar se `AppLayout.tsx` importa o `<CommandPalette />`
+- Verificar se `Sidebar.tsx` tem o botão "Buscar... ⌘K"
 
-### IA não responde
-
-```bash
-# Verificar chave OpenAI
-grep OPENAI_API_KEY /home/ubuntu/pos-plataform/backend/.env
-
-# Verificar se IA está habilitada para o canal
-# Acessar /ai-config e verificar toggle
-
-# Ver logs
-sudo journalctl -u cenat-backend -n 50 --no-pager | grep -i "ai\|openai\|gpt"
-```
-
-### Calendário não sincroniza / Evento não cria
+### Bulk actions não funcionam
 
 ```bash
-# Verificar se google-credentials.json existe
-ls -la /home/ubuntu/pos-plataform/backend/google-credentials.json
-
-# Verificar se a agenda foi compartilhada com a Service Account
-# Email: nat-ia-calendar@gen-lang-client-0630066041.iam.gserviceaccount.com
-
 # Testar endpoint
-curl http://localhost:8001/api/calendar/available-dates/victoria
-```
-
-### GPT-5 retorna resposta vazia
-
-- O sistema faz retry automático com `gpt-4o-mini`
-- Se persistir, verificar limites da API OpenAI ou trocar modelo na Config IA
-- Verificar logs: `grep "content=''" nos logs do backend`
-
-### Anotação não aparece no Exact Spotter
-
-```bash
-# Verificar token
-grep EXACT_SPOTTER_TOKEN /home/ubuntu/pos-plataform/backend/.env
-
-# Endpoint correto: POST /v3/timelineAdd (NÃO /v3/Timeline)
-# User ID configurado: 415875 (Victória Amorim)
-
-# Testar manualmente
-curl -s -X POST "https://api.exactspotter.com/v3/timelineAdd" \
+curl -X POST https://hub.cenatdata.online/api/contacts/bulk-update \
   -H "Content-Type: application/json" \
-  -H "token_exact: SEU_TOKEN" \
-  -d '{"leadId": ID_DO_LEAD, "text": "Teste", "userId": 415875}'
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -d '{"wa_ids": ["5511999999999"], "lead_status": "em_contato"}'
 ```
-
-### Evento no Calendar com ano errado
-
-- O prompt de detecção inclui "O ano atual é 2026"
-- Se o GPT extrair ano errado, verificar o prompt em `google_calendar.py` na função `detect_and_create_event`
-
-### Twilio: "JWT is invalid"
-
-```bash
-# Verificar se API Key está ativa
-curl -u "ACCOUNT_SID:AUTH_TOKEN" https://api.twilio.com/2010-04-01/Accounts/ACCOUNT_SID.json
-
-# Se necessário, criar nova key via API
-curl -X POST "https://api.twilio.com/2010-04-01/Accounts/ACCOUNT_SID/Keys.json" \
-  -u "ACCOUNT_SID:AUTH_TOKEN" \
-  -d "FriendlyName=nova-key"
-```
-
-### Gravações pedem login do Twilio
-
-O player de áudio usa um proxy no backend. Verifique se a rota `/api/twilio/recording/{sid}` está funcionando:
-
-```bash
-curl https://hub.cenatdata.online/api/twilio/recording/RE_RECORDING_SID --output teste.mp3
-```
-
-### Chamada de entrada não aparece no browser
-
-1. Verifique se o Webphone está com bolinha verde (Device registrado)
-2. Verifique a URL no Twilio Console: deve ser `/api/twilio/voice-incoming`
-3. Verifique se a identity no `voice-incoming` bate com a do token
 
 ---
-
-
-
----
-
-## 🎯 ETAPA 13 — Landing Pages de Captação
-
-### 13.1 — Visão Geral
-
-O EduFlow permite criar Landing Pages de alta conversão diretamente pela plataforma. Cada LP possui:
-
-- 8 seções otimizadas para conversão (hero, stats, curso, público-alvo, diferenciais, depoimentos, FAQ, CTA)
-- Formulário integrado que cria contato automaticamente no CRM
-- Rastreamento UTM completo (source, medium, campaign)
-- URL pública acessível sem login (`/lp/[slug]`)
-
-### 13.2 — Como Funciona
-
-1. Acesse **Landing Pages** no menu lateral
-2. Clique em **Nova Landing Page**
-3. Preencha: título, slug, descrição, cor principal
-4. A LP é criada com template padrão de 8 seções
-5. Acesse via `https://seu-dominio.com/lp/[slug]`
-6. Leads que preenchem o formulário entram automaticamente no Pipeline
-
-### 13.3 — UTM Tracking
-
-As LPs capturam automaticamente parâmetros UTM da URL:
-
-```
-https://seu-dominio.com/lp/pos-ia?utm_source=meta&utm_medium=cpc&utm_campaign=pos-ia-fev
-```
-
-Dados capturados e salvos junto ao lead:
-- `utm_source` — Origem (meta, google, instagram)
-- `utm_medium` — Mídia (cpc, organic, email)
-- `utm_campaign` — Campanha específica
-
-### 13.4 — Endpoints
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/landing-pages` | Listar LPs |
-| POST | `/api/landing-pages` | Criar LP |
-| PUT | `/api/landing-pages/{id}` | Atualizar LP |
-| DELETE | `/api/landing-pages/{id}` | Excluir LP |
-| GET | `/api/lp/{slug}` | LP pública (sem auth) |
-| POST | `/api/lp/{slug}/submit` | Envio do formulário (sem auth) |
-| GET | `/api/landing-pages/dashboard/roi` | Dashboard de ROI |
-
-### 13.5 — Tabelas
-
-#### `landing_pages`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| title | VARCHAR(255) | Título da LP |
-| slug | VARCHAR(100) UNIQUE | URL amigável |
-| description | TEXT | Descrição/subtítulo |
-| primary_color | VARCHAR(7) | Cor principal (hex) |
-| is_active | BOOLEAN | Se está publicada |
-| created_at | TIMESTAMP | Data de criação |
-
-#### `form_submissions`
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| landing_page_id | INTEGER FK | LP de origem |
-| name | VARCHAR(255) | Nome do lead |
-| phone | VARCHAR(20) | Telefone |
-| email | VARCHAR(255) | Email |
-| utm_source | VARCHAR(100) | Origem UTM |
-| utm_medium | VARCHAR(100) | Mídia UTM |
-| utm_campaign | VARCHAR(100) | Campanha UTM |
-| created_at | TIMESTAMP | Data de envio |
-
----
-
-## 📊 ETAPA 14 — Pipeline Kanban de Matrículas
-
-### 14.1 — Visão Geral
-
-O Pipeline é um Kanban visual com 6 colunas representando o funil de matrículas educacional. Suporta drag-and-drop nativo (HTML5) para mover leads entre etapas.
-
-### 14.2 — Colunas do Funil
-
-| Coluna | Status | Cor | Descrição |
-|--------|--------|-----|-----------|
-| Novos Leads | `novo` | Indigo | Lead acabou de entrar |
-| Em Contato | `em_contato` | Âmbar | Primeiro contato realizado |
-| Qualificados | `qualificado` | Roxo | Lead qualificado com interesse real |
-| Em Matrícula | `negociando` | Ciano | Processo de matrícula em andamento |
-| Matriculados | `convertido` | Verde | Matrícula confirmada |
-| Perdidos | `perdido` | Vermelho | Lead não convertido |
-
-### 14.3 — Funcionalidades
-
-- Drag-and-drop nativo entre colunas (sem bibliotecas externas)
-- Update otimista (move instantâneo, reverte se API falhar)
-- Modal de detalhes do lead (info, tags, notas, status)
-- Busca por nome ou telefone
-- Auto-refresh a cada 15 segundos
-- Botões de ação: abrir conversa, abrir WhatsApp
-- Stats pills com contagem por coluna
-
-### 14.4 — Arquivos
-
-- **Frontend:** `frontend/src/app/pipeline/page.tsx`
-- **Backend:** Usa rota existente `PATCH /api/contacts/{wa_id}` com `{ lead_status: "novo_status" }`
-
----
-
-## 📈 ETAPA 15 — Dashboard de Campanhas (ROI)
-
-### 15.1 — Visão Geral
-
-Dashboard dedicado para acompanhar o ROI de campanhas de captação. Mostra de onde vêm os leads, quais campanhas convertem mais e quais Landing Pages performam melhor.
-
-### 15.2 — Métricas
-
-- **Total de Leads** — Todos os leads capturados via formulário
-- **Por Origem** (utm_source) — Meta, Google, Instagram, etc.
-- **Por Campanha** (utm_campaign) — Campanha específica com volume
-- **Por Landing Page** — Qual LP gerou mais leads
-- **Por Dia** — Gráfico de barras dos últimos 30 dias
-- **Funil** — Distribuição de leads por status (novo → matriculado)
-
-### 15.3 — Endpoint
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/landing-pages/dashboard/roi` | Retorna todas as métricas agregadas |
-
-**Resposta:**
-```json
-{
-  "total_leads": 150,
-  "by_source": [{"source": "meta", "total": 80}],
-  "by_campaign": [{"campaign": "pos-ia-fev", "total": 45}],
-  "by_page": [{"title": "Pós IA", "slug": "pos-ia", "total": 60}],
-  "by_day": [{"day": "2026-02-12", "total": 8}],
-  "funnel": [{"status": "novo", "total": 50}]
-}
-```
-
-### 15.4 — Arquivo
-
-- **Frontend:** `frontend/src/app/dashboard-roi/page.tsx`
-- **Menu:** "Campanhas" no Sidebar com ícone BarChart3
-
----
-
-## 🔗 ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)
-
-### 16.1 — Visão Geral
-
-O EduFlow suporta múltiplos canais de comunicação em um único CRM:
-
-| Canal | Provider | Conexão |
-|-------|----------|---------|
-| WhatsApp (QR Code) | Evolution API | Escanear QR Code |
-| WhatsApp (Oficial) | Meta Cloud API | Token + Phone ID |
-| Instagram Direct | Meta Graph API | OAuth (login do cliente) |
-| Messenger | Meta Graph API | OAuth (login do cliente) |
-
-### 16.2 — Fluxo OAuth (Instagram / Messenger)
-
-1. Gestor clica "Novo Canal" → escolhe Instagram ou Messenger
-2. Clica "Entrar com Instagram" → abre login da Meta
-3. Cliente autoriza o app → Meta redireciona com code
-4. Backend troca code por token de longa duração (60 dias)
-5. Backend busca Page ID e Instagram Business ID automaticamente
-6. Canal criado como "Conectado" no CRM
-
-### 16.3 — Configuração do App Meta
-
-O OAuth requer **um único app Meta** configurado uma vez:
-
-1. Criar app em developers.facebook.com (tipo Negócio)
-2. Adicionar produtos: Instagram, Login do Facebook
-3. Configurar URI de redirecionamento: `https://seu-dominio.com/canais/callback`
-4. Submeter para verificação da Meta
-
-**Credenciais necessárias (variáveis de ambiente):**
-
-```env
-META_APP_ID=886462874541479
-META_APP_SECRET=sua_chave_secreta
-FRONTEND_URL=https://seu-dominio.com
-```
-
-### 16.4 — Scopes OAuth
-
-| Canal | Permissões solicitadas |
-|-------|----------------------|
-| Instagram | instagram_basic, instagram_manage_messages, pages_show_list, pages_messaging, pages_manage_metadata |
-| Messenger | pages_show_list, pages_messaging, pages_manage_metadata |
-
-### 16.5 — Tabela `channels` (atualizada)
-
-| Coluna | Tipo | Descrição |
-|--------|------|-----------|
-| id | SERIAL PK | ID interno |
-| name | VARCHAR(100) | Nome do canal |
-| type | VARCHAR(20) | whatsapp, instagram, messenger |
-| provider | VARCHAR(20) | official, evolution, meta |
-| phone_number | VARCHAR(20) NULL | Número (só WhatsApp) |
-| phone_number_id | VARCHAR(50) NULL | ID Meta (só WhatsApp oficial) |
-| whatsapp_token | TEXT NULL | Token (só WhatsApp oficial) |
-| waba_id | VARCHAR(50) NULL | WABA ID |
-| instance_name | VARCHAR(100) NULL | Instância Evolution API |
-| instance_token | TEXT NULL | Token Evolution |
-| page_id | VARCHAR(50) NULL | Page ID Facebook |
-| instagram_id | VARCHAR(50) NULL | Instagram Business ID |
-| access_token | TEXT NULL | Token OAuth Meta |
-| is_connected | BOOLEAN | Status da conexão |
-| is_active | BOOLEAN | Se o canal está ativo |
-| created_at | TIMESTAMP | Data de criação |
-
-### 16.6 — Endpoints OAuth
-
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/api/oauth/meta/url?channel_type=instagram` | Gera URL de login OAuth |
-| POST | `/api/oauth/meta/callback` | Troca code por token e cria canal |
-
-### 16.7 — Página de Canais (`/canais`)
-
-- Grid de canais conectados com status (Conectado/Desconectado)
-- Modal "Novo Canal" com 4 opções (WhatsApp, WhatsApp Business, Instagram, Messenger)
-- Logos oficiais SVG para cada canal
-- Instagram/Messenger: botão de OAuth direto (sem campos manuais)
-- WhatsApp: formulário com campos específicos (token, phone ID ou instância Evolution)
-
-### 16.8 — Arquivos
-
-| Arquivo | Descrição |
-|---------|-----------|
-| `backend/app/oauth_routes.py` | Rotas OAuth Meta (URL + callback) |
-| `frontend/src/app/canais/page.tsx` | Página de gerenciamento de canais |
-| `frontend/src/app/canais/callback/page.tsx` | Callback OAuth (troca code por token) |
-
----
-
-## 📁 Estrutura de Pastas (Atualizada)
-
-Novas pastas e arquivos adicionados ao projeto:
-
-```
-eduflow-plataform/
-├── backend/
-│   ├── app/
-│   │   ├── ...arquivos existentes...
-│   │   ├── landing_routes.py        # Rotas: Landing Pages, formulário, dashboard ROI
-│   │   └── oauth_routes.py          # Rotas: OAuth Meta (Instagram/Messenger)
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── ...páginas existentes...
-│   │   │   ├── landing-pages/
-│   │   │   │   └── page.tsx         # CRUD de Landing Pages
-│   │   │   ├── lp/
-│   │   │   │   └── [slug]/
-│   │   │   │       └── page.tsx     # LP pública (8 seções + formulário)
-│   │   │   ├── pipeline/
-│   │   │   │   └── page.tsx         # Pipeline Kanban com drag-and-drop
-│   │   │   ├── dashboard-roi/
-│   │   │   │   └── page.tsx         # Dashboard de campanhas (ROI)
-│   │   │   ├── canais/
-│   │   │   │   ├── page.tsx         # Gerenciamento de canais
-│   │   │   │   └── callback/
-│   │   │   │       └── page.tsx     # Callback OAuth Meta
-│   │   │   └── ...
-```
-
 
 ## 📄 Licença
 
