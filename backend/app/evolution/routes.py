@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
 import json
+from app.models import Channel, Contact, Message, Schedule
 from app.models import Channel, Contact, Message
 from app.evolution import client
 
@@ -332,6 +333,44 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                         print(f"📞 Ligação disparada para {phone}")
                     except Exception as e:
                         print(f"❌ Erro ao disparar ligação: {e}")
+                # Agendar ligação se lead não pode agora
+                elif action == "schedule_call":
+                    try:
+                        from app.models import Schedule
+                        notes_data = json.loads(ct.notes or "{}")
+                        course = notes_data.get("course", "Pós-graduação")
+                        collected = result.get("collected", {})
+
+                        dia = collected.get("dia_agendamento", "")
+                        horario = collected.get("horario_agendamento", "")
+
+                        if dia and horario:
+                            # Converter dia/horário para datetime
+                            from app.evolution.scheduler import parse_schedule_datetime
+                            scheduled_dt = parse_schedule_datetime(dia, horario)
+
+                            if scheduled_dt:
+                                schedule = Schedule(
+                                    type="voice_ai",
+                                    contact_wa_id=phone,
+                                    contact_name=sender_name,
+                                    phone=phone,
+                                    course=course,
+                                    scheduled_date=scheduled_dt.strftime("%Y-%m-%d"),
+                                    scheduled_time=scheduled_dt.strftime("%H:%M"),
+                                    scheduled_at=scheduled_dt,
+                                    status="pending",
+                                    channel_id=channel_id,
+                                )
+                                db.add(schedule)
+                                await db.commit()
+                                print(f"📅 Agendamento criado: {sender_name} → {scheduled_dt}")
+                            else:
+                                print(f"⚠️ Não conseguiu parsear data: dia={dia}, horario={horario}")
+                        else:
+                            print(f"⚠️ Agendamento sem dia/horário: {collected}")
+                    except Exception as e:
+                        print(f"❌ Erro ao agendar: {e}")
 
         return {"status": "ok"}
 

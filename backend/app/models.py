@@ -222,3 +222,25 @@ class FormSubmission(Base):
 
     landing_page = relationship("LandingPage", back_populates="submissions")
     channel = relationship("Channel", backref="form_submissions")
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String(20), nullable=False)  # voice_ai, consultant
+    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_name = Column(String(255), nullable=True)
+    phone = Column(String(30), nullable=False)
+    course = Column(String(255), nullable=True)
+    scheduled_date = Column(String(10), nullable=False)  # YYYY-MM-DD
+    scheduled_time = Column(String(5), nullable=False)    # HH:MM
+    scheduled_at = Column(DateTime, nullable=False)       # datetime completo
+    status = Column(String(20), default="pending")        # pending, completed, failed, cancelled
+    call_id = Column(Integer, ForeignKey("ai_calls.id"), nullable=True)
+    channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    contact = relationship("Contact", backref="schedules")
+    channel = relationship("Channel", backref="schedules")

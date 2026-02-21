@@ -53,6 +53,43 @@ async def cleanup_recordings_job():
             print("🗑️ Limpeza de gravações antigas concluída")
         except Exception as e:
             print(f"❌ Erro na limpeza de gravações: {e}")
+async def scheduler_job():
+    """Job que verifica agendamentos pendentes e dispara ligações a cada 1 minuto."""
+    await asyncio.sleep(30)  # Espera 30s pro app iniciar
+    while True:
+        try:
+            from app.models import Schedule
+            from sqlalchemy import select
+            from datetime import datetime, timezone, timedelta
+            SP = timezone(timedelta(hours=-3))
+            now = datetime.now(SP).replace(tzinfo=None)
+
+            async with async_session() as db:
+                result = await db.execute(
+                    select(Schedule).where(
+                        Schedule.status == "pending",
+                        Schedule.type == "voice_ai",
+                        Schedule.scheduled_at <= now,
+                    )
+                )
+                schedules = result.scalars().all()
+
+                for s in schedules:
+                    try:
+                        from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
+                        await make_outbound_call(s.phone, s.contact_name or "Lead", s.course or "Pós-graduação")
+                        s.status = "completed"
+                        print(f"📞 Agendamento disparado: {s.contact_name} ({s.phone}) às {s.scheduled_time}")
+                    except Exception as e:
+                        s.status = "failed"
+                        s.notes = str(e)
+                        print(f"❌ Erro agendamento {s.id}: {e}")
+
+                await db.commit()
+        except Exception as e:
+            print(f"❌ Erro scheduler_job: {e}")
+
+        await asyncio.sleep(60)  # Checa a cada 1 minuto
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,10 +97,13 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(sync_job())
     cleanup_task = asyncio.create_task(cleanup_recordings_job())
     print("✅ Sync Exact Spotter agendado (a cada 10 min)")
+    scheduler_task = asyncio.create_task(scheduler_job())
+    print("📅 Scheduler de ligações agendado (a cada 1 min)")
     yield
     # Shutdown: cancela o job
     task.cancel()
     cleanup_task.cancel()
+    scheduler_task.cancel()
 
 
 app = FastAPI(title="EduFlow API", lifespan=lifespan)
