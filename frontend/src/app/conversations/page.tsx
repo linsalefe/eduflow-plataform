@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import AppLayout from '@/components/AppLayout';
+import ActivityTimeline from '@/components/ActivityTimeline';
 import api from '@/lib/api';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -1612,6 +1613,12 @@ export default function ConversationsPage() {
                             <p className="text-[13px] text-[#8696a0] whitespace-pre-wrap leading-relaxed">{selectedContact.notes || 'Sem notas'}</p>
                           </div>
                         )}
+                      </div>
+
+                      {/* Timeline */}
+                      <div>
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Atividades</p>
+                        <ActivityTimeline contactWaId={selectedContact.wa_id} />
                       </div>
 
                     </div>
