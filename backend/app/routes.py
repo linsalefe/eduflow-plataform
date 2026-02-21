@@ -37,6 +37,7 @@ class UpdateContactRequest(BaseModel):
     name: Optional[str] = None
     lead_status: Optional[str] = None
     notes: Optional[str] = None
+    assigned_to: Optional[int] = None
 
 
 class TagRequest(BaseModel):
@@ -413,6 +414,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
             "unread": unread,
             "ai_active": c.ai_active or False,
             "created_at": c.created_at.isoformat() if c.created_at else None,
+            "assigned_to": c.assigned_to,
         })
 
     return contacts_list
@@ -783,7 +785,41 @@ async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends
     ]
 
 
+@router.get("/users/list")
+async def list_users_simple(db: AsyncSession = Depends(get_db)):
+    """Lista usuários ativos para seletor de atribuição"""
+    from app.models import User
+    result = await db.execute(
+        select(User).where(User.is_active == True).order_by(User.name)
+    )
+    users = result.scalars().all()
+    return [
+        {"id": u.id, "name": u.name, "role": u.role}
+        for u in users
+    ]
 
+
+@router.patch("/contacts/{wa_id}/assign")
+async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_db)):
+    """Atribui contato a um usuário"""
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contato não encontrado")
+
+    user_id = req.get("assigned_to")
+    contact.assigned_to = user_id
+
+    if user_id:
+        from app.models import User
+        user_result = await db.execute(select(User).where(User.id == user_id))
+        user = user_result.scalar_one_or_none()
+        await log_activity(db, wa_id, "assigned", f"Atribuído a {user.name if user else f'#{user_id}'}")
+    else:
+        await log_activity(db, wa_id, "assigned", "Atribuição removida")
+
+    await db.commit()
+    return {"status": "assigned", "assigned_to": user_id}
 
 
 

@@ -45,6 +45,7 @@ class Contact(Base):
     notes = Column(Text, nullable=True)
     ai_active = Column(Boolean, default=False)
     channel_id = Column(Integer, ForeignKey("channels.id"))
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
