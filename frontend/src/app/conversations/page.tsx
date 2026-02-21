@@ -69,6 +69,13 @@ interface Contact {
   unread: number;
   created_at: string | null;
   channel_id: number | null;
+  assigned_to: number | null;
+}
+
+interface TeamUser {
+  id: number;
+  name: string;
+  role: string;
 }
 
 interface Message {
@@ -149,6 +156,8 @@ export default function ConversationsPage() {
   const [profilePics, setProfilePics] = useState<Record<string, string | null>>({});
   const [unreadCount, setUnreadCount] = useState(0);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [teamUsers, setTeamUsers] = useState<TeamUser[]>([]);
+  const [showAssignMenu, setShowAssignMenu] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -189,6 +198,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     loadChannels();
     loadTags();
+    loadTeamUsers();
   }, []);
 
   useEffect(() => {
@@ -305,6 +315,28 @@ export default function ConversationsPage() {
       setAllTags(res.data);
     } catch (err) {
       // silent
+    }
+  };
+
+  const loadTeamUsers = async () => {
+    try {
+      const res = await api.get('/users/list');
+      setTeamUsers(res.data);
+    } catch {
+      // silent
+    }
+  };
+
+  const assignContact = async (userId: number | null) => {
+    if (!selectedContact) return;
+    try {
+      await api.patch(`/contacts/${selectedContact.wa_id}/assign`, { assigned_to: userId });
+      toast.success(userId ? 'Contato atribuído' : 'Atribuição removida');
+      setSelectedContact({ ...selectedContact, assigned_to: userId });
+      setShowAssignMenu(false);
+      loadContacts();
+    } catch {
+      toast.error('Erro ao atribuir contato');
     }
   };
 
@@ -1008,11 +1040,21 @@ export default function ConversationsPage() {
                           <p className={`font-normal text-[15px] truncate ${isSelected ? 'text-[#e9edef]' : 'text-[#e9edef]'}`}>
                             {contact.ai_active && "🤖 "}{contact.name || contact.wa_id}
                           </p>
-                          {contact.last_message_time && (
-                            <span className={`text-[11px] ml-2 flex-shrink-0 tabular-nums ${contact.unread > 0 ? 'text-[#00a884]' : 'text-[#8696a0]'}`}>
-                              {formatTime(contact.last_message_time)}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                            {contact.assigned_to && (() => {
+                              const assignedUser = teamUsers.find(u => u.id === contact.assigned_to);
+                              return assignedUser ? (
+                                <div className="w-5 h-5 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[8px] font-bold" title={assignedUser.name}>
+                                  {assignedUser.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </div>
+                              ) : null;
+                            })()}
+                            {contact.last_message_time && (
+                              <span className={`text-[11px] tabular-nums ${contact.unread > 0 ? 'text-[#00a884]' : 'text-[#8696a0]'}`}>
+                                {formatTime(contact.last_message_time)}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex items-center justify-between mt-0.5">
@@ -1478,6 +1520,61 @@ export default function ConversationsPage() {
                             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${selectedContact.ai_active ? "left-5" : "left-0.5"}`} />
                           </div>
                         </button>
+                      </div>
+
+                      {/* Atribuído a */}
+                      <div className="pb-4 border-b border-[#2a3942]">
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Atribuído a</p>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowAssignMenu(!showAssignMenu)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#2a3942] bg-[#202c33] hover:bg-[#2a3942] transition-all"
+                          >
+                            <div className="flex items-center gap-2">
+                              {selectedContact.assigned_to ? (
+                                <>
+                                  <div className="w-6 h-6 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[9px] font-bold">
+                                    {teamUsers.find(u => u.id === selectedContact.assigned_to)?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                                  </div>
+                                  <span className="text-[13px] text-[#e9edef]">
+                                    {teamUsers.find(u => u.id === selectedContact.assigned_to)?.name || `#${selectedContact.assigned_to}`}
+                                  </span>
+                                </>
+                              ) : (
+                                <>
+                                  <User className="w-4 h-4 text-[#8696a0]" />
+                                  <span className="text-[13px] text-[#8696a0]">Ninguém</span>
+                                </>
+                              )}
+                            </div>
+                            <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform ${showAssignMenu ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {showAssignMenu && (
+                            <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
+                              <button
+                                onClick={() => assignContact(null)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left"
+                              >
+                                <User className="w-4 h-4 text-[#8696a0]" />
+                                <span className="text-[13px] text-[#8696a0]">Ninguém</span>
+                              </button>
+                              {teamUsers.map(u => (
+                                <button
+                                  key={u.id}
+                                  onClick={() => assignContact(u.id)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left"
+                                >
+                                  <div className="w-6 h-6 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[9px] font-bold">
+                                    {u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                  </div>
+                                  <span className="text-[13px] text-[#e9edef]">{u.name}</span>
+                                  <span className="text-[10px] text-[#8696a0] ml-auto">{u.role}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Status do Lead */}
