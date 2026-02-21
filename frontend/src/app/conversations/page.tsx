@@ -412,88 +412,41 @@ export default function ConversationsPage() {
       <div className="flex h-full">
 
         {/* SIDEBAR CONTATOS */}
-        <div className={`${selectedContact ? 'hidden lg:flex' : 'flex'} w-full lg:w-[350px] flex-col border-r border-gray-100 bg-white flex-shrink-0`}>
+        <div className={`${selectedContact ? 'hidden lg:flex' : 'flex'} w-full lg:w-[350px] flex-col border-r border-[#2a3942] bg-[#111b21] flex-shrink-0`}>
 
-          <div className="px-4 pt-4 pb-3 space-y-3">
+          <div className="px-4 py-3 space-y-3">
 
-            {/* Channel Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowChannelMenu(!showChannelMenu)}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-[#0f1b2d] rounded-xl text-left transition-all hover:bg-[#162538]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 bg-[#6366f1]/30 rounded-lg flex items-center justify-center">
-                    <Radio className="w-3.5 h-3.5 text-[#818cf8]" />
+            {/* Header WPP + Channel Selector */}
+            <div className="flex items-center justify-between">
+              <div className="relative flex-1">
+                <button
+                  onClick={() => setShowChannelMenu(!showChannelMenu)}
+                  className="flex items-center gap-2.5 text-left group"
+                >
+                  <div className="w-10 h-10 bg-[#6b7b8a] rounded-full flex items-center justify-center">
+                    <Radio className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <p className="text-[13px] font-medium text-white leading-tight">{activeChannel?.name || 'Selecionar canal'}</p>
-                    <p className="text-[11px] text-gray-500 leading-tight">
+                    <p className="text-[15px] font-medium text-[#e9edef] leading-tight group-hover:text-white transition-colors">{activeChannel?.name || 'Selecionar canal'}</p>
+                    <p className="text-[12px] text-[#8696a0] leading-tight">
                       {activeChannel ? `+${(activeChannel.phone_number || '').replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '$1 $2 $3-$4')}` : 'Nenhum canal'}
                     </p>
                   </div>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showChannelMenu ? 'rotate-180' : ''}`} />
-              </button>
+                  <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform duration-200 ${showChannelMenu ? 'rotate-180' : ''}`} />
+                </button>
 
-              {showChannelMenu && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl border border-gray-200 shadow-xl z-20 overflow-hidden">
-                  {channels.map(ch => (
-                    <button
-                      key={ch.id}
-                      onClick={() => { setActiveChannel(ch); setShowChannelMenu(false); setSelectedContact(null); setLoading(true); }}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left ${activeChannel?.id === ch.id ? 'bg-[#6366f1]/5' : ''}`}
-                    >
-                      <div className={`w-2 h-2 rounded-full ${activeChannel?.id === ch.id ? 'bg-[#6366f1]' : 'bg-gray-300'}`} />
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{ch.name}</p>
-                        <p className="text-[11px] text-gray-400">+{ch.phone_number}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Search + Nova conversa */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar contato..."
-                  value={search}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onFocus={() => { if (exactLeadResults.length > 0) setShowLeadSuggestions(true); }}
-                  onBlur={() => setTimeout(() => setShowLeadSuggestions(false), 200)}
-                  className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:border-[#6366f1] focus:ring-2 focus:ring-[#6366f1]/10 focus:bg-white transition-all outline-none"
-                />
-                {search && (
-                  <button onClick={() => { setSearch(''); setExactLeadResults([]); setShowLeadSuggestions(false); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                    <XCircle className="w-4 h-4 text-gray-300 hover:text-gray-500 transition-colors" />
-                  </button>
-                )}
-
-                {showLeadSuggestions && exactLeadResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl border border-gray-200 shadow-xl z-30 max-h-[300px] overflow-y-auto">
-                    <div className="px-3 py-2 border-b border-gray-100">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Leads Pós (Exact Spotter)</p>
-                    </div>
-                    {exactLeadResults.map(lead => (
+                {showChannelMenu && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-[#233138] rounded-lg border border-[#2a3942] shadow-xl z-20 overflow-hidden">
+                    {channels.map(ch => (
                       <button
-                        key={lead.id}
-                        onMouseDown={() => selectExactLead(lead)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                        key={ch.id}
+                        onClick={() => { setActiveChannel(ch); setShowChannelMenu(false); setSelectedContact(null); setLoading(true); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left ${activeChannel?.id === ch.id ? 'bg-[#2a3942]' : ''}`}
                       >
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
-                          {lead.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{lead.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[11px] text-gray-500">{lead.phone1 || 'Sem telefone'}</span>
-                            {lead.sub_source && <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded">{lead.sub_source}</span>}
-                          </div>
+                        <div className={`w-2 h-2 rounded-full ${activeChannel?.id === ch.id ? 'bg-[#00a884]' : 'bg-[#8696a0]'}`} />
+                        <div>
+                          <p className="text-sm font-medium text-[#e9edef]">{ch.name}</p>
+                          <p className="text-[11px] text-[#8696a0]">+{ch.phone_number}</p>
                         </div>
                       </button>
                     ))}
@@ -503,11 +456,58 @@ export default function ConversationsPage() {
 
               <button
                 onClick={() => setShowNewChat(true)}
-                className="flex items-center justify-center w-10 h-10 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] active:scale-95 transition-all flex-shrink-0"
+                className="p-2 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] transition-all"
                 title="Nova conversa"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8696a0]" />
+                <input
+                  type="text"
+                  placeholder="Pesquisar ou começar uma nova conversa"
+                  value={search}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onFocus={() => { if (exactLeadResults.length > 0) setShowLeadSuggestions(true); }}
+                  onBlur={() => setTimeout(() => setShowLeadSuggestions(false), 200)}
+                  className="w-full pl-10 pr-8 py-2 bg-[#202c33] rounded-lg text-[13px] text-[#e9edef] placeholder:text-[#8696a0] focus:outline-none transition-all"
+                />
+                {search && (
+                  <button onClick={() => { setSearch(''); setExactLeadResults([]); setShowLeadSuggestions(false); }} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                    <XCircle className="w-4 h-4 text-[#8696a0] hover:text-[#e9edef] transition-colors" />
+                  </button>
+                )}
+              </div>
+
+              {showLeadSuggestions && exactLeadResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-lg border border-[#2a3942] shadow-xl z-30 max-h-[300px] overflow-y-auto">
+                  <div className="px-3 py-2 border-b border-[#2a3942]">
+                    <p className="text-[10px] font-semibold text-[#8696a0] uppercase tracking-wider">Leads Pós (Exact Spotter)</p>
+                  </div>
+                  {exactLeadResults.map(lead => (
+                    <button
+                      key={lead.id}
+                      onMouseDown={() => selectExactLead(lead)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left border-b border-[#2a3942]/50 last:border-0"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-[#00a884] flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0">
+                        {lead.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#e9edef] truncate">{lead.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-[#8696a0]">{lead.phone1 || 'Sem telefone'}</span>
+                          {lead.sub_source && <span className="text-[10px] px-1.5 py-0.5 bg-[#00a884]/20 text-[#00a884] rounded">{lead.sub_source}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Status Filter */}
