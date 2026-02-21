@@ -675,3 +675,68 @@ async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
     matched_pages = [p for p in pages if q_lower in p["label"].lower()]
 
     return {"contacts": contacts_list, "pages": matched_pages}
+
+# Cole este código no FINAL do arquivo backend/app/routes.py
+# (logo após o endpoint /search que você adicionou na Sprint 4)
+
+
+# === Bulk Actions ===
+
+class BulkUpdateRequest(BaseModel):
+    wa_ids: list[str]
+    lead_status: Optional[str] = None
+
+class BulkTagRequest(BaseModel):
+    wa_ids: list[str]
+    tag_id: int
+
+@router.post("/contacts/bulk-update")
+async def bulk_update_contacts(req: BulkUpdateRequest, db: AsyncSession = Depends(get_db)):
+    """Atualiza status de múltiplos contatos"""
+    if not req.wa_ids or not req.lead_status:
+        raise HTTPException(status_code=400, detail="wa_ids e lead_status são obrigatórios")
+
+    result = await db.execute(
+        select(Contact).where(Contact.wa_id.in_(req.wa_ids))
+    )
+    contacts = result.scalars().all()
+
+    for c in contacts:
+        c.lead_status = req.lead_status
+
+    await db.commit()
+    return {"updated": len(contacts)}
+
+
+@router.post("/contacts/bulk-tag")
+async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db)):
+    """Adiciona tag a múltiplos contatos"""
+    if not req.wa_ids:
+        raise HTTPException(status_code=400, detail="wa_ids é obrigatório")
+
+    added = 0
+    for wa_id in req.wa_ids:
+        try:
+            await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=req.tag_id))
+            added += 1
+        except Exception:
+            pass  # já tem a tag
+
+    await db.commit()
+    return {"added": added}
+
+
+@router.post("/contacts/bulk-remove-tag")
+async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db)):
+    """Remove tag de múltiplos contatos"""
+    if not req.wa_ids:
+        raise HTTPException(status_code=400, detail="wa_ids é obrigatório")
+
+    await db.execute(
+        contact_tags.delete().where(
+            contact_tags.c.contact_wa_id.in_(req.wa_ids),
+            contact_tags.c.tag_id == req.tag_id
+        )
+    )
+    await db.commit()
+    return {"removed": len(req.wa_ids)}
