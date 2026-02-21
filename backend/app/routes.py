@@ -755,7 +755,7 @@ async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str,
         contact_wa_id=contact_wa_id,
         type=activity_type,
         description=description,
-        metadata=metadata,
+        extra_data=metadata,
     )
     db.add(activity)
 
@@ -776,7 +776,7 @@ async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends
             "id": a.id,
             "type": a.type,
             "description": a.description,
-            "metadata": a.metadata,
+            "metadata": a.extra_data,
             "created_at": a.created_at.isoformat() if a.created_at else None,
         }
         for a in activities
