@@ -144,7 +144,41 @@ async def process_message(
         ai_message = parsed.get("message", "")
         collected = parsed.get("collected", {})
         action = parsed.get("action", "continue")
-
+        
+        # Fallback: detectar action pelo conteúdo da mensagem
+        msg_lower = ai_message.lower()
+        collected = parsed.get("collected", {})
+        
+        if action == "continue":
+            # Detectar trigger_call
+            if any(kw in msg_lower for kw in ["ligar em instantes", "vai te ligar agora", "ligação agora"]):
+                action = "trigger_call"
+                print(f"🔄 Action corrigido para trigger_call via fallback")
+            
+            # Detectar schedule_call
+            elif any(kw in msg_lower for kw in ["agendado", "agendada", "vamos agendar", "vai te ligar amanhã", "vai te ligar na"]):
+                action = "schedule_call"
+                # Tentar extrair dia/horário da mensagem se não veio no collected
+                if not collected.get("dia_agendamento") or collected["dia_agendamento"] == "null":
+                    import re
+                    if "amanhã" in msg_lower or "amanha" in msg_lower:
+                        collected["dia_agendamento"] = "amanhã"
+                    dia_match = re.search(r'(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)', msg_lower)
+                    if dia_match:
+                        collected["dia_agendamento"] = dia_match.group(1)
+                
+                if not collected.get("horario_agendamento") or collected["horario_agendamento"] == "null":
+                    import re
+                    hora_match = re.search(r'(\d{1,2})\s*[h:]?\s*(\d{2})?\s*(da\s*(?:manhã|tarde|noite))?', msg_lower)
+                    if hora_match:
+                        collected["horario_agendamento"] = hora_match.group(0).strip()
+                
+                print(f"🔄 Action corrigido para schedule_call via fallback: dia={collected.get('dia_agendamento')}, hora={collected.get('horario_agendamento')}")
+            
+            # Detectar end
+            elif any(kw in msg_lower for kw in ["obrigada pelo seu tempo", "qualquer dúvida", "até logo"]):
+                action = "end"
+                
         # Enviar resposta via Evolution
         if ai_message:
             await send_text(instance_name, wa_id, ai_message)
