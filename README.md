@@ -28,7 +28,7 @@ Permite que a equipe comercial gerencie leads, responda conversas em tempo real,
 18. [ETAPA 14 — Pipeline Kanban de Matrículas](#-etapa-14--pipeline-kanban-de-matrículas)
 19. [ETAPA 15 — Dashboard de Campanhas (ROI)](#-etapa-15--dashboard-de-campanhas-roi)
 20. [ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)](#-etapa-16--multi-canal-instagram-messenger-evolution-api)
-21. [ETAPA 17 — Melhorias UX/CRM (Sprints 1–9)](#-etapa-17--melhorias-uxcrm-sprints-19)
+21. [ETAPA 17 — Melhorias UX/CRM (Sprints 1–12)](#-etapa-17--melhorias-uxcrm-sprints-112)
 22. [Funcionalidades](#-funcionalidades)
 23. [Estrutura de Pastas](#-estrutura-de-pastas)
 24. [Banco de Dados — Tabelas](#-banco-de-dados--tabelas)
@@ -232,6 +232,7 @@ O **Cenat Hub** é uma plataforma web completa de CRM e atendimento via WhatsApp
 | **VoIP** | Twilio Voice SDK | 2.x |
 | **Twilio JS** | @twilio/voice-sdk | 2.18+ |
 | **Servidor Web** | Nginx | 1.18 |
+| **Relatórios** | openpyxl | latest |
 | **SSL** | Certbot (Let's Encrypt) | auto |
 | **Hospedagem** | AWS EC2 / Lightsail | Ubuntu 24.04 |
 | **Controle de versão** | Git + GitHub | — |
@@ -367,6 +368,7 @@ pos-plataform/
 │   │   ├── google_drive.py         # Upload gravações ao Google Drive
 │   │   ├── landing_routes.py       # Rotas: Landing Pages, formulário, dashboard ROI
 │   │   ├── oauth_routes.py         # Rotas: OAuth Meta (Instagram/Messenger)
+│   │   ├── export_routes.py        # Rotas: Exportação relatórios Excel (contatos, pipeline, mensagens)
 │   │   ├── migrate_ai.py           # Script migração tabelas IA
 │   │   └── create_tables.py        # Script para criar tabelas
 │   ├── requirements.txt
@@ -392,6 +394,7 @@ pos-plataform/
 │   │   │   ├── canais/page.tsx
 │   │   │   ├── canais/callback/page.tsx
 │   │   │   ├── lp/[slug]/page.tsx
+│   │   │   ├── relatorios/page.tsx    # Relatórios exportáveis (Excel)
 │   │   │   ├── not-found.tsx          # Página 404 customizada
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
@@ -1168,9 +1171,9 @@ Dashboard dedicado para ROI de campanhas. Métricas: total de leads, por origem,
 
 ---
 
-## 🚀 ETAPA 17 — Melhorias UX/CRM (Sprints 1–9)
+## 🚀 ETAPA 17 — Melhorias UX/CRM (Sprints 1–12)
 
-Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 8.8/10**, equiparando a plataforma a CRMs como HubSpot e Pipedrive.
+Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para 9.2/10**, equiparando a plataforma a CRMs como HubSpot e Pipedrive.
 
 ### 17.1 — Sprint 1: Sistema de Toasts + Interceptor Axios
 
@@ -1269,7 +1272,45 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 - **Página 404** customizada (`not-found.tsx`) com botões "Ir para Dashboard" e "Voltar"
 - **Aria-labels** em Usuários (fechar modal, mostrar/ocultar senha)
 
-### 17.10 — Resumo de Score
+### 17.10 — Sprint 10: Filtro por Atendente ("Meus Leads")
+
+- **Filtro "Meus Leads"** — mostra apenas contatos atribuídos ao usuário logado
+- **Filtro "Sem atribuição"** — mostra contatos sem responsável
+- **Filtro por membro** — botões com avatar de cada atendente da equipe
+- 100% client-side (sem novo endpoint)
+- Integrado ao painel de filtros existente (Tags, Não lidos, IA)
+- **Implementação:** `useAuth()` para pegar `user.id` + filtro `assigned_to`
+
+### 17.11 — Sprint 11: Dashboard Avançado
+
+- **Taxa de Conversão** — barra de progresso com % (novo → matriculado)
+- **Tempo Médio de Resposta** — primeira resposta aos novos leads nos últimos 7 dias
+- **Tendência Semanal** — novos leads esta semana vs semana passada (com variação %)
+- **Performance por Atendente** — leads atribuídos + mensagens enviadas por pessoa
+- **Leads por Tag** — distribuição das tags mais usadas (top 8)
+- **Leads sem atribuição** — destaque em amarelo
+- **Backend:** `GET /api/dashboard/advanced` (agents, conversion_rate, avg_response_minutes, tags, trend)
+- **Arquivo:** `frontend/src/app/dashboard/page.tsx` (seção avançada abaixo do dashboard original)
+
+### 17.12 — Sprint 12: Relatórios Exportáveis (Excel)
+
+- **3 tipos de relatório** com download em `.xlsx` formatado:
+  - **Relatório de Contatos** — nome, telefone, status, tags, atribuição, mensagens, notas (abas: Contatos + Resumo)
+  - **Relatório do Pipeline** — uma aba por etapa do funil + resumo com percentuais
+  - **Relatório de Mensagens** — histórico com contato, direção, tipo, conteúdo (abas: Mensagens + Resumo)
+- **Filtros por relatório:**
+  - Contatos: filtro por status (dropdown)
+  - Mensagens: filtro por período (7, 14, 30, 60, 90 dias)
+- **Formatação profissional:** cabeçalhos coloridos (#6366F1), linhas alternadas, larguras ajustadas
+- **Página `/relatorios`** no menu lateral com cards, filtros e botão de download
+- **Dependência:** `openpyxl`
+- **Backend:** `backend/app/export_routes.py` com 3 endpoints
+- **Endpoints:**
+  - `GET /api/export/contacts?status=X` — Excel de contatos
+  - `GET /api/export/pipeline` — Excel do funil
+  - `GET /api/export/messages?days=7` — Excel de mensagens
+
+### 17.13 — Resumo de Score
 
 | Critério | Antes | Depois |
 |----------|-------|--------|
@@ -1277,11 +1318,13 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 | Responsividade | 2/10 páginas | 10/10 páginas |
 | Acessibilidade | 0 aria-labels | 22+ aria-labels |
 | Busca Global | Não existia | ⌘K completo |
-| Filtros | Apenas status | Tags + Não lidos + IA |
+| Filtros | Apenas status | Tags + Não lidos + IA + Atendente |
 | Bulk Actions | Não existia | Status + Tags em lote |
 | Timeline | Não existia | 5 tipos de evento |
-| Atribuição | Não existia | Dropdown + avatar |
-| **Score Total** | **4.7/10** | **8.8/10** |
+| Atribuição | Não existia | Dropdown + avatar + filtro |
+| Dashboard | Básico (4 cards) | Avançado (conversão, tempo, performance, tags) |
+| Relatórios | Não existia | 3 relatórios Excel formatados |
+| **Score Total** | **4.7/10** | **9.2/10** |
 
 ---
 
@@ -1292,8 +1335,14 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 - Total de conversas ativas
 - Leads novos (últimas 24h)
 - Mensagens enviadas/recebidas
-- Gráfico de atividade
+- Gráfico de atividade semanal
 - Skeleton loading durante carregamento
+- **Taxa de Conversão** com barra de progresso
+- **Tempo Médio de Resposta** (primeira resposta, últimos 7 dias)
+- **Tendência Semanal** (novos leads esta semana vs anterior)
+- **Performance por Atendente** (leads + mensagens por pessoa)
+- **Leads por Tag** (distribuição das mais usadas)
+- **Leads sem atribuição** (destaque visual)
 
 ### Conversas (WhatsApp Web Clone)
 
@@ -1301,7 +1350,7 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 - Chat em tempo real com polling (3 segundos)
 - Envio e recebimento de texto, emojis, imagens, áudios, vídeos e documentos
 - **Busca global ⌘K** — encontra contatos e páginas instantaneamente
-- **Filtros avançados** — por tags, não lidos, IA ativa/inativa
+- **Filtros avançados** — por tags, não lidos, IA ativa/inativa, **atendente (Meus Leads / Sem atribuição / por membro)**
 - **Ações em lote** — selecionar múltiplos contatos e mover status ou adicionar tags
 - Filtro por status (Todos, Novo, Contato, Qualificado, etc.)
 - Seletor de canal (múltiplos números)
@@ -1344,6 +1393,15 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 - Toasts visuais (Sonner) em toda a plataforma
 - Sucesso (verde), erro (vermelho), warning (amarelo)
 - Modais de confirmação estilizados (substituem `window.confirm`)
+
+### Relatórios Exportáveis
+
+- **3 relatórios** em Excel (.xlsx) com formatação profissional
+- Relatório de Contatos (status, tags, atribuição, mensagens, notas)
+- Relatório do Pipeline (aba por etapa + resumo com %)
+- Relatório de Mensagens (histórico com filtro de período)
+- Filtros por status e período
+- Cabeçalhos coloridos, linhas alternadas, múltiplas abas
 
 ---
 
@@ -1701,6 +1759,20 @@ Série de 9 sprints de melhoria que elevaram o score de qualidade de **4.7 para 
 | GET | `/api/oauth/meta/url?channel_type=instagram` | URL OAuth |
 | POST | `/api/oauth/meta/callback` | Callback OAuth |
 
+### Dashboard Avançado
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/dashboard/advanced` | Métricas avançadas (conversão, tempo resposta, performance, tags) |
+
+### Relatórios (Exportação Excel)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/export/contacts?status=X` | Excel de contatos (com filtro opcional por status) |
+| GET | `/api/export/pipeline` | Excel do funil (aba por etapa + resumo) |
+| GET | `/api/export/messages?days=7` | Excel de mensagens (filtro por período: 7–90 dias) |
+
 ### Webhook
 
 | Método | Rota | Descrição |
@@ -1863,4 +1935,4 @@ curl -X POST https://hub.cenatdata.online/api/contacts/bulk-update \
 
 ## 📄 Licença
 
-Projeto proprietário — CENAT © 2026. Todos os direitos reservados.
+Projeto proprietário — Álefe Lins © 2026. Todos os direitos reservados.
