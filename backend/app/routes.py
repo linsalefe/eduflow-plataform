@@ -199,12 +199,42 @@ async def get_channel(channel_id: int, db: AsyncSession) -> Channel:
 async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
     channel = await get_channel(req.channel_id, db)
 
+    # Instagram Direct
+    if channel.type == "instagram" and channel.instagram_id and channel.access_token:
+        from app.instagram import send_instagram_message
+        # Remover prefixo ig_ para enviar
+        recipient_id = req.to.replace("ig_", "")
+        result = await send_instagram_message(recipient_id, req.text, channel.instagram_id, channel.access_token)
+
+        import uuid
+        msg_id = result.get("message_id", str(uuid.uuid4()))
+
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to))
+        contact = contact_result.scalar_one_or_none()
+        if not contact:
+            contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id)
+            db.add(contact)
+            await db.flush()
+
+        message = Message(
+            wa_message_id=msg_id,
+            contact_wa_id=req.to,
+            channel_id=req.channel_id,
+            direction="outbound",
+            message_type="text",
+            content=req.text,
+            timestamp=datetime.now(SP_TZ).replace(tzinfo=None),
+            status="sent",
+        )
+        db.add(message)
+        await db.commit()
+        return result
+
     # Evolution API
     if channel.provider == "evolution" and channel.instance_name:
         from app.evolution.client import send_text as evo_send
         result = await evo_send(channel.instance_name, req.to, req.text)
 
-        # Salvar mensagem no banco
         import uuid
         wa_id = req.to.replace("+", "").replace("-", "").replace(" ", "")
         msg_id = result.get("key", {}).get("id", str(uuid.uuid4()))
@@ -230,7 +260,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
         await db.commit()
         return result
 
-    # API Oficial (Meta)
+    # API Oficial (Meta WhatsApp)
     result = await send_text_message(req.to, req.text, channel.phone_number_id, channel.whatsapp_token)
     if "messages" in result:
         wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)

@@ -151,6 +151,9 @@ async def verify_webhook(
 async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     body = await request.json()
 
+    if body.get("object") == "instagram":
+        return await handle_instagram_webhook(body, db)
+
     if body.get("object") != "whatsapp_business_account":
         return {"status": "ignored"}
 
@@ -311,6 +314,99 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
             await db.commit()
             print(f"💾 Dados salvos no banco!")
+
+    return {"status": "ok"}
+
+
+async def handle_instagram_webhook(body: dict, db: AsyncSession):
+    """Processa mensagens do Instagram Direct."""
+
+    for entry in body.get("entry", []):
+        ig_user_id = str(entry.get("id", ""))
+
+        # Identificar canal pelo instagram_id
+        channel_id = None
+        channel = None
+        if ig_user_id:
+            result = await db.execute(
+                select(Channel).where(Channel.instagram_id == ig_user_id, Channel.is_active == True)
+            )
+            channel = result.scalar_one_or_none()
+            if channel:
+                channel_id = channel.id
+
+        for messaging_event in entry.get("messaging", []):
+            sender_id = str(messaging_event.get("sender", {}).get("id", ""))
+            message_data = messaging_event.get("message", {})
+            timestamp = messaging_event.get("timestamp", 0)
+
+            # Ignorar mensagens enviadas por nós mesmos (echo)
+            if sender_id == ig_user_id:
+                continue
+
+            # Ignorar se não tem mensagem
+            if not message_data or message_data.get("is_echo"):
+                continue
+
+            msg_id = message_data.get("mid", "")
+            if not msg_id:
+                continue
+
+            # Verificar duplicata
+            existing_msg = await db.execute(
+                select(Message).where(Message.wa_message_id == msg_id)
+            )
+            if existing_msg.scalar_one_or_none():
+                continue
+
+            # Determinar tipo e conteúdo
+            msg_type = "text"
+            content = ""
+
+            if "text" in message_data:
+                content = message_data["text"]
+            elif "attachments" in message_data:
+                attachment = message_data["attachments"][0]
+                att_type = attachment.get("type", "image")
+                att_url = attachment.get("payload", {}).get("url", "")
+                msg_type = att_type
+                content = f"media:{att_url}|{att_type}|"
+
+            # Usar sender_id como identificador (equivalente ao wa_id)
+            ig_sender_id = f"ig_{sender_id}"
+
+            # Criar ou atualizar contato
+            contact_result = await db.execute(
+                select(Contact).where(Contact.wa_id == ig_sender_id)
+            )
+            contact = contact_result.scalar_one_or_none()
+
+            if not contact:
+                contact = Contact(
+                    wa_id=ig_sender_id,
+                    name=f"Instagram {sender_id}",
+                    channel_id=channel_id,
+                )
+                db.add(contact)
+                await db.flush()
+
+            # Salvar mensagem
+            ts = datetime.fromtimestamp(timestamp / 1000, tz=SP_TZ).replace(tzinfo=None) if timestamp > 9999999999 else datetime.fromtimestamp(timestamp, tz=SP_TZ).replace(tzinfo=None)
+
+            message = Message(
+                wa_message_id=msg_id,
+                contact_wa_id=ig_sender_id,
+                channel_id=channel_id,
+                direction="inbound",
+                message_type=msg_type,
+                content=content,
+                timestamp=ts,
+                status="received",
+            )
+            db.add(message)
+            print(f"📩 Instagram DM de {sender_id}: {content[:50]}")
+
+        await db.commit()
 
     return {"status": "ok"}
 

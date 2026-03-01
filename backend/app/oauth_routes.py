@@ -1,7 +1,7 @@
 """
-Rotas OAuth para integração com Meta (Instagram / Messenger)
+Rotas OAuth para integração com Meta (Instagram Business Login)
 """
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -10,45 +10,70 @@ import os
 
 from app.database import get_db
 from app.models import Channel
-from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/oauth", tags=["OAuth"])
 
-META_APP_ID = os.getenv("META_APP_ID", "886462874541479")
-META_APP_SECRET = os.getenv("META_APP_SECRET", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://ff4e-177-37-145-33.ngrok-free.app")
+# Instagram Business Login (API do Instagram)
+IG_APP_ID = os.getenv("INSTAGRAM_APP_ID", "")
+IG_APP_SECRET = os.getenv("INSTAGRAM_APP_SECRET", "")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://portal.eduflowia.com")
 
 
-class OAuthCallbackRequest(BaseModel):
+class InstagramCallbackRequest(BaseModel):
     code: str
-    channel_type: str  # instagram ou messenger
     channel_name: str = "Instagram"
 
 
-@router.post("/meta/callback")
-async def meta_oauth_callback(
-    req: OAuthCallbackRequest,
+@router.get("/instagram/url")
+async def get_instagram_oauth_url():
+    """Gera a URL de OAuth do Instagram Business Login."""
+    redirect_uri = f"{FRONTEND_URL}/canais/callback"
+
+    scopes = (
+        "instagram_business_basic,"
+        "instagram_business_manage_messages,"
+        "instagram_manage_comments"
+    )
+
+    url = (
+        f"https://www.instagram.com/oauth/authorize"
+        f"?client_id={IG_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&response_type=code"
+        f"&scope={scopes}"
+    )
+
+    return {"url": url}
+
+
+@router.post("/instagram/callback")
+async def instagram_oauth_callback(
+    req: InstagramCallbackRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    """Troca o code do Instagram por token e cria o canal."""
     redirect_uri = f"{FRONTEND_URL}/canais/callback"
 
     # 1. Trocar code por short-lived token
     async with httpx.AsyncClient() as client:
-        token_res = await client.get(
-            "https://graph.facebook.com/v21.0/oauth/access_token",
-            params={
-                "client_id": META_APP_ID,
-                "client_secret": META_APP_SECRET,
+        token_res = await client.post(
+            "https://api.instagram.com/oauth/access_token",
+            data={
+                "client_id": IG_APP_ID,
+                "client_secret": IG_APP_SECRET,
+                "grant_type": "authorization_code",
                 "redirect_uri": redirect_uri,
                 "code": req.code,
-            }
+            },
         )
 
     if token_res.status_code != 200:
+        print(f"❌ Instagram token error: {token_res.text}")
         raise HTTPException(status_code=400, detail=f"Erro ao obter token: {token_res.text}")
 
     token_data = token_res.json()
     short_token = token_data.get("access_token")
+    ig_user_id = str(token_data.get("user_id", ""))
 
     if not short_token:
         raise HTTPException(status_code=400, detail="Token não recebido")
@@ -56,63 +81,68 @@ async def meta_oauth_callback(
     # 2. Trocar por long-lived token (60 dias)
     async with httpx.AsyncClient() as client:
         long_res = await client.get(
-            "https://graph.facebook.com/v21.0/oauth/access_token",
+            "https://graph.instagram.com/access_token",
             params={
-                "grant_type": "fb_exchange_token",
-                "client_id": META_APP_ID,
-                "client_secret": META_APP_SECRET,
-                "fb_exchange_token": short_token,
-            }
+                "grant_type": "ig_exchange_token",
+                "client_secret": IG_APP_SECRET,
+                "access_token": short_token,
+            },
         )
 
     long_token = short_token
     if long_res.status_code == 200:
-        long_token = long_res.json().get("access_token", short_token)
+        long_data = long_res.json()
+        long_token = long_data.get("access_token", short_token)
 
-    # 3. Buscar páginas do usuário
+    # 3. Buscar dados do perfil do Instagram
     async with httpx.AsyncClient() as client:
-        pages_res = await client.get(
-            "https://graph.facebook.com/v21.0/me/accounts",
-            params={"access_token": long_token}
+        profile_res = await client.get(
+            f"https://graph.instagram.com/v22.0/me",
+            params={
+                "fields": "user_id,username,name,profile_picture_url",
+                "access_token": long_token,
+            },
         )
 
-    pages = []
-    if pages_res.status_code == 200:
-        pages = pages_res.json().get("data", [])
+    ig_username = ""
+    ig_name = ""
+    ig_profile_pic = ""
+    if profile_res.status_code == 200:
+        profile_data = profile_res.json()
+        ig_username = profile_data.get("username", "")
+        ig_name = profile_data.get("name", ig_username)
+        ig_profile_pic = profile_data.get("profile_picture_url", "")
+        if not ig_user_id:
+            ig_user_id = str(profile_data.get("user_id", profile_data.get("id", "")))
 
-    # 4. Se Instagram, buscar Instagram Business Account
-    instagram_id = None
-    page_id = None
-    page_token = None
+    # 4. Verificar se já existe canal com esse instagram_id
+    existing = await db.execute(
+        select(Channel).where(Channel.instagram_id == ig_user_id, Channel.is_active == True)
+    )
+    existing_channel = existing.scalar_one_or_none()
 
-    if pages:
-        # Usar a primeira página
-        page = pages[0]
-        page_id = page["id"]
-        page_token = page.get("access_token", long_token)
+    if existing_channel:
+        # Atualizar token
+        existing_channel.access_token = long_token
+        existing_channel.is_connected = True
+        existing_channel.name = req.channel_name or ig_name or existing_channel.name
+        await db.commit()
+        await db.refresh(existing_channel)
+        return {
+            "status": "connected",
+            "channel_id": existing_channel.id,
+            "instagram_id": ig_user_id,
+            "username": ig_username,
+            "updated": True,
+        }
 
-        if req.channel_type == "instagram":
-            async with httpx.AsyncClient() as client:
-                ig_res = await client.get(
-                    f"https://graph.facebook.com/v21.0/{page_id}",
-                    params={
-                        "fields": "instagram_business_account",
-                        "access_token": page_token,
-                    }
-                )
-            if ig_res.status_code == 200:
-                ig_data = ig_res.json().get("instagram_business_account")
-                if ig_data:
-                    instagram_id = ig_data.get("id")
-
-    # 5. Criar o canal
+    # 5. Criar novo canal
     channel = Channel(
-        name=req.channel_name,
-        type=req.channel_type,
-        provider="meta",
-        page_id=page_id,
-        instagram_id=instagram_id,
-        access_token=page_token or long_token,
+        name=req.channel_name or ig_name or f"Instagram @{ig_username}",
+        type="instagram",
+        provider="instagram",
+        instagram_id=ig_user_id,
+        access_token=long_token,
         is_connected=True,
         is_active=True,
     )
@@ -120,33 +150,12 @@ async def meta_oauth_callback(
     await db.commit()
     await db.refresh(channel)
 
+    print(f"✅ Instagram conectado: @{ig_username} (ID: {ig_user_id})")
+
     return {
         "status": "connected",
         "channel_id": channel.id,
-        "page_id": page_id,
-        "instagram_id": instagram_id,
-        "pages_found": len(pages),
+        "instagram_id": ig_user_id,
+        "username": ig_username,
+        "profile_picture_url": ig_profile_pic,
     }
-
-
-@router.get("/meta/url")
-async def get_oauth_url(channel_type: str = "instagram"):
-    redirect_uri = f"{FRONTEND_URL}/canais/callback"
-
-    scopes = {
-        "instagram": "instagram_basic,instagram_manage_messages,pages_show_list,pages_messaging,pages_manage_metadata",
-        "messenger": "pages_show_list,pages_messaging,pages_manage_metadata",
-    }
-
-    scope = scopes.get(channel_type, scopes["instagram"])
-
-    url = (
-        f"https://www.facebook.com/v21.0/dialog/oauth"
-        f"?client_id={META_APP_ID}"
-        f"&redirect_uri={redirect_uri}"
-        f"&scope={scope}"
-        f"&response_type=code"
-        f"&state={channel_type}"
-    )
-
-    return {"url": url}
