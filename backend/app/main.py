@@ -401,7 +401,6 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                             username = profile.get("username", "")
                             name = profile.get("name", "")
                             ig_name = name or f"@{username}" if username else ig_name
-                            ig_picture = profile.get("profile_picture_url", "")
                             print(f"👤 Instagram perfil: {ig_name} (@{username})")
                     except Exception as e:
                         print(f"⚠️ Erro ao buscar perfil Instagram: {e}")
@@ -410,7 +409,6 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                     wa_id=ig_sender_id,
                     name=ig_name,
                     channel_id=channel_id,
-                    profile_picture_url=ig_picture if 'ig_picture' in locals() else None,
                 )
                 db.add(contact)
                 await db.flush()
