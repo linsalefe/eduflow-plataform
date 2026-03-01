@@ -40,7 +40,7 @@ class Contact(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     wa_id = Column(String(20), unique=True, nullable=False, index=True)
-    name = Column(String(255), nullable=True)
+    profile_picture_url = Column(String, nullable=True)
     lead_status = Column(String(30), default="novo")
     notes = Column(Text, nullable=True)
     ai_active = Column(Boolean, default=False)
