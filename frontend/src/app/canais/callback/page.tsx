@@ -13,7 +13,6 @@ function CallbackContent() {
 
   useEffect(() => {
     const code = searchParams.get('code');
-    const state = searchParams.get('state');
     const error = searchParams.get('error');
 
     if (error) {
@@ -28,20 +27,17 @@ function CallbackContent() {
       return;
     }
 
-    const channelType = state || 'instagram';
-    const channelName = channelType === 'instagram' ? 'Instagram' : 'Messenger';
-
     const exchange = async () => {
       try {
-        const res = await api.post('/oauth/meta/callback', {
+        const res = await api.post('/oauth/instagram/callback', {
           code,
-          channel_type: channelType,
-          channel_name: channelName,
+          channel_name: 'Instagram',
         });
 
         if (res.data.status === 'connected') {
+          const username = res.data.username ? \` @\${res.data.username}\` : '';
           setStatus('success');
-          setMessage(`${channelName} conectado com sucesso!`);
+          setMessage(\`Instagram\${username} conectado com sucesso!\`);
           setTimeout(() => router.push('/canais'), 2000);
         }
       } catch (err: any) {
@@ -59,7 +55,7 @@ function CallbackContent() {
       <div className="bg-white rounded-2xl p-10 shadow-lg border border-gray-100 text-center max-w-md">
         {status === 'loading' && (
           <>
-            <Loader2 className="w-12 h-12 text-[#6366f1] animate-spin mx-auto mb-4" />
+            <Loader2 className="w-12 h-12 text-[#E1306C] animate-spin mx-auto mb-4" />
             <h2 className="text-lg font-bold text-gray-900 mb-2">Conectando...</h2>
             <p className="text-sm text-gray-400">{message}</p>
           </>
@@ -92,7 +88,7 @@ function CallbackContent() {
 
 export default function OAuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#6366f1] animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#E1306C] animate-spin" /></div>}>
       <CallbackContent />
     </Suspense>
   );
