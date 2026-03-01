@@ -29,16 +29,17 @@ async def get_instagram_oauth_url():
     """Gera a URL de OAuth do Instagram Business Login."""
     redirect_uri = f"{FRONTEND_URL}/canais/callback"
 
-    scopes = (
-        "instagram_business_basic,"
-        "instagram_business_manage_messages,"
-        "instagram_manage_comments"
-    )
+    sscopes = "%2C".join([
+        "instagram_business_basic",
+        "instagram_business_manage_messages",
+        "instagram_business_manage_comments",
+        "instagram_business_content_publish",
+        "instagram_business_manage_insights",
+    ])
 
     url = (
         f"https://www.instagram.com/oauth/authorize"
-        f"?enable_fb_login=0"
-        f"&force_authentication=1"
+        f"?force_reauth=true"
         f"&client_id={IG_APP_ID}"
         f"&redirect_uri={redirect_uri}"
         f"&response_type=code"
