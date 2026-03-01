@@ -323,6 +323,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
 
     for entry in body.get("entry", []):
         ig_user_id = str(entry.get("id", ""))
+        print(f"🔍 Instagram webhook entry ID: {ig_user_id}")
 
         # Identificar canal pelo instagram_id
         channel_id = None
