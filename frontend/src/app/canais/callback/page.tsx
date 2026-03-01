@@ -35,9 +35,9 @@ function CallbackContent() {
         });
 
         if (res.data.status === 'connected') {
-          const username = res.data.username ? \` @\${res.data.username}\` : '';
+          const username = res.data.username ? ` @${res.data.username}` : '';
           setStatus('success');
-          setMessage(\`Instagram\${username} conectado com sucesso!\`);
+          setMessage(`Instagram${username} conectado com sucesso!`);
           setTimeout(() => router.push('/canais'), 2000);
         }
       } catch (err: any) {
