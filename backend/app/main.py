@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from dotenv import load_dotenv
+import httpx
 from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
@@ -383,9 +384,30 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
             contact = contact_result.scalar_one_or_none()
 
             if not contact:
+                # Buscar nome/username do perfil via API
+                ig_name = f"Instagram {sender_id}"
+                if channel and channel.access_token:
+                    try:
+                        async with httpx.AsyncClient() as http_client:
+                            profile_res = await http_client.get(
+                                f"https://graph.instagram.com/v22.0/{sender_id}",
+                                params={
+                                    "fields": "name,username",
+                                    "access_token": channel.access_token,
+                                },
+                            )
+                        if profile_res.status_code == 200:
+                            profile = profile_res.json()
+                            username = profile.get("username", "")
+                            name = profile.get("name", "")
+                            ig_name = name or f"@{username}" if username else ig_name
+                            print(f"👤 Instagram perfil: {ig_name} (@{username})")
+                    except Exception as e:
+                        print(f"⚠️ Erro ao buscar perfil Instagram: {e}")
+
                 contact = Contact(
                     wa_id=ig_sender_id,
-                    name=f"Instagram {sender_id}",
+                    name=ig_name,
                     channel_id=channel_id,
                 )
                 db.add(contact)

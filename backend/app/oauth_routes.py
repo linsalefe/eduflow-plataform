@@ -115,8 +115,9 @@ async def instagram_oauth_callback(
         ig_username = profile_data.get("username", "")
         ig_name = profile_data.get("name", ig_username)
         ig_profile_pic = profile_data.get("profile_picture_url", "")
-        if not ig_user_id:
-            ig_user_id = str(profile_data.get("user_id", profile_data.get("id", "")))
+        # user_id retornado pela API é o correto para webhooks
+        ig_user_id = str(profile_data.get("user_id", profile_data.get("id", ig_user_id)))
+        print(f"🔍 Instagram OAuth profile: user_id={ig_user_id}, username={ig_username}")
 
     # 4. Verificar se já existe canal com esse instagram_id
     existing = await db.execute(
