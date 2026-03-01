@@ -37,7 +37,9 @@ async def get_instagram_oauth_url():
 
     url = (
         f"https://www.instagram.com/oauth/authorize"
-        f"?client_id={IG_APP_ID}"
+        f"?enable_fb_login=0"
+        f"&force_authentication=1"
+        f"&client_id={IG_APP_ID}"
         f"&redirect_uri={redirect_uri}"
         f"&response_type=code"
         f"&scope={scopes}"
