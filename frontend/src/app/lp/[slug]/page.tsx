@@ -210,14 +210,14 @@ const iconMap: Record<string, any> = {
 function SectionHeader({ tag, title, color }: { tag: string; title: string; color: string }) {
   return (
     <RevealSection>
-      <div className="text-center mb-16">
+      <div className="text-center mb-10 lg:mb-16">
         <span
           className="inline-block text-xs font-bold uppercase tracking-[0.2em] px-4 py-2 rounded-full mb-4"
           style={{ backgroundColor: `${color}10`, color }}
         >
           {tag}
         </span>
-        <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
           {title}
         </h2>
       </div>
@@ -254,7 +254,7 @@ function StatsSection({ data, color }: { data: any; color: string }) {
 function AboutSection({ data, color }: { data: any; color: string }) {
   const highlights = data?.highlights?.filter((h: any) => h.label && h.value) || [];
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
+    <section className="py-14 lg:py-24 bg-white relative overflow-hidden">
       <div className="absolute -right-40 top-0 w-80 h-80 rounded-full opacity-[0.03]" style={{ backgroundColor: color }} />
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'Sobre'} title={data?.sectionTitle || 'Sobre o Programa'} color={color} />
@@ -309,7 +309,7 @@ function AudienceSection({ data, color }: { data: any; color: string }) {
   const items = data?.items?.filter((t: string) => t.trim()) || [];
   if (items.length === 0) return null;
   return (
-    <section className="py-24 bg-white">
+    <section className="py-14 lg:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'Para quem é'} title={data?.sectionTitle || 'Para quem é'} color={color} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl mx-auto">
@@ -333,7 +333,7 @@ function DifferentialsSection({ data, color }: { data: any; color: string }) {
   const items = data?.items?.filter((d: any) => d.title) || [];
   if (items.length === 0) return null;
   return (
-    <section className="py-24" style={{ backgroundColor: '#fafafa' }}>
+    <section className="py-14 lg:py-24" style={{ backgroundColor: '#fafafa' }}>
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'Diferenciais'} title={data?.sectionTitle || 'Por que nos escolher'} color={color} />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -362,7 +362,7 @@ function TestimonialsSection({ data, color }: { data: any; color: string }) {
   const items = data?.items?.filter((t: any) => t.text) || [];
   if (items.length === 0) return null;
   return (
-    <section className="py-24 bg-white">
+    <section className="py-14 lg:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'Depoimentos'} title={data?.sectionTitle || 'O que dizem sobre nós'} color={color} />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -397,7 +397,7 @@ function FaqSection({ data, color }: { data: any; color: string }) {
   const items = data?.items?.filter((f: any) => f.q) || [];
   if (items.length === 0) return null;
   return (
-    <section className="py-24" style={{ backgroundColor: '#fafafa' }}>
+    <section className="py-14 lg:py-24" style={{ backgroundColor: '#fafafa' }}>
       <div className="max-w-3xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'FAQ'} title={data?.sectionTitle || 'Dúvidas Frequentes'} color={color} />
         <div className="space-y-3">
@@ -415,7 +415,7 @@ function VideoSection({ data, color }: { data: any; color: string }) {
   const videoId = url.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1];
   if (!videoId) return null;
   return (
-    <section className="py-24 bg-white">
+    <section className="py-14 lg:py-24 bg-white">
       <div className="max-w-5xl mx-auto px-6">
         <SectionHeader tag={data?.sectionTitle || 'Vídeo'} title={data?.sectionTitle || 'Conheça mais'} color={color} />
         <RevealSection delay={100}>
@@ -441,15 +441,15 @@ function CtaFinalSection({ data, color, slug, apiUrl, title, formFields, ctaText
   formFields: FormField[]; ctaText: string; submitted: boolean; onSuccess: () => void;
 }) {
   return (
-    <section className="py-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}cc 50%, ${color}99 100%)` }}>
+    <section className="py-14 lg:py-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color} 0%, ${color}cc 50%, ${color}99 100%)` }}>
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '40px 40px' }} />
       <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-white/5" />
       <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/5" />
-      <div className="relative z-10 max-w-5xl mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative z-10 max-w-5xl mx-auto px-5 lg:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <RevealSection>
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-white leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
                 {data?.title || 'Não perca essa oportunidade'}
               </h2>
               <p className="text-lg text-white/75 mt-5 leading-relaxed max-w-md">
@@ -588,11 +588,11 @@ export default function PublicLandingPage() {
       `}} />
 
       {/* ═══════ HERO ═══════ */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      <section className="relative min-h-[85vh] lg:min-h-screen flex items-center overflow-hidden">
         {c.heroImageUrl ? (
           <>
             <div className="absolute inset-0"><img src={c.heroImageUrl} alt="" className="w-full h-full object-cover" /></div>
-            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(0,0,0,0.7) 0%, ${color}90 100%)` }} />
+            <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, rgba(0,0,0,0.75) 0%, ${color}80 100%)` }} />
           </>
         ) : (
           <>
@@ -603,21 +603,21 @@ export default function PublicLandingPage() {
           </>
         )}
 
-        <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-5 lg:px-6 py-12 lg:py-20 grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center w-full">
           <div className="animate-fadeSlideUp" style={{ animationDuration: '0.8s' }}>
-            {c.logoUrl && <img src={c.logoUrl} alt="Logo" className={`h-16 mb-8 object-contain ${c.heroImageUrl ? 'brightness-0 invert' : ''}`} style={{ animationDelay: '0.1s' }} />}
+            {c.logoUrl && <img src={c.logoUrl} alt="Logo" className={`h-12 lg:h-16 mb-5 lg:mb-8 object-contain ${c.heroImageUrl ? 'brightness-0 invert' : ''}`} style={{ animationDelay: '0.1s' }} />}
             <h1
-              className={`text-5xl lg:text-[3.5rem] xl:text-[4rem] font-black leading-[1.08] mb-6 ${c.heroImageUrl ? 'text-white' : 'text-gray-900'}`}
+              className={`text-3xl md:text-5xl lg:text-[3.5rem] xl:text-[4rem] font-black leading-[1.08] mb-4 lg:mb-6 ${c.heroImageUrl ? 'text-white' : 'text-gray-900'}`}
               style={{ fontFamily: 'var(--heading-font)' }}
             >
               {heroTitle}
             </h1>
             {heroSubtitle && (
-              <p className={`text-lg lg:text-xl leading-relaxed mb-10 max-w-lg ${c.heroImageUrl ? 'text-white/80' : 'text-gray-500'}`}>
+              <p className={`text-base lg:text-xl leading-relaxed mb-6 lg:mb-10 max-w-lg ${c.heroImageUrl ? 'text-white/80' : 'text-gray-500'}`}>
                 {heroSubtitle}
               </p>
             )}
-            <div className={`flex items-center gap-2 text-sm ${c.heroImageUrl ? 'text-white/50' : 'text-gray-300'} animate-float`}>
+            <div className={`hidden lg:flex items-center gap-2 text-sm ${c.heroImageUrl ? 'text-white/50' : 'text-gray-300'} animate-float`}>
               <ArrowDown className="w-4 h-4" />
               <span>Role para saber mais</span>
             </div>
@@ -626,7 +626,7 @@ export default function PublicLandingPage() {
           <div className="animate-fadeSlideUp" style={{ animationDuration: '0.8s', animationDelay: '0.3s' }}>
             <div className="w-full max-w-[420px] mx-auto lg:ml-auto">
               {!submitted ? (
-                <div className="bg-white rounded-3xl p-8 shadow-[0_25px_80px_rgba(0,0,0,0.08)] border border-gray-100/80 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl lg:rounded-3xl p-6 lg:p-8 shadow-[0_25px_80px_rgba(0,0,0,0.08)] border border-gray-100/80 backdrop-blur-sm">
                   <div className="text-center mb-6">
                     {c.logoUrl ? (
                       <div className="flex justify-center mb-4">
