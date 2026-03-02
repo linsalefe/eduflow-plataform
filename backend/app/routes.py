@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -850,6 +850,21 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
 
     await db.commit()
     return {"status": "assigned", "assigned_to": user_id}
+
+@router.delete("/channels/{channel_id}")
+async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Channel).where(Channel.id == channel_id))
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
+    # Deletar mensagens e contatos associados
+    await db.execute(delete(Message).where(Message.channel_id == channel_id))
+    await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
+    await db.delete(channel)
+    await db.commit()
+    return {"message": "Canal removido com sucesso"}
+
 # === Dashboard Avançado ===
 
 @router.get("/dashboard/advanced")
