@@ -255,3 +255,25 @@ class Activity(Base):
     description = Column(Text, nullable=False)
     extra_data = Column("metadata", Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    type = Column(String(30), default="follow_up")        # follow_up, call, meeting, email, other
+    priority = Column(String(20), default="media")         # alta, media, baixa
+    due_date = Column(String(10), nullable=False)          # YYYY-MM-DD
+    due_time = Column(String(5), nullable=True)            # HH:MM
+    status = Column(String(20), default="pending")         # pending, completed, cancelled
+    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    contact = relationship("Contact", backref="tasks")
+    assigned_user = relationship("User", foreign_keys=[assigned_to], backref="assigned_tasks")
+    creator = relationship("User", foreign_keys=[created_by], backref="created_tasks")

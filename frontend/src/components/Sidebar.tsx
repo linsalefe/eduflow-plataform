@@ -23,6 +23,7 @@ import {
   X,
   Search,
   Download,
+  Target,
 } from 'lucide-react';
 
 const menuGroups = [
@@ -32,6 +33,7 @@ const menuGroups = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
       { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+      { href: '/tarefas', label: 'Tarefas', icon: Target },
       { href: '/relatorios', label: 'Relatórios', icon: Download },
     ],
   },
