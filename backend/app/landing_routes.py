@@ -12,6 +12,8 @@ import os, uuid, pathlib
 UPLOAD_DIR = pathlib.Path("uploads/lp")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
+
 @router.post("/upload")
 async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user)):
     ext = file.filename.split(".")[-1].lower()
@@ -26,9 +28,6 @@ async def upload_image(file: UploadFile = File(...), user=Depends(get_current_us
         f.write(content)
     base_url = os.getenv("BASE_URL", "https://portal.eduflowia.com")
     return {"url": f"{base_url}/api/uploads/lp/{filename}"}
-
-router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
-
 
 # === CRUD Landing Pages (autenticado) ===
 
