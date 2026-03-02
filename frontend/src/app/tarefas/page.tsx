@@ -126,7 +126,7 @@ export default function TarefasPage() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await api.get('/users-simple');
+      const res = await api.get('/users/list');
       setUsers(res.data);
       if (res.data.length > 0 && form.assigned_to === 0) {
         setForm(f => ({ ...f, assigned_to: res.data[0].id }));
