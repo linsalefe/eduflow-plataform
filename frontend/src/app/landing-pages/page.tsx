@@ -295,7 +295,15 @@ export default function LandingPagesPage() {
     if (saved.sections) {
       const savedIds = saved.sections.map((s: any) => s.id);
       const newSections = defaultSections.filter(ds => !savedIds.includes(ds.id));
-      merged.sections = [...saved.sections, ...newSections];
+      // Inserir novas seções antes do cta_final
+      const ctaIndex = saved.sections.findIndex((s: any) => s.id === 'cta_final');
+      if (ctaIndex >= 0 && newSections.length > 0) {
+        const before = saved.sections.slice(0, ctaIndex);
+        const after = saved.sections.slice(ctaIndex);
+        merged.sections = [...before, ...newSections, ...after];
+      } else {
+        merged.sections = [...saved.sections, ...newSections];
+      }
     }
 
     setConfig(merged);
