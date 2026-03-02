@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, update
 from pydantic import BaseModel
 from typing import Optional
+from app.models import Task, Contact, User
 from datetime import datetime, date, timedelta
 
 from app.database import get_db
@@ -166,7 +167,7 @@ async def create_task(
         due_time=req.due_time,
         contact_wa_id=req.contact_wa_id,
         assigned_to=req.assigned_to,
-        created_by=current_user["user_id"],
+        created_by=current_user.id,
     )
     db.add(task)
     await db.flush()
@@ -189,7 +190,7 @@ async def update_task(
     task_id: int,
     req: TaskUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
