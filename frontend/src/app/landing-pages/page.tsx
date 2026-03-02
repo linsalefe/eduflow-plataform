@@ -634,6 +634,7 @@ export default function LandingPagesPage() {
                     value={config.logoUrl}
                     onChange={(url) => setConfig(prev => ({ ...prev, logoUrl: url }))}
                     label="Arraste ou clique para subir o logo"
+                    hint="Recomendado: 500 x 500px · PNG com fundo transparente"
                     previewHeight="h-16"
                   />
                 </div>
@@ -643,6 +644,7 @@ export default function LandingPagesPage() {
                     value={config.heroImageUrl}
                     onChange={(url) => setConfig(prev => ({ ...prev, heroImageUrl: url }))}
                     label="Arraste ou clique para subir a imagem do Hero"
+                    hint="Recomendado: 1920 x 1080px · JPG ou PNG"
                     previewHeight="h-40"
                     previewFit="cover"
                   />
@@ -905,8 +907,8 @@ function TextareaField({ label, value, onChange, placeholder, rows = 2 }: { labe
   );
 }
 
-function ImageUploader({ value, onChange, label, previewHeight = 'h-16', previewFit = 'contain' }: {
-  value: string; onChange: (url: string) => void; label: string; previewHeight?: string; previewFit?: string;
+function ImageUploader({ value, onChange, label, hint, previewHeight = 'h-16', previewFit = 'contain' }: {
+  value: string; onChange: (url: string) => void; label: string; hint?: string; previewHeight?: string; previewFit?: string;
 }) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -997,7 +999,7 @@ function ImageUploader({ value, onChange, label, previewHeight = 'h-16', preview
             <Upload className="w-5 h-5 text-gray-400" />
           </div>
           <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-[10px] text-gray-400">JPG, PNG ou WEBP · Máx 5MB</p>
+          <p className="text-[10px] text-gray-400">{hint || 'JPG, PNG ou WEBP · Máx 5MB'}</p>
         </div>
       )}
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
