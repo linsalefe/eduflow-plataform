@@ -722,20 +722,6 @@ export default function ConversationsPage() {
     } catch { toast.error('Erro ao adicionar tag'); }
   };
 
-  const isInstagram = activeChannel?.type === 'instagram';
-  const igTheme = {
-    chatBg: 'bg-white',
-    headerBg: 'bg-white border-gray-200',
-    headerText: 'text-gray-900',
-    headerSub: 'text-gray-500',
-    inputBg: 'bg-white border-t border-gray-200',
-    outBubble: 'bg-[#3797F0] text-white rounded-2xl rounded-tr-sm',
-    inBubble: 'bg-[#EFEFEF] text-gray-900 rounded-2xl rounded-tl-sm',
-    outTime: 'text-white/70',
-    inTime: 'text-gray-400',
-    dateBadge: 'bg-gray-100 text-gray-500',
-  };
-
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   messages.forEach((msg) => {
     const date = formatDate(msg.timestamp);
@@ -1222,7 +1208,7 @@ export default function ConversationsPage() {
           {selectedContact ? (
             <>
               {/* Chat Header */}
-              <div className={`px-4 py-2.5 border-b flex items-center justify-between ${isInstagram ? igTheme.headerBg : 'border-[#2a3942] bg-[#202c33]'}`}>
+              <div className="px-4 py-2.5 border-b border-[#2a3942] bg-[#202c33] flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setSelectedContact(null)} aria-label="Voltar para lista" className="lg:hidden p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors">
                     <ArrowLeft className="w-5 h-5 text-[#8696a0]" />
@@ -1237,9 +1223,9 @@ export default function ConversationsPage() {
                   )}
 
                   <div>
-                    <p className={`font-normal text-[15px] ${isInstagram ? igTheme.headerText : 'text-[#e9edef]'}`}>{selectedContact.name || selectedContact.wa_id}</p>
+                    <p className="font-normal text-[15px] text-[#e9edef]">{selectedContact.name || selectedContact.wa_id}</p>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[12px] ${isInstagram ? igTheme.headerSub : 'text-[#8696a0]'}`}>{isInstagram ? `@${selectedContact.name?.toLowerCase().replace(/\s/g, '') || selectedContact.wa_id}` : `+${selectedContact.wa_id}`}</span>
+                      <span className="text-[12px] text-[#8696a0]">+{selectedContact.wa_id}</span>
                       <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium rounded-md ${getStatusConfig(selectedContact.lead_status).bg} ${getStatusConfig(selectedContact.lead_status).text}`}>
                         {getStatusConfig(selectedContact.lead_status).label}
                       </span>
@@ -1284,7 +1270,7 @@ export default function ConversationsPage() {
                       const c = chatContainerRef.current;
                       if (c) setShowScrollDown(c.scrollHeight - c.scrollTop - c.clientHeight > 150);
                     }}
-                    className={`flex-1 overflow-y-auto px-[4%] py-4 space-y-1 relative ${isInstagram ? igTheme.chatBg : 'bg-[#0b141a]'}`} style={{ backgroundImage: isInstagram ? 'none' : 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
+                    className="flex-1 overflow-y-auto px-[4%] py-4 space-y-1 bg-[#0b141a] relative" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cdefs%3E%3Cpattern id=\'p\' width=\'40\' height=\'40\' patternUnits=\'userSpaceOnUse\'%3E%3Cpath d=\'M20 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4z\' fill=\'%23111b21\' fill-opacity=\'0.6\'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width=\'200\' height=\'200\' fill=\'url(%23p)\'/%3E%3C/svg%3E")' }}>
 
                     {loadingMessages ? (
                       <div className="space-y-3 py-4">
@@ -1309,7 +1295,7 @@ export default function ConversationsPage() {
                     {groupedMessages.map((group) => (
                       <div key={group.date}>
                         <div className="flex justify-center my-3">
-                          <span className={`px-3 py-1.5 rounded-lg text-[12px] shadow-sm font-normal ${isInstagram ? igTheme.dateBadge : 'bg-[#182229] text-[#8696a0]'}`}>
+                          <span className="px-3 py-1.5 bg-[#182229] rounded-lg text-[12px] text-[#8696a0] shadow-sm font-normal">
                             {group.date}
                           </span>
                         </div>
@@ -1318,15 +1304,15 @@ export default function ConversationsPage() {
                           <div key={msg.id} className={`flex mb-1 ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[65%] px-2.5 py-1.5 shadow-sm relative ${
                               msg.direction === 'outbound'
-                                ? (isInstagram ? igTheme.outBubble : 'bg-[#005c4b] text-[#e9edef] rounded-lg rounded-tr-none')
-                                : (isInstagram ? igTheme.inBubble : 'bg-[#202c33] text-[#e9edef] rounded-lg rounded-tl-none')
+                                ? 'bg-[#005c4b] text-[#e9edef] rounded-lg rounded-tr-none'
+                                : 'bg-[#202c33] text-[#e9edef] rounded-lg rounded-tl-none'
                             }`}>
                               {/* Tail */}
-                              {!isInstagram && (msg.direction === 'outbound' ? (
+                              {msg.direction === 'outbound' ? (
                                 <span className="absolute -right-2 top-0 w-0 h-0 border-t-[8px] border-t-[#005c4b] border-r-[8px] border-r-transparent" />
                               ) : (
                                 <span className="absolute -left-2 top-0 w-0 h-0 border-t-[8px] border-t-[#202c33] border-l-[8px] border-l-transparent" />
-                              ))}
+                              )}
                               {msg.type === 'image' && msg.content.startsWith('media:') ? (
                                 <img
                                   src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
@@ -1362,8 +1348,8 @@ export default function ConversationsPage() {
                               )}
 
                               <div className="flex items-center justify-end gap-1 mt-0.5">
-                                {msg.sent_by_ai && <span className={`text-[10px] font-medium ${msg.direction === 'outbound' ? (isInstagram ? igTheme.outTime : 'text-[#ffffff99]') : (isInstagram ? igTheme.inTime : 'text-[#8696a0]')}`}>🤖 Nat</span>}
-                                <span className={`text-[11px] tabular-nums ${msg.direction === 'outbound' ? (isInstagram ? igTheme.outTime : 'text-[#ffffff99]') : (isInstagram ? igTheme.inTime : 'text-[#8696a0]')}`}>{formatTime(msg.timestamp)}</span>
+                                {msg.sent_by_ai && <span className={`text-[10px] font-medium ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>🤖 Nat</span>}
+                                <span className={`text-[11px] tabular-nums ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>{formatTime(msg.timestamp)}</span>
                                 {msg.direction === 'outbound' && getStatusIcon(msg.status)}
                               </div>
                             </div>
@@ -1390,7 +1376,7 @@ export default function ConversationsPage() {
                   </div>
 
                   {/* Input */}
-                  <div className={`px-3 py-2 ${isInstagram ? igTheme.inputBg : 'bg-[#202c33]'}`}>
+                  <div className="px-3 py-2 bg-[#202c33]">
                     {isRecording ? (
                       /* Modo gravação */
                       <div className="flex items-center gap-3">
