@@ -247,7 +247,7 @@ export default function PublicLandingPage() {
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:8001';
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
 
   useEffect(() => {
     const fetchLP = async () => {

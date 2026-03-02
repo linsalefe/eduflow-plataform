@@ -194,7 +194,7 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
 
 # === Rota Pública (sem auth) ===
 
-public_router = APIRouter(prefix="/lp", tags=["Landing Pages Públicas"])
+public_router = APIRouter(prefix="/api/lp", tags=["Landing Pages Públicas"])
 
 
 @public_router.get("/{slug}")
