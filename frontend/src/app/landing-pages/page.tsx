@@ -6,7 +6,7 @@ import {
   ArrowUp, ArrowDown, ToggleLeft, ToggleRight, X,
   BarChart3, Info, List, Users, Award, MessageSquareQuote,
   HelpCircle, Megaphone, Palette, FormInput,
-  ExternalLink, Save, ArrowLeft
+  ExternalLink, Save, ArrowLeft, Play
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppLayout from '@/components/AppLayout';
@@ -56,9 +56,28 @@ interface LPConfig {
   secondaryColor: string;
   logoUrl: string;
   heroImageUrl: string;
+  headingFont: string;
+  bodyFont: string;
   formFields: FormField[];
   sections: Section[];
 }
+
+// ═══════════════════════════════════════════
+// FONTES DISPONÍVEIS
+// ═══════════════════════════════════════════
+
+const fontOptions = [
+  { id: 'Playfair Display', label: 'Playfair Display', type: 'serif', preview: 'Elegante e clássica' },
+  { id: 'Montserrat', label: 'Montserrat', type: 'sans-serif', preview: 'Moderna e versátil' },
+  { id: 'Poppins', label: 'Poppins', type: 'sans-serif', preview: 'Clean e geométrica' },
+  { id: 'Raleway', label: 'Raleway', type: 'sans-serif', preview: 'Leve e sofisticada' },
+  { id: 'Lora', label: 'Lora', type: 'serif', preview: 'Editorial e refinada' },
+  { id: 'Bebas Neue', label: 'Bebas Neue', type: 'sans-serif', preview: 'Bold e impactante' },
+  { id: 'DM Sans', label: 'DM Sans', type: 'sans-serif', preview: 'Minimalista e neutra' },
+  { id: 'Bitter', label: 'Bitter', type: 'serif', preview: 'Forte e legível' },
+  { id: 'Space Grotesk', label: 'Space Grotesk', type: 'sans-serif', preview: 'Futurista e técnica' },
+  { id: 'Merriweather', label: 'Merriweather', type: 'serif', preview: 'Tradicional e confiável' },
+];
 
 // ═══════════════════════════════════════════
 // DEFAULTS
@@ -157,6 +176,16 @@ const defaultSections: Section[] = [
     },
   },
   {
+    id: 'video',
+    label: 'Vídeo',
+    icon: 'Play',
+    enabled: false,
+    data: {
+      sectionTitle: 'Conheça mais',
+      youtubeUrl: '',
+    },
+  },
+  {
     id: 'cta_final',
     label: 'CTA Final',
     icon: 'Megaphone',
@@ -171,12 +200,14 @@ const getDefaultConfig = (): LPConfig => ({
   secondaryColor: '#10b981',
   logoUrl: '',
   heroImageUrl: '',
+  headingFont: 'Playfair Display',
+  bodyFont: 'Inter',
   formFields: JSON.parse(JSON.stringify(defaultFormFields)),
   sections: JSON.parse(JSON.stringify(defaultSections)),
 });
 
 const iconComponents: Record<string, any> = {
-  Megaphone, BarChart3, Info, List, Users, Award, MessageSquareQuote, HelpCircle,
+  Megaphone, BarChart3, Info, List, Users, Award, MessageSquareQuote, HelpCircle, Play,
 };
 
 // ═══════════════════════════════════════════
@@ -258,6 +289,8 @@ export default function LandingPagesPage() {
     merged.secondaryColor = saved.secondaryColor || merged.secondaryColor;
     merged.logoUrl = saved.logoUrl || '';
     merged.heroImageUrl = saved.heroImageUrl || '';
+    merged.headingFont = saved.headingFont || merged.headingFont;
+    merged.bodyFont = saved.bodyFont || merged.bodyFont;
     if (saved.formFields) merged.formFields = saved.formFields;
     if (saved.sections) {
       const savedIds = saved.sections.map((s: any) => s.id);
@@ -425,6 +458,7 @@ export default function LandingPagesPage() {
 
   return (
     <AppLayout>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Lora:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=Bitter:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet" />
       <div className="h-[calc(100vh-64px)] flex flex-col">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 bg-white">
@@ -593,6 +627,41 @@ export default function LandingPagesPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">Imagem de fundo do Hero (URL)</label>
                   <input value={config.heroImageUrl} onChange={(e) => setConfig(prev => ({ ...prev, heroImageUrl: e.target.value }))} placeholder="https://exemplo.com/hero-bg.jpg" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6366f1]" />
+                </div>
+
+                <hr className="border-gray-100" />
+                <p className="text-sm font-semibold text-gray-700">Tipografia</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Fonte dos Títulos</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {fontOptions.filter(f => ['Playfair Display', 'Montserrat', 'Bebas Neue', 'Lora', 'Raleway', 'Bitter', 'Poppins', 'Space Grotesk', 'Merriweather'].includes(f.id)).map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setConfig(prev => ({ ...prev, headingFont: f.id }))}
+                        className={`p-3 rounded-xl border text-left transition-all ${config.headingFont === f.id ? 'border-[#6366f1] bg-[#6366f1]/5 ring-2 ring-[#6366f1]/20' : 'border-gray-200 hover:border-gray-300'}`}
+                      >
+                        <p className="text-base font-bold text-gray-800" style={{ fontFamily: `'${f.id}', ${f.type}` }}>{f.label}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{f.preview}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Fonte do Corpo</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {fontOptions.filter(f => ['Inter', 'DM Sans', 'Poppins', 'Raleway', 'Montserrat', 'Space Grotesk'].includes(f.id)).concat([{ id: 'Inter', label: 'Inter', type: 'sans-serif', preview: 'Padrão e profissional' }]).filter((f, i, arr) => arr.findIndex(x => x.id === f.id) === i).map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setConfig(prev => ({ ...prev, bodyFont: f.id }))}
+                        className={`p-3 rounded-xl border text-left transition-all ${config.bodyFont === f.id ? 'border-[#6366f1] bg-[#6366f1]/5 ring-2 ring-[#6366f1]/20' : 'border-gray-200 hover:border-gray-300'}`}
+                      >
+                        <p className="text-sm font-medium text-gray-800" style={{ fontFamily: `'${f.id}', ${f.type}` }}>{f.label}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{f.preview}</p>
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {config.logoUrl && (
                   <div className="p-4 bg-gray-50 rounded-xl">
@@ -772,6 +841,27 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
         <div className="space-y-3">
           <InputField label="Título" value={d.title} onChange={(v) => onUpdate({ title: v })} placeholder="Não perca essa oportunidade" />
           <TextareaField label="Subtítulo" value={d.subtitle} onChange={(v) => onUpdate({ subtitle: v })} placeholder="As vagas são limitadas..." />
+        </div>
+      );
+
+    case 'video':
+      return (
+        <div className="space-y-3">
+          <InputField label="Título da seção" value={d.sectionTitle} onChange={(v) => onUpdate({ sectionTitle: v })} placeholder="Conheça mais" />
+          <InputField label="URL do YouTube" value={d.youtubeUrl} onChange={(v) => onUpdate({ youtubeUrl: v })} placeholder="https://www.youtube.com/watch?v=..." />
+          {d.youtubeUrl && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-400 mb-2">Preview:</p>
+              <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                <iframe
+                  src={`https://www.youtube.com/embed/${d.youtubeUrl.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1] || ''}`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
         </div>
       );
 

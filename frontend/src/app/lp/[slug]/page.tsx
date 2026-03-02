@@ -217,7 +217,7 @@ function SectionHeader({ tag, title, color }: { tag: string; title: string; colo
         >
           {tag}
         </span>
-        <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+        <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
           {title}
         </h2>
       </div>
@@ -410,6 +410,32 @@ function FaqSection({ data, color }: { data: any; color: string }) {
   );
 }
 
+function VideoSection({ data, color }: { data: any; color: string }) {
+  const url = data?.youtubeUrl || '';
+  const videoId = url.match(/(?:v=|youtu\.be\/)([^&\s]+)/)?.[1];
+  if (!videoId) return null;
+  return (
+    <section className="py-24 bg-white">
+      <div className="max-w-5xl mx-auto px-6">
+        <SectionHeader tag={data?.sectionTitle || 'Vídeo'} title={data?.sectionTitle || 'Conheça mais'} color={color} />
+        <RevealSection delay={100}>
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-gray-200/50 border border-gray-100 group">
+            <div className="aspect-video">
+              <iframe
+                src={`https://www.youtube.com/embed/${videoId}?rel=0`}
+                className="w-full h-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+            <div className="absolute inset-0 rounded-3xl pointer-events-none" style={{ boxShadow: `inset 0 0 0 1px ${color}10` }} />
+          </div>
+        </RevealSection>
+      </div>
+    </section>
+  );
+}
+
 function CtaFinalSection({ data, color, slug, apiUrl, title, formFields, ctaText, submitted, onSuccess }: {
   data: any; color: string; slug: string; apiUrl: string; title: string;
   formFields: FormField[]; ctaText: string; submitted: boolean; onSuccess: () => void;
@@ -423,7 +449,7 @@ function CtaFinalSection({ data, color, slug, apiUrl, title, formFields, ctaText
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <RevealSection>
             <div>
-              <h2 className="text-4xl md:text-5xl font-black text-white leading-tight" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h2 className="text-4xl md:text-5xl font-black text-white leading-tight" style={{ fontFamily: 'var(--heading-font)' }}>
                 {data?.title || 'Não perca essa oportunidade'}
               </h2>
               <p className="text-lg text-white/75 mt-5 leading-relaxed max-w-md">
@@ -516,6 +542,10 @@ export default function PublicLandingPage() {
   const color = c.primaryColor || '#6366f1';
   const newFmt = isNewFormat(c);
 
+  const headingFont = c.headingFont || 'Playfair Display';
+  const bodyFont = c.bodyFont || 'Inter';
+  const fontsToLoad = [...new Set([headingFont, bodyFont, 'Inter'])].map(f => f.replace(/ /g, '+')).join('&family=');
+
   const formFields: FormField[] = c.formFields || [
     { id: 'name', label: 'Nome completo', type: 'text', required: true, enabled: true },
     { id: 'phone', label: 'WhatsApp', type: 'tel', required: true, enabled: true },
@@ -538,21 +568,23 @@ export default function PublicLandingPage() {
     differentials: (s) => <DifferentialsSection key={s.id} data={s.data} color={color} />,
     testimonials: (s) => <TestimonialsSection key={s.id} data={s.data} color={color} />,
     faq: (s) => <FaqSection key={s.id} data={s.data} color={color} />,
+    video: (s) => <VideoSection key={s.id} data={s.data} color={color} />,
   };
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet" />
+    <div className="min-h-screen bg-white" style={{ fontFamily: `'${bodyFont}', -apple-system, sans-serif` }}>
+      <link href={`https://fonts.googleapis.com/css2?family=${fontsToLoad}:wght@400;500;600;700;800;900&display=swap`} rel="stylesheet" />
 
       {/* CSS Animations */}
       <style dangerouslySetInnerHTML={{ __html: `
+        :root { --heading-font: '${headingFont}', serif; --body-font: '${bodyFont}', sans-serif; }
         @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         @keyframes pulse-soft { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        @keyframes shimmer { from { background-position: -200% center; } to { background-position: 200% center; } }
         .animate-fadeSlideUp { animation: fadeSlideUp 0.5s ease-out forwards; opacity: 0; }
         .animate-float { animation: float 4s ease-in-out infinite; }
         .animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
+        .heading-font { font-family: var(--heading-font) !important; }
       `}} />
 
       {/* ═══════ HERO ═══════ */}
@@ -576,7 +608,7 @@ export default function PublicLandingPage() {
             {c.logoUrl && <img src={c.logoUrl} alt="Logo" className={`h-12 mb-8 object-contain ${c.heroImageUrl ? 'brightness-0 invert' : ''}`} style={{ animationDelay: '0.1s' }} />}
             <h1
               className={`text-5xl lg:text-[3.5rem] xl:text-[4rem] font-black leading-[1.08] mb-6 ${c.heroImageUrl ? 'text-white' : 'text-gray-900'}`}
-              style={{ fontFamily: "'Playfair Display', serif" }}
+              style={{ fontFamily: 'var(--heading-font)' }}
             >
               {heroTitle}
             </h1>
