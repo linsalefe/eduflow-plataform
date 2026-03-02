@@ -1,12 +1,12 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Plus, FileText, Trash2, Loader2, Copy, Pencil,
   Eye, ChevronDown, ChevronRight,
   ArrowUp, ArrowDown, ToggleLeft, ToggleRight, X,
   BarChart3, Info, List, Users, Award, MessageSquareQuote,
   HelpCircle, Megaphone, Palette, FormInput,
-  ExternalLink, Save, ArrowLeft, Play
+  ExternalLink, Save, ArrowLeft, Play, Upload, ImageIcon, Trash2 as TrashIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppLayout from '@/components/AppLayout';
@@ -629,12 +629,23 @@ export default function LandingPagesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">URL do Logo</label>
-                  <input value={config.logoUrl} onChange={(e) => setConfig(prev => ({ ...prev, logoUrl: e.target.value }))} placeholder="https://exemplo.com/logo.png" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6366f1]" />
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Logo</label>
+                  <ImageUploader
+                    value={config.logoUrl}
+                    onChange={(url) => setConfig(prev => ({ ...prev, logoUrl: url }))}
+                    label="Arraste ou clique para subir o logo"
+                    previewHeight="h-16"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Imagem de fundo do Hero (URL)</label>
-                  <input value={config.heroImageUrl} onChange={(e) => setConfig(prev => ({ ...prev, heroImageUrl: e.target.value }))} placeholder="https://exemplo.com/hero-bg.jpg" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6366f1]" />
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Imagem de fundo do Hero</label>
+                  <ImageUploader
+                    value={config.heroImageUrl}
+                    onChange={(url) => setConfig(prev => ({ ...prev, heroImageUrl: url }))}
+                    label="Arraste ou clique para subir a imagem do Hero"
+                    previewHeight="h-40"
+                    previewFit="cover"
+                  />
                 </div>
 
                 <hr className="border-gray-100" />
@@ -671,12 +682,6 @@ export default function LandingPagesPage() {
                     ))}
                   </div>
                 </div>
-                {config.logoUrl && (
-                  <div className="p-4 bg-gray-50 rounded-xl">
-                    <p className="text-xs text-gray-400 mb-2">Preview do logo:</p>
-                    <img src={config.logoUrl} alt="Logo" className="h-10 object-contain" />
-                  </div>
-                )}
               </div>
             )}
 
@@ -896,6 +901,106 @@ function TextareaField({ label, value, onChange, placeholder, rows = 2 }: { labe
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
       <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] resize-none transition-all" />
+    </div>
+  );
+}
+
+function ImageUploader({ value, onChange, label, previewHeight = 'h-16', previewFit = 'contain' }: {
+  value: string; onChange: (url: string) => void; label: string; previewHeight?: string; previewFit?: string;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (file: File) => {
+    if (!file) return;
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Formato não suportado. Use JPG, PNG ou WEBP.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Imagem muito grande. Máximo 5MB.');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/landing-pages/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onChange(res.data.url);
+      toast.success('Imagem enviada!');
+    } catch {
+      toast.error('Erro ao enviar imagem');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleUpload(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleUpload(file);
+  };
+
+  if (value) {
+    return (
+      <div className="relative group rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+        <div className={`${previewHeight} w-full flex items-center justify-center p-3`}>
+          <img src={value} alt="Preview" className={`max-h-full max-w-full ${previewFit === 'cover' ? 'w-full h-full object-cover' : 'object-contain'}`} />
+        </div>
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-3">
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="px-3 py-1.5 bg-white text-gray-800 rounded-lg text-xs font-medium hover:bg-gray-100 transition-all"
+          >
+            Trocar
+          </button>
+          <button
+            onClick={() => onChange('')}
+            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-medium hover:bg-red-600 transition-all"
+          >
+            Remover
+          </button>
+        </div>
+        <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+      onClick={() => !uploading && inputRef.current?.click()}
+      className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+        dragOver ? 'border-[#6366f1] bg-[#6366f1]/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+      }`}
+    >
+      {uploading ? (
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-[#6366f1]" />
+          <p className="text-xs text-gray-500">Enviando...</p>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+            <Upload className="w-5 h-5 text-gray-400" />
+          </div>
+          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-[10px] text-gray-400">JPG, PNG ou WEBP · Máx 5MB</p>
+        </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
     </div>
   );
 }

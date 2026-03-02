@@ -6,10 +6,28 @@ from app.models import LandingPage, FormSubmission, Contact, Channel
 from app.auth import get_current_user
 import json
 
+from fastapi import UploadFile, File
+import os, uuid, pathlib
+
+UPLOAD_DIR = pathlib.Path("uploads/lp")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+@router.post("/upload")
+async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user)):
+    ext = file.filename.split(".")[-1].lower()
+    if ext not in ["jpg", "jpeg", "png", "webp", "gif", "svg"]:
+        raise HTTPException(400, "Formato não suportado. Use JPG, PNG ou WEBP.")
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    filepath = UPLOAD_DIR / filename
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Imagem muito grande. Máximo 5MB.")
+    with open(filepath, "wb") as f:
+        f.write(content)
+    base_url = os.getenv("BASE_URL", "https://portal.eduflowia.com")
+    return {"url": f"{base_url}/api/uploads/lp/{filename}"}
+
 router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
-
-
-
 
 
 # === CRUD Landing Pages (autenticado) ===

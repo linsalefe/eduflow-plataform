@@ -13,6 +13,7 @@ from app.kanban_routes import router as kanban_router
 from app.schedule_routes import router as schedule_router
 from app.calendar_routes import router as calendar_router
 from app.landing_routes import router as landing_router
+from fastapi.staticfiles import StaticFiles
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
 from app.export_routes import router as export_router
@@ -433,6 +434,10 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
 
     return {"status": "ok"}
 
+# Servir uploads estáticos
+import pathlib
+pathlib.Path("uploads").mkdir(exist_ok=True)
+app.mount("/api/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/health")
 async def health():
