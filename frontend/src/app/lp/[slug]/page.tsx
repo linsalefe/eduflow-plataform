@@ -605,7 +605,7 @@ export default function PublicLandingPage() {
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full">
           <div className="animate-fadeSlideUp" style={{ animationDuration: '0.8s' }}>
-            {c.logoUrl && <img src={c.logoUrl} alt="Logo" className={`h-12 mb-8 object-contain ${c.heroImageUrl ? 'brightness-0 invert' : ''}`} style={{ animationDelay: '0.1s' }} />}
+            {c.logoUrl && <img src={c.logoUrl} alt="Logo" className={`h-16 mb-8 object-contain ${c.heroImageUrl ? 'brightness-0 invert' : ''}`} style={{ animationDelay: '0.1s' }} />}
             <h1
               className={`text-5xl lg:text-[3.5rem] xl:text-[4rem] font-black leading-[1.08] mb-6 ${c.heroImageUrl ? 'text-white' : 'text-gray-900'}`}
               style={{ fontFamily: 'var(--heading-font)' }}
@@ -628,9 +628,15 @@ export default function PublicLandingPage() {
               {!submitted ? (
                 <div className="bg-white rounded-3xl p-8 shadow-[0_25px_80px_rgba(0,0,0,0.08)] border border-gray-100/80 backdrop-blur-sm">
                   <div className="text-center mb-6">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 relative" style={{ backgroundColor: `${color}10` }}>
-                      <Sparkles className="w-7 h-7" style={{ color }} />
-                    </div>
+                    {c.logoUrl ? (
+                      <div className="flex justify-center mb-4">
+                        <img src={c.logoUrl} alt="Logo" className="h-12 object-contain" />
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 relative" style={{ backgroundColor: `${color}10` }}>
+                        <Sparkles className="w-7 h-7" style={{ color }} />
+                      </div>
+                    )}
                     <h2 className="text-xl font-bold text-gray-900">Garanta sua vaga</h2>
                     <p className="text-sm text-gray-400 mt-1">Turmas com vagas limitadas</p>
                   </div>
