@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-export const dynamic = 'force-dynamic';
 import {
   CheckCircle2, Circle, Clock, AlertTriangle, Plus, X, Calendar,
   User, Flag, FileText, Loader2, Filter, Phone, Mail, Users,
@@ -8,7 +7,6 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import ConfirmModal from '@/components/ConfirmModal';
-import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -93,7 +91,6 @@ export default function TarefasPage() {
   const [completing, setCompleting] = useState<number | null>(null);
 
   // Form
-  const searchParams = useSearchParams();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -146,19 +143,19 @@ export default function TarefasPage() {
   }, [activeFilter, fetchTasks]);
 
   useEffect(() => {
-  if (searchParams.get('new') === '1') {
-    const contactWaId = searchParams.get('contact') || '';
-    const contactName = searchParams.get('name') || '';
-    setForm(f => ({
-      ...f,
-      contact_wa_id: contactWaId,
-      title: contactName ? `Follow-up com ${contactName}` : '',
-    }));
-    setShowModal(true);
-    // Limpar URL
-    window.history.replaceState({}, '', '/tarefas');
-  }
-}, [searchParams]);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('new') === '1') {
+      const contactWaId = params.get('contact') || '';
+      const contactName = params.get('name') || '';
+      setForm(f => ({
+        ...f,
+        contact_wa_id: contactWaId,
+        title: contactName ? `Follow-up com ${contactName}` : '',
+      }));
+      setShowModal(true);
+      window.history.replaceState({}, '', '/tarefas');
+    }
+  }, []);
 
   // ── Actions ─────────────────────────────────────────
 
