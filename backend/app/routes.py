@@ -107,6 +107,48 @@ async def create_channel(req: ChannelRequest, db: AsyncSession = Depends(get_db)
     await db.refresh(channel)
     return {"id": channel.id, "name": channel.name}
 
+@router.delete("/channels/{channel_id}")
+async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import text
+
+    result = await db.execute(select(Channel).where(Channel.id == channel_id))
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
+    # 1) Buscar wa_ids dos contatos deste canal
+    rows = await db.execute(
+        select(Contact.wa_id).where(Contact.channel_id == channel_id)
+    )
+    wa_ids = [r[0] for r in rows.fetchall()]
+
+    if wa_ids:
+        # 2) Deletar tabelas que referenciam contacts (via contact_wa_id)
+        for tbl in ['activities', 'ai_calls', 'ai_conversation_summaries',
+                    'contact_tags', 'financial_entries', 'messages',
+                    'schedules', 'tasks']:
+            await db.execute(
+                text(f"DELETE FROM {tbl} WHERE contact_wa_id = ANY(:ids)"),
+                {"ids": wa_ids}
+            )
+
+    # 3) Deletar tabelas que referenciam channels (via channel_id)
+    for tbl in ['ai_configs', 'ai_conversation_summaries', 'call_logs',
+                'form_submissions', 'knowledge_documents', 'landing_pages',
+                'messages', 'schedules', 'voice_scripts']:
+        await db.execute(
+            text(f"DELETE FROM {tbl} WHERE channel_id = :ch_id"),
+            {"ch_id": channel_id}
+        )
+
+    # 4) Deletar contatos e canal
+    await db.execute(
+        text("DELETE FROM contacts WHERE channel_id = :ch_id"),
+        {"ch_id": channel_id}
+    )
+    await db.delete(channel)
+    await db.commit()
+    return {"message": "Canal removido com sucesso"}
 
 # === Dashboard ===
 
@@ -858,39 +900,6 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
 
     await db.commit()
     return {"status": "assigned", "assigned_to": user_id}
-
-@router.delete("/instances/{instance_name}")
-async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)):
-    """Deleta a instância e remove o canal."""
-    try:
-        await client.delete_instance(instance_name)
-    except Exception:
-        pass  # Instância pode já não existir
-
-    # Remover canal do banco
-    result = await db.execute(
-        select(Channel).where(Channel.instance_name == instance_name)
-    )
-    channel = result.scalar_one_or_none()
-    if channel:
-        channel_id = channel.id
-        # Deletar TODOS os registros dependentes
-        await db.execute(delete(FormSubmission).where(FormSubmission.channel_id == channel_id))
-        await db.execute(delete(LandingPage).where(LandingPage.channel_id == channel_id))
-        await db.execute(delete(Schedule).where(Schedule.channel_id == channel_id))
-        await db.execute(delete(CallLog).where(CallLog.channel_id == channel_id))
-        await db.execute(delete(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id))
-        await db.execute(delete(KnowledgeDocument).where(KnowledgeDocument.channel_id == channel_id))
-        await db.execute(delete(AIConfig).where(AIConfig.channel_id == channel_id))
-        # Deletar mensagens pelos wa_id dos contatos deste canal (FK contact_wa_id)
-        contact_wa_ids = select(Contact.wa_id).where(Contact.channel_id == channel_id)
-        await db.execute(delete(Message).where(Message.contact_wa_id.in_(contact_wa_ids)))
-        await db.execute(delete(Message).where(Message.channel_id == channel_id))
-        await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
-        await db.delete(channel)
-        await db.commit()
-
-    return {"status": "deleted", "instance_name": instance_name}
 
 # === Dashboard Avançado ===
 

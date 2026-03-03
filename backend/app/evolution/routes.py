@@ -94,32 +94,50 @@ async def get_status(instance_name: str, db: AsyncSession = Depends(get_db)):
 @router.delete("/instances/{instance_name}")
 async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)):
     """Deleta a instância e remove o canal."""
+    from sqlalchemy import text
+
     try:
         await client.delete_instance(instance_name)
     except Exception:
-        pass  # Instância pode já não existir
+        pass
 
-    # Remover canal do banco
     result = await db.execute(
         select(Channel).where(Channel.instance_name == instance_name)
     )
     channel = result.scalar_one_or_none()
     if channel:
-        channel_id = channel.id
-        # Deletar TODOS os registros dependentes
-        await db.execute(delete(FormSubmission).where(FormSubmission.channel_id == channel_id))
-        await db.execute(delete(LandingPage).where(LandingPage.channel_id == channel_id))
-        await db.execute(delete(Schedule).where(Schedule.channel_id == channel_id))
-        await db.execute(delete(CallLog).where(CallLog.channel_id == channel_id))
-        await db.execute(delete(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id))
-        await db.execute(delete(KnowledgeDocument).where(KnowledgeDocument.channel_id == channel_id))
-        await db.execute(delete(AIConfig).where(AIConfig.channel_id == channel_id))
-        # Deletar mensagens pelos contact_wa_id dos contatos deste canal
-        contact_wa_ids = select(Contact.wa_id).where(Contact.channel_id == channel_id)
-        await db.execute(delete(Message).where(Message.contact_wa_id.in_(contact_wa_ids)))
-        # Deletar também mensagens órfãs pelo channel_id
-        await db.execute(delete(Message).where(Message.channel_id == channel_id))
-        await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
+        ch_id = channel.id
+
+        # 1) Buscar wa_ids dos contatos deste canal
+        rows = await db.execute(
+            select(Contact.wa_id).where(Contact.channel_id == ch_id)
+        )
+        wa_ids = [r[0] for r in rows.fetchall()]
+
+        if wa_ids:
+            # 2) Deletar tabelas que referenciam contacts (via contact_wa_id)
+            for tbl in ['activities', 'ai_calls', 'ai_conversation_summaries',
+                        'contact_tags', 'financial_entries', 'messages',
+                        'schedules', 'tasks']:
+                await db.execute(
+                    text(f"DELETE FROM {tbl} WHERE contact_wa_id = ANY(:ids)"),
+                    {"ids": wa_ids}
+                )
+
+        # 3) Deletar tabelas que referenciam channels (via channel_id)
+        for tbl in ['ai_configs', 'ai_conversation_summaries', 'call_logs',
+                    'form_submissions', 'knowledge_documents', 'landing_pages',
+                    'messages', 'schedules', 'voice_scripts']:
+            await db.execute(
+                text(f"DELETE FROM {tbl} WHERE channel_id = :ch_id"),
+                {"ch_id": ch_id}
+            )
+
+        # 4) Deletar contatos e canal
+        await db.execute(
+            text("DELETE FROM contacts WHERE channel_id = :ch_id"),
+            {"ch_id": ch_id}
+        )
         await db.delete(channel)
         await db.commit()
 
