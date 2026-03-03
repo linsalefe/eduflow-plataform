@@ -11,6 +11,7 @@ from typing import Optional
 from app.database import get_db
 from app.models import AIConfig, KnowledgeDocument, Contact, AIConversationSummary
 from app.ai_engine import generate_embedding, split_into_chunks, count_tokens
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -32,25 +33,13 @@ class ToggleAIRequest(BaseModel):
 # === Config da IA por Canal ===
 
 @router.get("/config/{channel_id}")
-async def get_ai_config(channel_id: int, db: AsyncSession = Depends(get_db)):
+async def get_ai_config(channel_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(
-        select(AIConfig).where(AIConfig.channel_id == channel_id)
+        select(AIConfig).where(AIConfig.channel_id == channel_id, AIConfig.tenant_id == tenant_id)
     )
     config = result.scalar_one_or_none()
 
     if not config:
-        # Detectar agendamento e criar evento no Google Calendar
-        try:
-            from app.google_calendar import detect_and_create_event
-            await detect_and_create_event(
-                ai_response,
-                req.conversation_history,
-                req.lead_name or "Lead",
-                "teste",
-                req.lead_course or "Não informado",
-            )
-        except Exception as e:
-            print(f"⚠️ Erro ao criar evento: {e}")
         return {
             "channel_id": channel_id,
             "is_enabled": False,
@@ -72,9 +61,9 @@ async def get_ai_config(channel_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/config/{channel_id}")
-async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSession = Depends(get_db)):
+async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(
-        select(AIConfig).where(AIConfig.channel_id == channel_id)
+        select(AIConfig).where(AIConfig.channel_id == channel_id, AIConfig.tenant_id == tenant_id)
     )
     config = result.scalar_one_or_none()
 
@@ -100,8 +89,8 @@ async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSessio
 # === Toggle IA por Contato ===
 
 @router.patch("/contacts/{wa_id}/toggle")
-async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
@@ -131,7 +120,7 @@ async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession =
 # === Documentos do RAG ===
 
 @router.get("/documents/{channel_id}")
-async def list_documents(channel_id: int, db: AsyncSession = Depends(get_db)):
+async def list_documents(channel_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(
         select(
             KnowledgeDocument.title,
@@ -139,7 +128,7 @@ async def list_documents(channel_id: int, db: AsyncSession = Depends(get_db)):
             func.sum(KnowledgeDocument.token_count).label("total_tokens"),
             func.min(KnowledgeDocument.created_at).label("created_at"),
         )
-        .where(KnowledgeDocument.channel_id == channel_id)
+        .where(KnowledgeDocument.channel_id == channel_id, KnowledgeDocument.tenant_id == tenant_id)
         .group_by(KnowledgeDocument.title)
         .order_by(func.min(KnowledgeDocument.created_at).desc())
     )
@@ -162,6 +151,7 @@ async def upload_document(
     title: str = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     # Ler conteúdo do arquivo
     content_bytes = await file.read()
@@ -185,6 +175,7 @@ async def upload_document(
         try:
             embedding = await generate_embedding(chunk["content"])
             doc = KnowledgeDocument(
+                tenant_id=tenant_id,
                 channel_id=channel_id,
                 title=chunk["title"],
                 content=chunk["content"],
@@ -208,11 +199,12 @@ async def upload_document(
 
 
 @router.delete("/documents/{channel_id}/{title}")
-async def delete_document(channel_id: int, title: str, db: AsyncSession = Depends(get_db)):
+async def delete_document(channel_id: int, title: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(
         select(KnowledgeDocument).where(
             KnowledgeDocument.channel_id == channel_id,
             KnowledgeDocument.title == title,
+            KnowledgeDocument.tenant_id == tenant_id,
         )
     )
     docs = result.scalars().all()
@@ -233,7 +225,7 @@ class TestChatRequest(BaseModel):
     lead_course: str = ""
 
 @router.post("/test-chat")
-async def test_chat(req: TestChatRequest, db: AsyncSession = Depends(get_db)):
+async def test_chat(req: TestChatRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Endpoint de teste: simula conversa com a IA sem enviar WhatsApp."""
     from app.ai_engine import search_knowledge, DEFAULT_SYSTEM_PROMPT
     from openai import AsyncOpenAI
@@ -243,7 +235,7 @@ async def test_chat(req: TestChatRequest, db: AsyncSession = Depends(get_db)):
 
     # Buscar config do canal
     result = await db.execute(
-        select(AIConfig).where(AIConfig.channel_id == req.channel_id)
+        select(AIConfig).where(AIConfig.channel_id == req.channel_id, AIConfig.tenant_id == tenant_id)
     )
     ai_config = result.scalar_one_or_none()
 

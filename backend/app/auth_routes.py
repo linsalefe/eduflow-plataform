@@ -66,7 +66,7 @@ async def me(user: User = Depends(get_current_user)):
 @router.post("/register")
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Apenas admin pode criar usuários
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar usuários")
 
     # Verificar se email já existe
@@ -79,6 +79,7 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db), cur
         email=req.email,
         password_hash=hash_password(req.password),
         role=req.role,
+        tenant_id=current_user.tenant_id,
     )
     db.add(user)
     await db.commit()
@@ -94,10 +95,14 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db), cur
 
 @router.get("/users")
 async def list_users(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Apenas administradores")
 
-    result = await db.execute(select(User).order_by(User.name))
+    query = select(User).order_by(User.name)
+    if current_user.tenant_id:
+        query = query.where(User.tenant_id == current_user.tenant_id)
+
+    result = await db.execute(query)
     users = result.scalars().all()
 
     return [
@@ -107,6 +112,7 @@ async def list_users(db: AsyncSession = Depends(get_db), current_user: User = De
             "email": u.email,
             "role": u.role,
             "is_active": u.is_active,
+            "tenant_id": u.tenant_id,
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
         for u in users
@@ -115,10 +121,14 @@ async def list_users(db: AsyncSession = Depends(get_db), current_user: User = De
 
 @router.patch("/users/{user_id}")
 async def toggle_user(user_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Apenas administradores")
 
-    result = await db.execute(select(User).where(User.id == user_id))
+    query = select(User).where(User.id == user_id)
+    if current_user.tenant_id:
+        query = query.where(User.tenant_id == current_user.tenant_id)
+
+    result = await db.execute(query)
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")

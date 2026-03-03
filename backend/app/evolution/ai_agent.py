@@ -90,6 +90,7 @@ async def process_message(
     instance_name: str,
     channel_id: int,
     db: AsyncSession,
+    tenant_id: int = None,
 ) -> dict:
     """Processa mensagem do lead e gera resposta da IA."""
 
@@ -186,6 +187,7 @@ async def process_message(
             # Salvar mensagem no banco
             import uuid
             ai_msg = Message(
+                tenant_id=tenant_id,
                 wa_message_id=f"ai_{uuid.uuid4().hex[:16]}",
                 contact_wa_id=wa_id,
                 channel_id=channel_id,

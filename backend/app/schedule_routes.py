@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
-from app.auth_routes import get_current_user
+from app.auth import get_current_user, get_tenant_id
 from app.models import Schedule, Contact
 
 SP_TZ = timezone(timedelta(hours=-3))
@@ -45,10 +45,11 @@ async def list_schedules(
     date_to: Optional[str] = None,
     limit: int = 100,
     current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Lista agendamentos com filtros."""
-    query = select(Schedule).order_by(Schedule.scheduled_at.asc())
+    query = select(Schedule).where(Schedule.tenant_id == tenant_id).order_by(Schedule.scheduled_at.asc())
 
     if status:
         query = query.where(Schedule.status == status)
@@ -88,12 +89,14 @@ async def list_schedules(
 async def create_schedule(
     req: ScheduleCreate,
     current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Cria agendamento manual."""
     scheduled_dt = datetime.strptime(f"{req.scheduled_date} {req.scheduled_time}", "%Y-%m-%d %H:%M")
 
     schedule = Schedule(
+        tenant_id=tenant_id,
         type=req.type,
         contact_wa_id=req.contact_wa_id,
         contact_name=req.contact_name,
@@ -118,10 +121,11 @@ async def update_schedule(
     schedule_id: int,
     req: ScheduleUpdate,
     current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Atualiza agendamento (editar data/hora, cancelar, etc)."""
-    result = await db.execute(select(Schedule).where(Schedule.id == schedule_id))
+    result = await db.execute(select(Schedule).where(Schedule.id == schedule_id, Schedule.tenant_id == tenant_id))
     schedule = result.scalar_one_or_none()
 
     if not schedule:
@@ -150,10 +154,11 @@ async def update_schedule(
 async def delete_schedule(
     schedule_id: int,
     current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Deleta agendamento."""
-    result = await db.execute(select(Schedule).where(Schedule.id == schedule_id))
+    result = await db.execute(select(Schedule).where(Schedule.id == schedule_id, Schedule.tenant_id == tenant_id))
     schedule = result.scalar_one_or_none()
 
     if not schedule:
@@ -167,6 +172,7 @@ async def delete_schedule(
 @router.get("/stats")
 async def schedule_stats(
     current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Estatísticas de agendamentos."""
@@ -175,22 +181,23 @@ async def schedule_stats(
 
     # Total pendentes
     pending = await db.execute(
-        select(func.count(Schedule.id)).where(Schedule.status == "pending")
+        select(func.count(Schedule.id)).where(Schedule.status == "pending", Schedule.tenant_id == tenant_id)
     )
     # Hoje
     today_count = await db.execute(
         select(func.count(Schedule.id)).where(
             Schedule.scheduled_date == today,
             Schedule.status == "pending",
+            Schedule.tenant_id == tenant_id,
         )
     )
     # Completados
     completed = await db.execute(
-        select(func.count(Schedule.id)).where(Schedule.status == "completed")
+        select(func.count(Schedule.id)).where(Schedule.status == "completed", Schedule.tenant_id == tenant_id)
     )
     # Cancelados
     cancelled = await db.execute(
-        select(func.count(Schedule.id)).where(Schedule.status == "cancelled")
+        select(func.count(Schedule.id)).where(Schedule.status == "cancelled", Schedule.tenant_id == tenant_id)
     )
 
     return {

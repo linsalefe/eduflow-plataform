@@ -11,8 +11,9 @@ import uuid
 SP_TZ = timezone(timedelta(hours=-3))
 
 from app.database import get_db
-from app.models import Channel, Contact, Message, Tag, contact_tags, Activity, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, Schedule
+from app.models import Channel, Contact, Message, Tag, contact_tags, Activity, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, Schedule, User
 from app.whatsapp import send_text_message, send_template_message
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -48,8 +49,8 @@ class TagRequest(BaseModel):
 
 class ChannelRequest(BaseModel):
     name: str
-    type: str = "whatsapp"  # whatsapp, instagram, messenger
-    provider: str = "official"  # official, evolution
+    type: str = "whatsapp"
+    provider: str = "official"
     phone_number: Optional[str] = None
     phone_number_id: Optional[str] = None
     whatsapp_token: Optional[str] = None
@@ -61,11 +62,12 @@ class ChannelRequest(BaseModel):
     access_token: Optional[str] = None
 
 # === Channels ===
-# === Channels ===
 
 @router.get("/channels")
-async def list_channels(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Channel).where(Channel.is_active == True).order_by(Channel.id))
+async def list_channels(db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(
+        select(Channel).where(Channel.is_active == True, Channel.tenant_id == tenant_id).order_by(Channel.id)
+    )
     channels = result.scalars().all()
     return [
         {
@@ -87,8 +89,9 @@ async def list_channels(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/channels")
-async def create_channel(req: ChannelRequest, db: AsyncSession = Depends(get_db)):
+async def create_channel(req: ChannelRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     channel = Channel(
+        tenant_id=tenant_id,
         type=req.type,
         provider=req.provider,
         instance_name=req.instance_name,
@@ -108,10 +111,10 @@ async def create_channel(req: ChannelRequest, db: AsyncSession = Depends(get_db)
     return {"id": channel.id, "name": channel.name}
 
 @router.delete("/channels/{channel_id}")
-async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     from sqlalchemy import text
 
-    result = await db.execute(select(Channel).where(Channel.id == channel_id))
+    result = await db.execute(select(Channel).where(Channel.id == channel_id, Channel.tenant_id == tenant_id))
     channel = result.scalar_one_or_none()
     if not channel:
         raise HTTPException(status_code=404, detail="Canal não encontrado")
@@ -153,14 +156,17 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db)):
 # === Dashboard ===
 
 @router.get("/dashboard/stats")
-async def dashboard_stats(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+async def dashboard_stats(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
 
-    # Filtro base por canal
-    contact_filter = [] if not channel_id else [Contact.channel_id == channel_id]
-    message_filter = [] if not channel_id else [Message.channel_id == channel_id]
+    # Filtro base por tenant + canal
+    contact_filter = [Contact.tenant_id == tenant_id]
+    message_filter = [Message.tenant_id == tenant_id]
+    if channel_id:
+        contact_filter.append(Contact.channel_id == channel_id)
+        message_filter.append(Message.channel_id == channel_id)
 
     total_contacts = await db.execute(
         select(func.count(Contact.id)).where(*contact_filter)
@@ -230,8 +236,8 @@ async def dashboard_stats(channel_id: Optional[int] = None, db: AsyncSession = D
 
 # === Envio de Mensagens ===
 
-async def get_channel(channel_id: int, db: AsyncSession) -> Channel:
-    result = await db.execute(select(Channel).where(Channel.id == channel_id))
+async def get_channel(channel_id: int, db: AsyncSession, tenant_id: int) -> Channel:
+    result = await db.execute(select(Channel).where(Channel.id == channel_id, Channel.tenant_id == tenant_id))
     channel = result.scalar_one_or_none()
     if not channel:
         raise HTTPException(status_code=404, detail="Canal não encontrado")
@@ -239,13 +245,12 @@ async def get_channel(channel_id: int, db: AsyncSession) -> Channel:
 
 
 @router.post("/send/text")
-async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
-    channel = await get_channel(req.channel_id, db)
+async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    channel = await get_channel(req.channel_id, db, tenant_id)
 
     # Instagram Direct
     if channel.type == "instagram" and channel.instagram_id and channel.access_token:
         from app.instagram import send_instagram_message
-        # Remover prefixo ig_ para enviar
         recipient_id = req.to.replace("ig_", "")
         result = await send_instagram_message(recipient_id, req.text, channel.instagram_id, channel.access_token)
 
@@ -255,11 +260,12 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id)
+            contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id, tenant_id=tenant_id)
             db.add(contact)
             await db.flush()
 
         message = Message(
+            tenant_id=tenant_id,
             wa_message_id=msg_id,
             contact_wa_id=req.to,
             channel_id=req.channel_id,
@@ -285,11 +291,12 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id)
+            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id)
             db.add(contact)
             await db.flush()
 
         message = Message(
+            tenant_id=tenant_id,
             wa_message_id=msg_id,
             contact_wa_id=wa_id,
             channel_id=req.channel_id,
@@ -310,10 +317,11 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id)
+            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id)
             db.add(contact)
             await db.flush()
         message = Message(
+            tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
             contact_wa_id=wa_id,
             channel_id=req.channel_id,
@@ -328,8 +336,8 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db)):
     return result
 
 @router.post("/send/template")
-async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get_db)):
-    channel = await get_channel(req.channel_id, db)
+async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    channel = await get_channel(req.channel_id, db, tenant_id)
     result = await send_template_message(req.to, req.template_name, req.language, channel.phone_number_id, channel.whatsapp_token, req.parameters if req.parameters else None)
 
     if "messages" in result:
@@ -338,17 +346,17 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            db.add(Contact(wa_id=wa_id, name=req.contact_name or "", channel_id=req.channel_id))
+            db.add(Contact(wa_id=wa_id, name=req.contact_name or "", channel_id=req.channel_id, tenant_id=tenant_id))
             await db.flush()
         elif req.contact_name and not contact.name:
             contact.name = req.contact_name
 
-        # Montar conteúdo legível
         content_text = f"template:{req.template_name}"
         if req.parameters:
             content_text = f"[Template] " + ", ".join(req.parameters)
 
         message = Message(
+            tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
             contact_wa_id=wa_id,
             channel_id=req.channel_id,
@@ -369,11 +377,12 @@ async def send_media(
     file: UploadFile = File(...),
     to: str = Form(...),
     channel_id: int = Form(1),
-    type: str = Form("image"),  # image, audio, document
+    type: str = Form("image"),
     db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     """Envia mídia (imagem, áudio, documento) via Evolution API."""
-    channel = await get_channel(channel_id, db)
+    channel = await get_channel(channel_id, db, tenant_id)
 
     if not channel.provider == "evolution" or not channel.instance_name:
         raise HTTPException(status_code=400, detail="Envio de mídia só suportado via Evolution API por enquanto")
@@ -402,7 +411,6 @@ async def send_media(
         message_type = "document"
         content = f"📄 {filename}"
 
-    # Salvar mensagem no banco
     msg_id = str(uuid.uuid4())
     if isinstance(result, dict):
         msg_id = result.get("key", {}).get("id", msg_id)
@@ -410,11 +418,12 @@ async def send_media(
     contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
     contact = contact_result.scalar_one_or_none()
     if not contact:
-        contact = Contact(wa_id=wa_id, name="", channel_id=channel_id)
+        contact = Contact(wa_id=wa_id, name="", channel_id=channel_id, tenant_id=tenant_id)
         db.add(contact)
         await db.flush()
 
     message = Message(
+        tenant_id=tenant_id,
         wa_message_id=msg_id,
         contact_wa_id=wa_id,
         channel_id=channel_id,
@@ -432,7 +441,7 @@ async def send_media(
 # === Contatos ===
 
 @router.get("/contacts")
-async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
+async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     from sqlalchemy.orm import aliased
     from sqlalchemy import case
 
@@ -441,6 +450,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
             Message.contact_wa_id,
             func.max(Message.timestamp).label("last_ts")
         )
+        .where(Message.tenant_id == tenant_id)
         .group_by(Message.contact_wa_id)
         .subquery()
     )
@@ -448,6 +458,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
     query = (
         select(Contact)
         .outerjoin(latest_msg, Contact.wa_id == latest_msg.c.contact_wa_id)
+        .where(Contact.tenant_id == tenant_id)
         .order_by(latest_msg.c.last_ts.desc().nullslast())
     )
     if channel_id:
@@ -493,7 +504,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
     return contacts_list
 
 @router.post("/contacts/{wa_id}/read")
-async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db)):
+async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Marca todas as mensagens inbound como lidas."""
     from sqlalchemy import update
     await db.execute(
@@ -501,14 +512,15 @@ async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db)):
             Message.contact_wa_id == wa_id,
             Message.direction == "inbound",
             Message.status == "received",
+            Message.tenant_id == tenant_id,
         ).values(status="read")
     )
     await db.commit()
     return {"status": "ok"}
 
 @router.get("/contacts/{wa_id}")
-async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
@@ -534,8 +546,8 @@ async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/contacts/{wa_id}")
-async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
@@ -545,7 +557,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
     if req.lead_status is not None:
         old_status = contact.lead_status
         contact.lead_status = req.lead_status
-        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}")
+        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id)
         await notify_all_users(
             db, "status_change",
             f"{contact.name or wa_id} → {req.lead_status}",
@@ -555,30 +567,30 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         )
     if req.notes is not None:
         contact.notes = req.notes
-        await log_activity(db, wa_id, "note", "Notas atualizadas")
+        await log_activity(db, wa_id, "note", "Notas atualizadas", tenant_id=tenant_id)
 
     await db.commit()
     return {"status": "updated"}
 
 
 @router.post("/contacts/{wa_id}/tags/{tag_id}")
-async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db)):
-    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id))
+async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = tag_result.scalar_one_or_none()
     await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=tag_id))
-    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}")
+    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id)
     await db.commit()
     return {"status": "tag added"}
 
 
 @router.delete("/contacts/{wa_id}/tags/{tag_id}")
-async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db)):
-    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id))
+async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    tag_result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = tag_result.scalar_one_or_none()
     await db.execute(
         contact_tags.delete().where(contact_tags.c.contact_wa_id == wa_id, contact_tags.c.tag_id == tag_id)
     )
-    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}")
+    await log_activity(db, wa_id, "tag_removed", f"Tag removida: {tag.name if tag else tag_id}", tenant_id=tenant_id)
     await db.commit()
     return {"status": "tag removed"}
 
@@ -586,9 +598,9 @@ async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = De
 # === Mensagens ===
 
 @router.get("/contacts/{wa_id}/messages")
-async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db)):
+async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(
-        select(Message).where(Message.contact_wa_id == wa_id).order_by(Message.timestamp.asc())
+        select(Message).where(Message.contact_wa_id == wa_id, Message.tenant_id == tenant_id).order_by(Message.timestamp.asc())
     )
     messages = result.scalars().all()
 
@@ -609,9 +621,9 @@ async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/contacts/{wa_id}/picture")
-async def get_contact_picture(wa_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db)):
+async def get_contact_picture(wa_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Busca a URL da foto de perfil do contato via Evolution API."""
-    channel = await get_channel(channel_id, db)
+    channel = await get_channel(channel_id, db, tenant_id)
 
     if not channel.provider == "evolution" or not channel.instance_name:
         return {"profilePictureUrl": None}
@@ -624,15 +636,15 @@ async def get_contact_picture(wa_id: str, channel_id: int = 1, db: AsyncSession 
 # === Tags ===
 
 @router.get("/tags")
-async def list_tags(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Tag).order_by(Tag.name))
+async def list_tags(db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Tag).where(Tag.tenant_id == tenant_id).order_by(Tag.name))
     tags = result.scalars().all()
     return [{"id": t.id, "name": t.name, "color": t.color} for t in tags]
 
 
 @router.post("/tags")
-async def create_tag(req: TagRequest, db: AsyncSession = Depends(get_db)):
-    tag = Tag(name=req.name, color=req.color)
+async def create_tag(req: TagRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    tag = Tag(name=req.name, color=req.color, tenant_id=tenant_id)
     db.add(tag)
     await db.commit()
     await db.refresh(tag)
@@ -640,8 +652,8 @@ async def create_tag(req: TagRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/tags/{tag_id}")
-async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Tag).where(Tag.id == tag_id))
+async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = result.scalar_one_or_none()
     if not tag:
         raise HTTPException(status_code=404, detail="Tag não encontrada")
@@ -651,9 +663,9 @@ async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/channels/{channel_id}/templates")
-async def list_templates(channel_id: int, db: AsyncSession = Depends(get_db)):
+async def list_templates(channel_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     import httpx
-    channel = await get_channel(channel_id, db)
+    channel = await get_channel(channel_id, db, tenant_id)
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"https://graph.facebook.com/v22.0/{channel.waba_id}/message_templates",
@@ -665,6 +677,7 @@ async def list_templates(channel_id: int, db: AsyncSession = Depends(get_db)):
     templates = []
     for t in data.get("data", []):
         params = []
+        body_text = ""
         for comp in t.get("components", []):
             if comp["type"] == "BODY":
                 text = comp.get("text", "")
@@ -676,21 +689,18 @@ async def list_templates(channel_id: int, db: AsyncSession = Depends(get_db)):
             "name": t["name"],
             "language": t["language"],
             "status": t["status"],
-            "body": body_text if 'body_text' in dir() else "",
+            "body": body_text,
             "parameters": params,
         })
-        if 'body_text' in dir():
-            del body_text
 
     return templates
 
 
 @router.get("/media/{media_id}")
-async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db)):
+async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     import httpx
-    channel = await get_channel(channel_id, db)
+    channel = await get_channel(channel_id, db, tenant_id)
 
-    # Passo 1: pegar URL da mídia
     async with httpx.AsyncClient() as client:
         url_response = await client.get(
             f"https://graph.facebook.com/v22.0/{media_id}",
@@ -702,7 +712,6 @@ async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depen
         if not media_url:
             raise HTTPException(status_code=404, detail="Mídia não encontrada")
 
-        # Passo 2: baixar mídia
         media_response = await client.get(
             media_url,
             headers={"Authorization": f"Bearer {channel.whatsapp_token}"},
@@ -718,7 +727,7 @@ async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depen
 # === Busca Global ===
 
 @router.get("/search")
-async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
+async def global_search(q: str = "", db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Busca contatos por nome ou telefone (wa_id)"""
     if not q or len(q.strip()) < 2:
         return {"contacts": [], "pages": []}
@@ -728,6 +737,7 @@ async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Contact)
         .where(
+            Contact.tenant_id == tenant_id,
             (Contact.name.ilike(term)) | (Contact.wa_id.ilike(term))
         )
         .order_by(Contact.name.asc())
@@ -749,7 +759,6 @@ async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
             "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
         })
 
-    # Busca de páginas estática (match no label)
     pages = [
         {"label": "Dashboard", "href": "/dashboard", "icon": "LayoutDashboard"},
         {"label": "Conversas", "href": "/conversations", "icon": "MessageCircle"},
@@ -767,9 +776,6 @@ async def global_search(q: str = "", db: AsyncSession = Depends(get_db)):
 
     return {"contacts": contacts_list, "pages": matched_pages}
 
-# Cole este código no FINAL do arquivo backend/app/routes.py
-# (logo após o endpoint /search que você adicionou na Sprint 4)
-
 
 # === Bulk Actions ===
 
@@ -782,13 +788,13 @@ class BulkTagRequest(BaseModel):
     tag_id: int
 
 @router.post("/contacts/bulk-update")
-async def bulk_update_contacts(req: BulkUpdateRequest, db: AsyncSession = Depends(get_db)):
+async def bulk_update_contacts(req: BulkUpdateRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Atualiza status de múltiplos contatos"""
     if not req.wa_ids or not req.lead_status:
         raise HTTPException(status_code=400, detail="wa_ids e lead_status são obrigatórios")
 
     result = await db.execute(
-        select(Contact).where(Contact.wa_id.in_(req.wa_ids))
+        select(Contact).where(Contact.wa_id.in_(req.wa_ids), Contact.tenant_id == tenant_id)
     )
     contacts = result.scalars().all()
 
@@ -800,7 +806,7 @@ async def bulk_update_contacts(req: BulkUpdateRequest, db: AsyncSession = Depend
 
 
 @router.post("/contacts/bulk-tag")
-async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db)):
+async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Adiciona tag a múltiplos contatos"""
     if not req.wa_ids:
         raise HTTPException(status_code=400, detail="wa_ids é obrigatório")
@@ -811,14 +817,14 @@ async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db)):
             await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=req.tag_id))
             added += 1
         except Exception:
-            pass  # já tem a tag
+            pass
 
     await db.commit()
     return {"added": added}
 
 
 @router.post("/contacts/bulk-remove-tag")
-async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db)):
+async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Remove tag de múltiplos contatos"""
     if not req.wa_ids:
         raise HTTPException(status_code=400, detail="wa_ids é obrigatório")
@@ -831,9 +837,12 @@ async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db
     )
     await db.commit()
     return {"removed": len(req.wa_ids)}
-async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None):
+
+
+async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None):
     """Helper para registrar atividade na timeline"""
     activity = Activity(
+        tenant_id=tenant_id,
         contact_wa_id=contact_wa_id,
         type=activity_type,
         description=description,
@@ -843,11 +852,11 @@ async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str,
 
 
 @router.get("/contacts/{wa_id}/activities")
-async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends(get_db)):
+async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Retorna timeline de atividades de um contato"""
     result = await db.execute(
         select(Activity)
-        .where(Activity.contact_wa_id == wa_id)
+        .where(Activity.contact_wa_id == wa_id, Activity.tenant_id == tenant_id)
         .order_by(Activity.created_at.desc())
         .limit(limit)
     )
@@ -866,11 +875,10 @@ async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends
 
 
 @router.get("/users/list")
-async def list_users_simple(db: AsyncSession = Depends(get_db)):
+async def list_users_simple(db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Lista usuários ativos para seletor de atribuição"""
-    from app.models import User
     result = await db.execute(
-        select(User).where(User.is_active == True).order_by(User.name)
+        select(User).where(User.is_active == True, User.tenant_id == tenant_id).order_by(User.name)
     )
     users = result.scalars().all()
     return [
@@ -880,9 +888,9 @@ async def list_users_simple(db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/contacts/{wa_id}/assign")
-async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_db)):
+async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Atribui contato a um usuário"""
-    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
@@ -891,12 +899,11 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
     contact.assigned_to = user_id
 
     if user_id:
-        from app.models import User
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
-        await log_activity(db, wa_id, "assigned", f"Atribuído a {user.name if user else f'#{user_id}'}")
+        await log_activity(db, wa_id, "assigned", f"Atribuído a {user.name if user else f'#{user_id}'}", tenant_id=tenant_id)
     else:
-        await log_activity(db, wa_id, "assigned", "Atribuição removida")
+        await log_activity(db, wa_id, "assigned", "Atribuição removida", tenant_id=tenant_id)
 
     await db.commit()
     return {"status": "assigned", "assigned_to": user_id}
@@ -904,15 +911,17 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
 # === Dashboard Avançado ===
 
 @router.get("/dashboard/advanced")
-async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db)):
-    from app.models import User, Activity
+async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     seven_days_ago = today_start - timedelta(days=7)
     fourteen_days_ago = today_start - timedelta(days=14)
 
-    contact_filter = [] if not channel_id else [Contact.channel_id == channel_id]
-    message_filter = [] if not channel_id else [Message.channel_id == channel_id]
+    contact_filter = [Contact.tenant_id == tenant_id]
+    message_filter = [Message.tenant_id == tenant_id]
+    if channel_id:
+        contact_filter.append(Contact.channel_id == channel_id)
+        message_filter.append(Message.channel_id == channel_id)
 
     # --- Métricas por atendente ---
     agent_stats_q = await db.execute(
@@ -935,13 +944,11 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     )
     total_outbound_week = agent_msgs_q.scalar() or 0
 
-    # Buscar nomes dos usuários
-    users_q = await db.execute(select(User).where(User.is_active == True))
+    users_q = await db.execute(select(User).where(User.is_active == True, User.tenant_id == tenant_id))
     users_map = {u.id: u.name for u in users_q.scalars().all()}
 
     agents = []
     for user_id, lead_count in agent_leads.items():
-        # Mensagens enviadas por contatos deste atendente nos últimos 7 dias
         assigned_contacts_q = await db.execute(
             select(Contact.wa_id).where(Contact.assigned_to == user_id, *contact_filter)
         )
@@ -987,13 +994,13 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     conversion_rate = round((converted / total * 100), 1) if total > 0 else 0
 
     # --- Leads por tag (top 8) ---
-    from app.models import contact_tags, Tag
     tags_q = await db.execute(
         select(
             Tag.name,
             Tag.color,
             func.count(contact_tags.c.contact_wa_id)
         ).join(Tag, Tag.id == contact_tags.c.tag_id)
+        .where(Tag.tenant_id == tenant_id)
         .group_by(Tag.name, Tag.color)
         .order_by(func.count(contact_tags.c.contact_wa_id).desc())
         .limit(8)
@@ -1020,7 +1027,6 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     trend_pct = round(((new_this_week - new_last_week) / max(new_last_week, 1)) * 100, 1)
 
     # --- Tempo médio de primeira resposta (últimos 7 dias) ---
-    # Calcula tempo entre primeira msg inbound e primeira msg outbound por contato
     avg_response = None
     try:
         from sqlalchemy import and_
@@ -1051,8 +1057,8 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
                 )
                 first_out = first_out_q.scalar()
                 if first_out:
-                    diff = (first_out - first_in).total_seconds() / 60  # em minutos
-                    if diff < 1440:  # ignora se > 24h (provavelmente fora de horário)
+                    diff = (first_out - first_in).total_seconds() / 60
+                    if diff < 1440:
                         response_times.append(diff)
 
         if response_times:
@@ -1072,10 +1078,3 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
         "trend_pct": trend_pct,
         "avg_response_minutes": avg_response,
     }
-
-
-
-
-
-
-

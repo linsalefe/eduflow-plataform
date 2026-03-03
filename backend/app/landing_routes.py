@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
 from app.models import LandingPage, FormSubmission, Contact, Channel
-from app.auth import get_current_user
+from app.auth import get_current_user, get_tenant_id
 import json
 
 from fastapi import UploadFile, File
@@ -15,7 +15,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
 
 @router.post("/upload")
-async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user)):
+async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     ext = file.filename.split(".")[-1].lower()
     if ext not in ["jpg", "jpeg", "png", "webp", "gif", "svg"]:
         raise HTTPException(400, "Formato não suportado. Use JPG, PNG ou WEBP.")
@@ -32,8 +32,8 @@ async def upload_image(file: UploadFile = File(...), user=Depends(get_current_us
 # === CRUD Landing Pages (autenticado) ===
 
 @router.get("")
-async def list_landing_pages(channel_id: int = None, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
-    query = select(LandingPage).order_by(LandingPage.created_at.desc())
+async def list_landing_pages(channel_id: int = None, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    query = select(LandingPage).where(LandingPage.tenant_id == tenant_id).order_by(LandingPage.created_at.desc())
     if channel_id:
         query = query.where(LandingPage.channel_id == channel_id)
     result = await db.execute(query)
@@ -54,13 +54,14 @@ async def list_landing_pages(channel_id: int = None, db: AsyncSession = Depends(
 
 
 @router.post("")
-async def create_landing_page(data: dict, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def create_landing_page(data: dict, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     # Verificar se slug já existe
     existing = await db.execute(select(LandingPage).where(LandingPage.slug == data["slug"]))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Slug já existe")
 
     page = LandingPage(
+        tenant_id=tenant_id,
         channel_id=data["channel_id"],
         slug=data["slug"],
         title=data["title"],
@@ -75,8 +76,8 @@ async def create_landing_page(data: dict, db: AsyncSession = Depends(get_db), us
 
 
 @router.get("/{page_id}")
-async def get_landing_page(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
-    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id))
+async def get_landing_page(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id, LandingPage.tenant_id == tenant_id))
     page = result.scalar_one_or_none()
     if not page:
         raise HTTPException(status_code=404, detail="Landing page não encontrada")
@@ -93,8 +94,8 @@ async def get_landing_page(page_id: int, db: AsyncSession = Depends(get_db), use
 
 
 @router.put("/{page_id}")
-async def update_landing_page(page_id: int, data: dict, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
-    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id))
+async def update_landing_page(page_id: int, data: dict, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id, LandingPage.tenant_id == tenant_id))
     page = result.scalar_one_or_none()
     if not page:
         raise HTTPException(status_code=404, detail="Landing page não encontrada")
@@ -115,8 +116,8 @@ async def update_landing_page(page_id: int, data: dict, db: AsyncSession = Depen
 
 
 @router.delete("/{page_id}")
-async def delete_landing_page(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
-    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id))
+async def delete_landing_page(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(LandingPage).where(LandingPage.id == page_id, LandingPage.tenant_id == tenant_id))
     page = result.scalar_one_or_none()
     if not page:
         raise HTTPException(status_code=404, detail="Landing page não encontrada")
@@ -129,19 +130,20 @@ async def delete_landing_page(page_id: int, db: AsyncSession = Depends(get_db), 
 # === Stats ===
 
 @router.get("/{page_id}/stats")
-async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     total = await db.execute(
         select(func.count(FormSubmission.id)).where(FormSubmission.landing_page_id == page_id)
     )
     return {"total_submissions": total.scalar() or 0}
+
 # === Dashboard ROI ===
 
 @router.get("/dashboard/roi")
-async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     from sqlalchemy import case, distinct
 
     # Total de submissions
-    total_leads = await db.execute(select(func.count(FormSubmission.id)))
+    total_leads = await db.execute(select(func.count(FormSubmission.id)).where(FormSubmission.tenant_id == tenant_id))
 
     # Leads por origem (utm_source)
     leads_by_source = await db.execute(
@@ -239,6 +241,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=404, detail="Página não encontrada")
 
     submission = FormSubmission(
+        tenant_id=page.tenant_id,
         landing_page_id=page.id,
         channel_id=page.channel_id,
         name=data.get("name", ""),
@@ -264,6 +267,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     if not contact:
         import json as json_lib
         contact = Contact(
+            tenant_id=page.tenant_id,
             wa_id=phone_clean,
             name=data.get("name", ""),
             lead_status="novo",

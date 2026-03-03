@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from app.database import get_db
 from app.models import FinancialEntry, Contact, User
-from app.auth import get_current_user
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api/financial", tags=["Financial"])
 
@@ -45,14 +45,15 @@ async def create_entry(
     data: EntryCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    # Verificar contato existe
-    result = await db.execute(select(Contact).where(Contact.wa_id == data.contact_wa_id))
+    result = await db.execute(select(Contact).where(Contact.wa_id == data.contact_wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
 
     entry = FinancialEntry(
+        tenant_id=tenant_id,
         contact_wa_id=data.contact_wa_id,
         type=data.type,
         value=data.value,
@@ -79,8 +80,9 @@ async def list_entries(
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    query = select(FinancialEntry).order_by(FinancialEntry.created_at.desc())
+    query = select(FinancialEntry).where(FinancialEntry.tenant_id == tenant_id).order_by(FinancialEntry.created_at.desc())
 
     if month and year:
         query = query.where(
@@ -120,12 +122,14 @@ async def financial_summary(
     year: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     now = datetime.now()
     m = month or now.month
     y = year or now.year
 
     date_filter = and_(
+        FinancialEntry.tenant_id == tenant_id,
         extract("month", FinancialEntry.created_at) == m,
         extract("year", FinancialEntry.created_at) == y,
     )
@@ -183,12 +187,14 @@ async def revenue_by_agent(
     year: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     now = datetime.now()
     m = month or now.month
     y = year or now.year
 
     date_filter = and_(
+        FinancialEntry.tenant_id == tenant_id,
         extract("month", FinancialEntry.created_at) == m,
         extract("year", FinancialEntry.created_at) == y,
         FinancialEntry.type == "matricula",
@@ -224,8 +230,9 @@ async def delete_entry(
     entry_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(FinancialEntry).where(FinancialEntry.id == entry_id))
+    result = await db.execute(select(FinancialEntry).where(FinancialEntry.id == entry_id, FinancialEntry.tenant_id == tenant_id))
     entry = result.scalar_one_or_none()
     if not entry:
         raise HTTPException(status_code=404, detail="Entrada não encontrada")

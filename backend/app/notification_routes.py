@@ -6,12 +6,12 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models import Notification, User
-from app.auth import get_current_user
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
 
-# ── Helper (chamado por outros módulos) ──────────────
+# -- Helper (chamado por outros modulos) --------------
 
 async def create_notification(
     db: AsyncSession,
@@ -21,8 +21,10 @@ async def create_notification(
     message: str = None,
     link: str = None,
     contact_wa_id: str = None,
+    tenant_id: int = None,
 ):
     notif = Notification(
+        tenant_id=tenant_id,
         user_id=user_id,
         type=type,
         title=title,
@@ -41,14 +43,18 @@ async def notify_all_users(
     message: str = None,
     link: str = None,
     contact_wa_id: str = None,
+    tenant_id: int = None,
 ):
-    result = await db.execute(select(User).where(User.is_active == True))
+    user_filter = [User.is_active == True]
+    if tenant_id:
+        user_filter.append(User.tenant_id == tenant_id)
+    result = await db.execute(select(User).where(*user_filter))
     users = result.scalars().all()
     for u in users:
-        await create_notification(db, u.id, type, title, message, link, contact_wa_id)
+        await create_notification(db, u.id, type, title, message, link, contact_wa_id, tenant_id=tenant_id)
 
 
-# ── Serializer ───────────────────────────────────────
+# -- Serializer ----------------------------------------
 
 def notif_to_dict(n: Notification) -> dict:
     return {
@@ -64,7 +70,7 @@ def notif_to_dict(n: Notification) -> dict:
     }
 
 
-# ── Routes ───────────────────────────────────────────
+# -- Routes --------------------------------------------
 
 @router.get("")
 async def list_notifications(

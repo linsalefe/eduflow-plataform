@@ -8,7 +8,7 @@ import io
 
 from app.database import get_db
 from app.models import Contact, Message, User, Tag, contact_tags
-from app.auth import get_current_user
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -73,12 +73,13 @@ async def export_contacts(
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     """Exporta relatório de contatos em Excel"""
     import openpyxl
 
     # Buscar contatos
-    filters = []
+    filters = [Contact.tenant_id == tenant_id]
     if channel_id:
         filters.append(Contact.channel_id == channel_id)
     if status:
@@ -133,13 +134,13 @@ async def export_contacts(
         ws.cell(row=idx, column=1, value=c.name or "Sem nome")
         ws.cell(row=idx, column=2, value=c.wa_id)
         ws.cell(row=idx, column=3, value=STATUS_LABELS.get(c.lead_status or "novo", c.lead_status))
-        ws.cell(row=idx, column=4, value=users_map.get(c.assigned_to, "—") if c.assigned_to else "—")
-        ws.cell(row=idx, column=5, value=", ".join(contact_tags_list) if contact_tags_list else "—")
+        ws.cell(row=idx, column=4, value=users_map.get(c.assigned_to, "\u2014") if c.assigned_to else "\u2014")
+        ws.cell(row=idx, column=5, value=", ".join(contact_tags_list) if contact_tags_list else "\u2014")
         ws.cell(row=idx, column=6, value=msg_data["total"])
         ws.cell(row=idx, column=7, value=msg_data["in"])
         ws.cell(row=idx, column=8, value=msg_data["out"])
         ws.cell(row=idx, column=9, value=(c.notes or "")[:100])
-        ws.cell(row=idx, column=10, value=c.created_at.strftime("%d/%m/%Y %H:%M") if c.created_at else "—")
+        ws.cell(row=idx, column=10, value=c.created_at.strftime("%d/%m/%Y %H:%M") if c.created_at else "\u2014")
         style_data_row(ws, idx, len(headers))
 
     # Resumo
@@ -186,11 +187,12 @@ async def export_pipeline(
     channel_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     """Exporta relatório do funil/pipeline em Excel"""
     import openpyxl
 
-    filters = []
+    filters = [Contact.tenant_id == tenant_id]
     if channel_id:
         filters.append(Contact.channel_id == channel_id)
 
@@ -216,9 +218,9 @@ async def export_pipeline(
         for idx, c in enumerate(status_contacts, 2):
             ws.cell(row=idx, column=1, value=c.name or "Sem nome")
             ws.cell(row=idx, column=2, value=c.wa_id)
-            ws.cell(row=idx, column=3, value=users_map.get(c.assigned_to, "—") if c.assigned_to else "—")
+            ws.cell(row=idx, column=3, value=users_map.get(c.assigned_to, "\u2014") if c.assigned_to else "\u2014")
             ws.cell(row=idx, column=4, value=(c.notes or "")[:100])
-            ws.cell(row=idx, column=5, value=c.created_at.strftime("%d/%m/%Y %H:%M") if c.created_at else "—")
+            ws.cell(row=idx, column=5, value=c.created_at.strftime("%d/%m/%Y %H:%M") if c.created_at else "\u2014")
             style_data_row(ws, idx, len(headers))
 
     # Resumo geral
@@ -264,13 +266,14 @@ async def export_messages(
     channel_id: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     """Exporta relatório de mensagens dos últimos N dias"""
     import openpyxl
 
     since = datetime.now() - timedelta(days=days)
 
-    filters = [Message.timestamp >= since]
+    filters = [Message.timestamp >= since, Message.tenant_id == tenant_id]
     if channel_id:
         filters.append(Message.channel_id == channel_id)
 
@@ -296,7 +299,7 @@ async def export_messages(
         if content.startswith("media:"):
             content = f"[{m.message_type or 'mídia'}]"
 
-        ws.cell(row=idx, column=1, value=m.timestamp.strftime("%d/%m/%Y %H:%M") if m.timestamp else "—")
+        ws.cell(row=idx, column=1, value=m.timestamp.strftime("%d/%m/%Y %H:%M") if m.timestamp else "\u2014")
         ws.cell(row=idx, column=2, value=contacts_map.get(m.contact_wa_id, "Desconhecido"))
         ws.cell(row=idx, column=3, value=m.contact_wa_id)
         ws.cell(row=idx, column=4, value="Recebida" if m.direction == "inbound" else "Enviada")

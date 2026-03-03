@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 
 from app.database import get_db
 from app.models import Task, Contact, User
-from app.auth import get_current_user
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api/tasks", tags=["Tasks"])
 
@@ -61,9 +61,10 @@ def task_to_dict(t: Task) -> dict:
     }
 
 
-async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None):
+async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None):
     from app.models import Activity
     activity = Activity(
+        tenant_id=tenant_id,
         contact_wa_id=contact_wa_id,
         type=activity_type,
         description=description,
@@ -83,8 +84,9 @@ async def list_tasks(
     contact_wa_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    query = select(Task).order_by(Task.due_date.asc(), Task.due_time.asc())
+    query = select(Task).where(Task.tenant_id == tenant_id).order_by(Task.due_date.asc(), Task.due_time.asc())
 
     if status:
         query = query.where(Task.status == status)
@@ -120,10 +122,11 @@ async def task_stats(
     assigned_to: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     today_str = date.today().isoformat()
 
-    base = select(Task)
+    base = select(Task).where(Task.tenant_id == tenant_id)
     if assigned_to:
         base = base.where(Task.assigned_to == assigned_to)
 
@@ -157,8 +160,10 @@ async def create_task(
     req: TaskCreate,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     task = Task(
+        tenant_id=tenant_id,
         title=req.title,
         description=req.description,
         type=req.type,
@@ -191,8 +196,9 @@ async def update_task(
     req: TaskUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.tenant_id == tenant_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
@@ -211,8 +217,9 @@ async def complete_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.tenant_id == tenant_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
@@ -239,8 +246,9 @@ async def delete_task(
     task_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.tenant_id == tenant_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")

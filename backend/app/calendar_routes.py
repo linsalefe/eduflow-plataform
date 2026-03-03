@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta
+from app.auth import get_current_user, get_tenant_id
 from app.database import get_db
 from app.google_calendar import get_available_slots, get_available_dates, create_event, CALENDARS
 
@@ -8,13 +9,13 @@ router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
 
 @router.get("/consultants")
-async def list_consultants():
+async def list_consultants(current_user=Depends(get_current_user)):
     """Lista consultoras disponíveis."""
     return [{"key": k, "name": v["name"], "calendar_id": v["calendar_id"]} for k, v in CALENDARS.items()]
 
 
 @router.get("/available-dates/{consultant_key}")
-async def available_dates(consultant_key: str):
+async def available_dates(consultant_key: str, current_user=Depends(get_current_user)):
     """Retorna próximos dias com horários livres."""
     if consultant_key not in CALENDARS:
         raise HTTPException(status_code=404, detail="Consultora não encontrada")
@@ -24,7 +25,7 @@ async def available_dates(consultant_key: str):
 
 
 @router.get("/available-slots/{consultant_key}/{date}")
-async def available_slots(consultant_key: str, date: str):
+async def available_slots(consultant_key: str, date: str, current_user=Depends(get_current_user)):
     """Retorna horários livres de um dia."""
     if consultant_key not in CALENDARS:
         raise HTTPException(status_code=404, detail="Consultora não encontrada")
@@ -42,6 +43,7 @@ async def book_appointment(
     date: str,
     time: str,
     duration: int = 30,
+    current_user=Depends(get_current_user),
 ):
     """Agenda reunião no Google Calendar."""
     if consultant_key not in CALENDARS:

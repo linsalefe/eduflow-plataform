@@ -5,6 +5,7 @@ Gerencia instâncias WhatsApp e recebe webhooks.
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.auth import get_current_user, get_tenant_id
 from sqlalchemy import select, delete
 from app.database import get_db
 import json
@@ -24,7 +25,7 @@ class CreateInstanceRequest(BaseModel):
 # ============================================================
 
 @router.post("/instances")
-async def create_instance(req: CreateInstanceRequest, db: AsyncSession = Depends(get_db)):
+async def create_instance(req: CreateInstanceRequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Cria uma instância Evolution e salva como canal."""
     # Gera nome único
     instance_name = req.name.lower().replace(" ", "_").replace("-", "_")
@@ -36,6 +37,7 @@ async def create_instance(req: CreateInstanceRequest, db: AsyncSession = Depends
 
     # Salvar como canal no banco
     channel = Channel(
+        tenant_id=tenant_id,
         name=req.name,
         type="whatsapp",
         provider="evolution",
@@ -214,6 +216,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
             )
             channel = result.scalar_one_or_none()
             channel_id = channel.id if channel else None
+            tenant_id = channel.tenant_id if channel else None
 
             for msg in messages:
                 key = msg.get("key", {})
@@ -253,6 +256,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                     if not contact:
                         contact = Contact(
+                            tenant_id=tenant_id,
                             wa_id=contact_phone,
                             name=sender_name,
                             channel_id=channel_id,
@@ -290,6 +294,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Salvar mensagem
                 new_msg = Message(
+                    tenant_id=tenant_id,
                     wa_message_id=msg_id,
                     contact_wa_id=contact_phone,
                     channel_id=channel_id,
@@ -350,6 +355,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     instance_name=instance_name,
                     channel_id=channel_id,
                     db=db,
+                    tenant_id=tenant_id,
                 )
 
                 action = result.get("action", "continue")
@@ -383,6 +389,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                             if scheduled_dt:
                                 schedule = Schedule(
+                                    tenant_id=tenant_id,
                                     type="voice_ai",
                                     contact_wa_id=phone,
                                     contact_name=sender_name,
