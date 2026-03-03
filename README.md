@@ -29,14 +29,15 @@ Permite que a equipe comercial gerencie leads, responda conversas em tempo real,
 19. [ETAPA 15 — Dashboard de Campanhas (ROI)](#-etapa-15--dashboard-de-campanhas-roi)
 20. [ETAPA 16 — Multi-Canal (Instagram, Messenger, Evolution API)](#-etapa-16--multi-canal-instagram-messenger-evolution-api)
 21. [ETAPA 17 — Melhorias UX/CRM (Sprints 1–12)](#-etapa-17--melhorias-uxcrm-sprints-112)
-22. [Funcionalidades](#-funcionalidades)
-23. [Estrutura de Pastas](#-estrutura-de-pastas)
-24. [Banco de Dados — Tabelas](#-banco-de-dados--tabelas)
-25. [API — Endpoints](#-api--endpoints)
-26. [Variáveis de Ambiente](#-variáveis-de-ambiente)
-27. [Comandos Úteis](#-comandos-úteis)
-28. [Solução de Problemas](#-solução-de-problemas)
-29. [Licença](#-licença)
+22. [ETAPA 18 — Multi-Tenant (SaaS)](#-etapa-18--multi-tenant-saas)
+23. [Funcionalidades](#-funcionalidades)
+24. [Estrutura de Pastas](#-estrutura-de-pastas)
+25. [Banco de Dados — Tabelas](#-banco-de-dados--tabelas)
+26. [API — Endpoints](#-api--endpoints)
+27. [Variáveis de Ambiente](#-variáveis-de-ambiente)
+28. [Comandos Úteis](#-comandos-úteis)
+29. [Solução de Problemas](#-solução-de-problemas)
+30. [Licença](#-licença)
 
 ---
 
@@ -369,6 +370,7 @@ pos-plataform/
 │   │   ├── landing_routes.py       # Rotas: Landing Pages, formulário, dashboard ROI
 │   │   ├── oauth_routes.py         # Rotas: OAuth Meta (Instagram/Messenger)
 │   │   ├── export_routes.py        # Rotas: Exportação relatórios Excel (contatos, pipeline, mensagens)
+│   │   ├── tenant_routes.py        # Rotas: CRUD de tenants (Superadmin)
 │   │   ├── migrate_ai.py           # Script migração tabelas IA
 │   │   └── create_tables.py        # Script para criar tabelas
 │   ├── requirements.txt
@@ -395,18 +397,19 @@ pos-plataform/
 │   │   │   ├── canais/callback/page.tsx
 │   │   │   ├── lp/[slug]/page.tsx
 │   │   │   ├── relatorios/page.tsx    # Relatórios exportáveis (Excel)
+│   │   │   ├── admin/page.tsx         # Painel Superadmin (Multi-Tenant)
 │   │   │   ├── not-found.tsx          # Página 404 customizada
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
 │   │   ├── components/
-│   │   │   ├── Sidebar.tsx            # Menu lateral com unread badge + busca ⌘K
+│   │   │   ├── Sidebar.tsx            # Menu lateral com unread badge + busca ⌘K + featureMap
 │   │   │   ├── AppLayout.tsx          # Wrapper com proteção de rota + CommandPalette
 │   │   │   ├── CommandPalette.tsx     # Busca global ⌘K (contatos + páginas)
 │   │   │   ├── ConfirmModal.tsx       # Modal de confirmação estilizado
 │   │   │   ├── ActivityTimeline.tsx   # Timeline de atividades por contato
 │   │   │   └── Webphone.tsx           # Webphone flutuante (VoIP)
 │   │   ├── contexts/
-│   │   │   └── auth-context.tsx
+│   │   │   └── auth-context.tsx       # hasFeature() + interface Features
 │   │   └── lib/
 │   │       └── api.ts                # Axios com interceptor 401 + toasts automáticos
 │   ├── public/
@@ -1328,6 +1331,158 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 
 ---
 
+## 🏢 ETAPA 18 — Multi-Tenant (SaaS)
+
+### 18.1 — Visão Geral
+
+Transformação da plataforma de single-tenant para **multi-tenant**, permitindo atender múltiplos clientes (escolas, cursos, instituições) em uma única instalação. Cada cliente opera em seu ambiente isolado com seus próprios dados, usuários e configurações.
+
+### 18.2 — Arquitetura Multi-Tenant
+
+```
+┌──────────────────────────────────────────────────┐
+│              SUPERADMIN (Álefe)                   │
+│         superadmin@eduflow.com                    │
+│                                                   │
+│  ┌─────────────┐  ┌─────────────┐  ┌──────────┐ │
+│  │  Tenant 1   │  │  Tenant 2   │  │ Tenant N │ │
+│  │  CENAT       │  │  Focus      │  │  ...     │ │
+│  │  3 users     │  │  10 users   │  │          │ │
+│  │  25 contacts │  │  0 contacts │  │          │ │
+│  │  Plan: Pro   │  │  Plan: Pro  │  │          │ │
+│  └─────────────┘  └─────────────┘  └──────────┘ │
+└──────────────────────────────────────────────────┘
+```
+
+- **Isolamento por tenant_id**: Cada tabela possui coluna `tenant_id` que filtra automaticamente os dados
+- **Superadmin**: Usuário global sem tenant_id, acesso total via painel dedicado
+- **Features por tenant**: Controle granular de quais módulos cada cliente pode acessar
+- **Ativação/Desativação**: Bloqueia login de clientes inadimplentes
+
+### 18.3 — Banco de Dados
+
+**Tabela `tenants`:**
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| name | VARCHAR(255) | Nome da empresa/escola |
+| slug | VARCHAR(100) UNIQUE | Identificador único (URL) |
+| owner_name | VARCHAR(255) | Nome do responsável |
+| owner_email | VARCHAR(255) | Email do responsável |
+| owner_phone | VARCHAR(30) | Telefone |
+| plan | VARCHAR(30) | basic, pro, enterprise |
+| status | VARCHAR(20) | active, inactive, suspended |
+| is_active | BOOLEAN | Controle de acesso (inadimplência) |
+| max_users | INTEGER | Limite de usuários |
+| max_channels | INTEGER | Limite de canais WhatsApp |
+| features | JSONB | Módulos habilitados |
+| notes | TEXT | Observações internas |
+| created_at | TIMESTAMP | Data de criação |
+
+**Coluna `tenant_id` adicionada em todas as tabelas:**
+contacts, messages, channels, tags, activities, ai_configs, knowledge_documents, ai_conversation_summaries, schedules, call_logs, landing_pages, form_submissions, financial_entries, tasks, notifications
+
+### 18.4 — Sistema de Features
+
+Cada tenant possui um JSON de features que controla a visibilidade dos módulos no sidebar:
+
+```json
+{
+  "dashboard": true,
+  "conversas": true,
+  "pipeline": true,
+  "financeiro": true,
+  "landing_pages": true,
+  "campanhas": true,
+  "relatorios": true,
+  "usuarios": true,
+  "automacoes": true,
+  "tarefas": true,
+  "voice_ai": false,
+  "ai_whatsapp": true,
+  "agenda": true
+}
+```
+
+- **Voice AI** vem desativado por padrão (módulo premium)
+- O sidebar renderiza dinamicamente baseado nas features do tenant
+- Superadmin pode ativar/desativar módulos em tempo real
+
+### 18.5 — Painel Superadmin
+
+Acessível em `/admin` (apenas para role `superadmin`):
+
+- **Dashboard**: Total de clientes, usuários e contatos
+- **Lista de tenants**: Nome, plano, status, contagens
+- **Criar cliente**: Modal com dados da empresa, responsável, plano e senha inicial (cria tenant + usuário admin automaticamente)
+- **Toggle ativar/desativar**: Bloqueia login do cliente (inadimplência)
+- **Controle de features**: Botões para ativar/desativar cada módulo individualmente
+
+### 18.6 — Endpoints Admin
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/admin/tenants` | Listar todos os tenants |
+| POST | `/api/admin/tenants` | Criar novo tenant + usuário admin |
+| GET | `/api/admin/tenants/{id}` | Detalhes do tenant (users, stats) |
+| PATCH | `/api/admin/tenants/{id}` | Atualizar dados do tenant |
+| PATCH | `/api/admin/tenants/{id}/features` | Atualizar features |
+| PATCH | `/api/admin/tenants/{id}/toggle` | Ativar/desativar tenant |
+
+### 18.7 — Fluxo de Onboarding de Novo Cliente
+
+1. Superadmin acessa `/admin` e clica "Novo Cliente"
+2. Preenche: nome da empresa, slug, responsável, email, senha, plano
+3. Sistema cria o `Tenant` e o `User` (role=admin) automaticamente
+4. Cliente acessa o portal com email/senha e vê apenas os módulos liberados
+5. Superadmin ajusta features conforme o plano contratado
+
+### 18.8 — Proteção de Rotas
+
+Todas as rotas protegidas seguem o padrão:
+
+```python
+@router.get("/endpoint")
+async def my_endpoint(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    query = select(Model).where(Model.tenant_id == tenant_id)
+```
+
+**Casos especiais:**
+- **Webhooks** (Evolution API): Descobrem tenant_id via `channel.tenant_id`
+- **Rotas públicas** (Landing Pages): Usam `page.tenant_id`
+- **Superadmin**: `tenant_id=null`, acessa apenas rotas `/api/admin/*`
+
+### 18.9 — Arquivos Modificados
+
+**Backend (13 arquivos protegidos):**
+- `app/auth.py` — JWT com tenant_id, dependencies `get_tenant_id` e `get_current_superadmin`
+- `app/routes.py` — Contatos, mensagens, tags, dashboard
+- `app/kanban_routes.py` — Pipeline Kanban
+- `app/ai_routes.py` — Config IA, RAG, toggle
+- `app/task_routes.py` — Tarefas
+- `app/financial_routes.py` — Financeiro
+- `app/landing_routes.py` — Landing Pages
+- `app/schedule_routes.py` — Agendamentos
+- `app/notification_routes.py` — Notificações
+- `app/export_routes.py` — Relatórios Excel
+- `app/calendar_routes.py` — Google Calendar
+- `app/auth_routes.py` — Login, registro, listagem de usuários
+- `app/evolution/routes.py` — Webhook WhatsApp
+- `app/evolution/ai_agent.py` — Agente IA
+- `app/tenant_routes.py` — CRUD de tenants (novo)
+
+**Frontend (3 arquivos):**
+- `contexts/auth-context.tsx` — `hasFeature()` + interface Features
+- `components/Sidebar.tsx` — Sidebar dinâmico com featureMap
+- `app/admin/page.tsx` — Painel Superadmin (novo)
+
+---
+
 ## 🎯 Funcionalidades
 
 ### Dashboard
@@ -1407,6 +1562,25 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 
 ## 🗂 Banco de Dados — Tabelas
 
+### `tenants`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| id | SERIAL PK | ID interno |
+| name | VARCHAR(255) | Nome da empresa/escola |
+| slug | VARCHAR(100) UNIQUE | Identificador único (URL) |
+| owner_name | VARCHAR(255) | Nome do responsável |
+| owner_email | VARCHAR(255) | Email do responsável |
+| owner_phone | VARCHAR(30) | Telefone |
+| plan | VARCHAR(30) | basic, pro, enterprise |
+| status | VARCHAR(20) | active, inactive, suspended |
+| is_active | BOOLEAN | Controle de acesso |
+| max_users | INTEGER | Limite de usuários |
+| max_channels | INTEGER | Limite de canais |
+| features | JSONB | Módulos habilitados |
+| notes | TEXT | Observações internas |
+| created_at | TIMESTAMP | Data de criação |
+
 ### `contacts`
 
 | Coluna | Tipo | Descrição |
@@ -1418,6 +1592,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | ai_active | BOOLEAN | Se a IA está ativa para este contato |
 | channel_id | INTEGER FK | Canal (número) vinculado |
 | assigned_to | INTEGER FK | Usuário responsável (FK → users) |
+| tenant_id | INTEGER FK | Tenant vinculado |
 | created_at | TIMESTAMP | Data de criação |
 | updated_at | TIMESTAMP | Última atualização |
 
@@ -1435,6 +1610,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | timestamp | TIMESTAMP | Hora da mensagem |
 | status | VARCHAR(20) | sent, delivered, read, received |
 | sent_by_ai | BOOLEAN | Se foi enviada pela IA |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `channels`
 
@@ -1454,6 +1630,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | access_token | TEXT | Token OAuth Meta |
 | is_connected | BOOLEAN | Status da conexão |
 | is_active | BOOLEAN | Se o canal está ativo |
+| tenant_id | INTEGER FK | Tenant vinculado |
 | created_at | TIMESTAMP | Data de criação |
 
 ### `users`
@@ -1464,8 +1641,9 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | name | VARCHAR(255) | Nome do usuário |
 | email | VARCHAR(255) UNIQUE | Email (usado no login) |
 | password_hash | VARCHAR(255) | Senha hasheada (bcrypt) |
-| role | VARCHAR(20) | admin ou atendente |
+| role | VARCHAR(20) | superadmin, admin ou atendente |
 | is_active | BOOLEAN | Se pode fazer login |
+| tenant_id | INTEGER FK | Tenant vinculado (null para superadmin) |
 | created_at | TIMESTAMP | Data de criação |
 
 ### `tags`
@@ -1475,6 +1653,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | id | SERIAL PK | ID interno |
 | name | VARCHAR(50) UNIQUE | Nome da tag |
 | color | VARCHAR(20) | Cor (blue, red, green, etc.) |
+| tenant_id | INTEGER FK | Tenant vinculado |
 | created_at | TIMESTAMP | Data de criação |
 
 ### `contact_tags`
@@ -1493,6 +1672,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | type | VARCHAR(30) | Tipo: status_change, tag_added, tag_removed, note, ai_toggle, assigned |
 | description | TEXT | Descrição legível (ex: "Status: novo → em_contato") |
 | metadata | TEXT | Dados extras (JSON opcional) |
+| tenant_id | INTEGER FK | Tenant vinculado |
 | created_at | TIMESTAMP | Data do evento |
 
 ### `exact_leads`
@@ -1524,6 +1704,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | model | VARCHAR(50) | Modelo GPT |
 | temperature | VARCHAR(10) | Temperatura |
 | max_tokens | INTEGER | Limite de tokens |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `knowledge_documents`
 
@@ -1536,6 +1717,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | embedding | BYTEA | Embedding numpy |
 | chunk_index | INTEGER | Índice do chunk |
 | token_count | INTEGER | Contagem de tokens |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `ai_conversation_summaries`
 
@@ -1549,6 +1731,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | lead_course | VARCHAR(255) | Curso de interesse |
 | summary | TEXT | Resumo gerado |
 | human_took_over | BOOLEAN | Se humano assumiu |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `ai_messages`
 
@@ -1573,6 +1756,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | scheduled_time | TIME | Horário agendado |
 | status | VARCHAR(20) | pending, completed, cancelled, failed |
 | notes | TEXT | Observações |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `call_logs`
 
@@ -1587,6 +1771,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | duration | INTEGER | Duração em segundos |
 | recording_url | VARCHAR | URL gravação Twilio |
 | drive_file_url | VARCHAR | Link Google Drive |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `landing_pages`
 
@@ -1598,6 +1783,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | description | TEXT | Descrição |
 | primary_color | VARCHAR(7) | Cor principal (hex) |
 | is_active | BOOLEAN | Se está publicada |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ### `form_submissions`
 
@@ -1611,6 +1797,7 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | utm_source | VARCHAR(100) | Origem UTM |
 | utm_medium | VARCHAR(100) | Mídia UTM |
 | utm_campaign | VARCHAR(100) | Campanha UTM |
+| tenant_id | INTEGER FK | Tenant vinculado |
 
 ---
 
@@ -1773,6 +1960,17 @@ Série de 12 sprints de melhoria que elevaram o score de qualidade de **4.7 para
 | GET | `/api/export/pipeline` | Excel do funil (aba por etapa + resumo) |
 | GET | `/api/export/messages?days=7` | Excel de mensagens (filtro por período: 7–90 dias) |
 
+### Admin (Superadmin)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/api/admin/tenants` | Listar todos os tenants |
+| POST | `/api/admin/tenants` | Criar novo tenant + usuário admin |
+| GET | `/api/admin/tenants/{id}` | Detalhes do tenant (users, stats) |
+| PATCH | `/api/admin/tenants/{id}` | Atualizar dados do tenant |
+| PATCH | `/api/admin/tenants/{id}/features` | Atualizar features |
+| PATCH | `/api/admin/tenants/{id}/toggle` | Ativar/desativar tenant |
+
 ### Webhook
 
 | Método | Rota | Descrição |
@@ -1859,6 +2057,7 @@ psql -U eduflow -d eduflow_db -h localhost
 # SELECT COUNT(*) FROM activities GROUP BY type;
 # SELECT id, name, role, is_active FROM users;
 # SELECT * FROM channels;
+# SELECT * FROM tenants;
 ```
 
 ### Desenvolvimento Local
