@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+export const dynamic = 'force-dynamic';
 import {
   CheckCircle2, Circle, Clock, AlertTriangle, Plus, X, Calendar,
   User, Flag, FileText, Loader2, Filter, Phone, Mail, Users,
