@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import ConfirmModal from '@/components/ConfirmModal';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -91,6 +92,7 @@ export default function TarefasPage() {
   const [completing, setCompleting] = useState<number | null>(null);
 
   // Form
+  const searchParams = useSearchParams();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -141,6 +143,21 @@ export default function TarefasPage() {
   useEffect(() => {
     fetchTasks();
   }, [activeFilter, fetchTasks]);
+
+  useEffect(() => {
+  if (searchParams.get('new') === '1') {
+    const contactWaId = searchParams.get('contact') || '';
+    const contactName = searchParams.get('name') || '';
+    setForm(f => ({
+      ...f,
+      contact_wa_id: contactWaId,
+      title: contactName ? `Follow-up com ${contactName}` : '',
+    }));
+    setShowModal(true);
+    // Limpar URL
+    window.history.replaceState({}, '', '/tarefas');
+  }
+}, [searchParams]);
 
   // ── Actions ─────────────────────────────────────────
 

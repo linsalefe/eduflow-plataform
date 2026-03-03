@@ -33,7 +33,7 @@ const menuGroups = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
       { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-      { href: '/tarefas', label: 'Tarefas', icon: Target },
+      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true },
       { href: '/relatorios', label: 'Relatórios', icon: Download },
     ],
   },
@@ -67,6 +67,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [taskCount, setTaskCount] = useState(0);
 
   const fetchUnread = useCallback(async () => {
     try {
@@ -79,11 +80,24 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     }
   }, []);
 
+  const fetchTaskCount = useCallback(async () => {
+    try {
+      const res = await api.get('/tasks/stats');
+      setTaskCount(res.data.today + res.data.overdue);
+    } catch {
+      // silent
+    }
+  }, []);
+
   useEffect(() => {
     fetchUnread();
-    const interval = setInterval(fetchUnread, 10000);
+    fetchTaskCount();
+    const interval = setInterval(() => { 
+      fetchUnread(); 
+      fetchTaskCount(); 
+    }, 10000);
     return () => clearInterval(interval);
-  }, [fetchUnread]);
+  }, [fetchUnread, fetchTaskCount]);
 
   const handleLogout = () => {
     logout();
@@ -176,6 +190,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 const Icon = item.icon;
                 const showBadge = (item as any).hasBadge && unreadCount > 0;
+                const showTaskBadge = (item as any).hasTaskBadge && taskCount > 0;
 
                 return (
                   <div key={item.href} className="relative group">
@@ -199,11 +214,21 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                             {unreadCount > 99 ? '99+' : unreadCount}
                           </span>
                         )}
+                        {showTaskBadge && collapsed && (
+                          <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                            {taskCount > 99 ? '99+' : taskCount}
+                          </span>
+                        )}
                       </div>
                       <span className={collapsed ? 'lg:hidden' : ''}>{item.label}</span>
                       {showBadge && !collapsed && (
                         <span className="ml-auto min-w-[20px] h-5 bg-[#00a884] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5">
                           {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                      {showTaskBadge && !collapsed && (
+                        <span className="ml-auto min-w-[20px] h-5 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1.5">
+                          {taskCount > 99 ? '99+' : taskCount}
                         </span>
                       )}
                     </Link>
