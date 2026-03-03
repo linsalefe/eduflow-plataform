@@ -15,6 +15,7 @@ class AICall(Base):
     __tablename__ = "ai_calls"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     lead_id = Column(Integer, ForeignKey("exact_leads.id"), nullable=True)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
     twilio_call_sid = Column(String(100), unique=True, nullable=True, index=True)
@@ -23,16 +24,16 @@ class AICall(Base):
     from_number = Column(String(30), nullable=False)
     to_number = Column(String(30), nullable=False)
     direction = Column(String(20), default="outbound")
-    status = Column(String(30), default="pending")  # pending|initiated|ringing|in_progress|completed|failed|no_answer|busy
+    status = Column(String(30), default="pending")
     fsm_state = Column(String(30), default="OPENING")
 
     # Resultado
-    outcome = Column(String(30), nullable=True)  # qualified|not_qualified|scheduled|transferred|follow_up|no_answer|busy|error
-    score = Column(Integer, default=0)  # 0-100
-    score_breakdown = Column(JSON, nullable=True)  # {"interesse": 20, "objetivo": 15, ...}
-    collected_fields = Column(JSON, nullable=True)  # {"nome": "João", "curso": "MBA", ...}
-    objections = Column(JSON, nullable=True)  # ["preço alto", "sem tempo"]
-    tags = Column(JSON, nullable=True)  # ["quente", "decisor", "precisa_desconto"]
+    outcome = Column(String(30), nullable=True)
+    score = Column(Integer, default=0)
+    score_breakdown = Column(JSON, nullable=True)
+    collected_fields = Column(JSON, nullable=True)
+    objections = Column(JSON, nullable=True)
+    tags = Column(JSON, nullable=True)
     summary = Column(Text, nullable=True)
 
     # Contexto
@@ -42,8 +43,8 @@ class AICall(Base):
     lead_name = Column(String(255), nullable=True)
 
     # Handoff
-    handoff_type = Column(String(30), nullable=True)  # schedule|warm_transfer|follow_up
-    handoff_data = Column(JSON, nullable=True)  # {"closer": "Victoria", "datetime": "...", ...}
+    handoff_type = Column(String(30), nullable=True)
+    handoff_data = Column(JSON, nullable=True)
 
     # Métricas
     duration_seconds = Column(Integer, default=0)
@@ -114,20 +115,21 @@ class VoiceScript(Base):
     __tablename__ = "voice_scripts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     name = Column(String(255), nullable=False)
-    course = Column(String(255), nullable=True)  # NULL = genérico
-    persona = Column(String(100), nullable=True)  # "decisor", "influenciador"
+    course = Column(String(255), nullable=True)
+    persona = Column(String(100), nullable=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
 
     # Falas por estado da FSM
     opening_text = Column(Text, nullable=True)
     context_text = Column(Text, nullable=True)
-    qualify_questions = Column(JSON, nullable=True)  # [{"field": "objetivo", "question": "Qual seu objetivo com o curso?"}]
-    objection_responses = Column(JSON, nullable=True)  # {"preço": "Temos condições especiais...", "tempo": "O curso é flexível..."}
+    qualify_questions = Column(JSON, nullable=True)
+    objection_responses = Column(JSON, nullable=True)
     closing_text = Column(Text, nullable=True)
 
     # Políticas
-    policies = Column(JSON, nullable=True)  # {"pode_dar_desconto": false, "mencionar_preco": true, ...}
+    policies = Column(JSON, nullable=True)
     system_prompt_override = Column(Text, nullable=True)
 
     is_active = Column(Boolean, default=True)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table, Numeric
+from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table, Numeric
 from app.database import Base
@@ -16,6 +16,7 @@ class Channel(Base):
     __tablename__ = "channels"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     name = Column(String(100), nullable=False)
     phone_number = Column(String(20), nullable=True)
     phone_number_id = Column(String(50), nullable=True)
@@ -32,14 +33,14 @@ class Channel(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
+    tenant = relationship("Tenant", back_populates="channels")
     contacts = relationship("Contact", back_populates="channel")
     messages = relationship("Message", back_populates="channel")
 
-
 class Contact(Base):
     __tablename__ = "contacts"
-
     id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     wa_id = Column(String(20), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=True)
     profile_picture_url = Column(String, nullable=True)
@@ -56,11 +57,11 @@ class Contact(Base):
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
     channel = relationship("Channel", back_populates="contacts")
 
-
 class Message(Base):
     __tablename__ = "messages"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     wa_message_id = Column(String(255), unique=True, nullable=False, index=True)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"))
@@ -78,9 +79,13 @@ class Message(Base):
 
 class Tag(Base):
     __tablename__ = "tags"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_tag_tenant_name"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(50), unique=True, nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    name = Column(String(50), nullable=False)
     color = Column(String(20), nullable=False, default="blue")
     created_at = Column(DateTime, server_default=func.now())
 
@@ -91,19 +96,25 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)  # NULL = superadmin
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, default="atendente")
+    role = Column(String(20), nullable=False, default="atendente")  # superadmin, admin, atendente
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
+    tenant = relationship("Tenant", back_populates="users")
 
 class ExactLead(Base):
     __tablename__ = "exact_leads"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "exact_id", name="uq_exactlead_tenant_exactid"),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    exact_id = Column(Integer, unique=True, nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    exact_id = Column(Integer, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     phone1 = Column(String(30), nullable=True)
     phone2 = Column(String(30), nullable=True)
@@ -121,6 +132,7 @@ class AIConfig(Base):
     __tablename__ = "ai_configs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id"), unique=True, nullable=False)
     is_enabled = Column(Boolean, default=False)
     system_prompt = Column(Text, nullable=True)
@@ -137,6 +149,7 @@ class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
@@ -152,6 +165,7 @@ class AIConversationSummary(Base):
     __tablename__ = "ai_conversation_summaries"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     status = Column(String(30), default="em_atendimento_ia")
@@ -172,6 +186,7 @@ class CallLog(Base):
     __tablename__ = "call_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     call_sid = Column(String(100), unique=True, nullable=False, index=True)
     from_number = Column(String(30), nullable=False)
     to_number = Column(String(30), nullable=False)
@@ -196,11 +211,12 @@ class LandingPage(Base):
     __tablename__ = "landing_pages"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     slug = Column(String(100), unique=True, nullable=False, index=True)
     title = Column(String(255), nullable=False)
     template = Column(String(50), nullable=False, default="curso")
-    config = Column(Text, nullable=False)  # JSON com textos, imagens, cores
+    config = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -208,11 +224,11 @@ class LandingPage(Base):
     channel = relationship("Channel", backref="landing_pages")
     submissions = relationship("FormSubmission", back_populates="landing_page")
 
-
 class FormSubmission(Base):
     __tablename__ = "form_submissions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     landing_page_id = Column(Integer, ForeignKey("landing_pages.id"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     name = Column(String(255), nullable=False)
@@ -232,15 +248,16 @@ class Schedule(Base):
     __tablename__ = "schedules"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    type = Column(String(20), nullable=False)  # voice_ai, consultant
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    type = Column(String(20), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_name = Column(String(255), nullable=True)
     phone = Column(String(30), nullable=False)
     course = Column(String(255), nullable=True)
-    scheduled_date = Column(String(10), nullable=False)  # YYYY-MM-DD
-    scheduled_time = Column(String(5), nullable=False)    # HH:MM
-    scheduled_at = Column(DateTime, nullable=False)       # datetime completo
-    status = Column(String(20), default="pending")        # pending, completed, failed, cancelled
+    scheduled_date = Column(String(10), nullable=False)
+    scheduled_time = Column(String(5), nullable=False)
+    scheduled_at = Column(DateTime, nullable=False)
+    status = Column(String(20), default="pending")
     call_id = Column(Integer, ForeignKey("ai_calls.id"), nullable=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
     notes = Column(Text, nullable=True)
@@ -252,7 +269,9 @@ class Schedule(Base):
 
 class Activity(Base):
     __tablename__ = "activities"
+
     id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     type = Column(String(30), nullable=False)
     description = Column(Text, nullable=False)
@@ -263,13 +282,14 @@ class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    type = Column(String(30), default="follow_up")        # follow_up, call, meeting, email, other
-    priority = Column(String(20), default="media")         # alta, media, baixa
-    due_date = Column(String(10), nullable=False)          # YYYY-MM-DD
-    due_time = Column(String(5), nullable=True)            # HH:MM
-    status = Column(String(20), default="pending")         # pending, completed, cancelled
+    type = Column(String(30), default="follow_up")
+    priority = Column(String(20), default="media")
+    due_date = Column(String(10), nullable=False)
+    due_time = Column(String(5), nullable=True)
+    status = Column(String(20), default="pending")
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -285,12 +305,13 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    type = Column(String(30), nullable=False)          # new_lead, lead_reply, task_overdue, status_change, ai_handoff
+    type = Column(String(30), nullable=False)
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=True)
     is_read = Column(Boolean, default=False)
-    link = Column(String(255), nullable=True)           # /conversations?wa_id=xxx ou /tarefas
+    link = Column(String(255), nullable=True)
     contact_wa_id = Column(String(20), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -301,8 +322,9 @@ class FinancialEntry(Base):
     __tablename__ = "financial_entries"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
-    type = Column(String(20), nullable=False)           # matricula, cancelamento, pagamento
+    type = Column(String(20), nullable=False)
     value = Column(Numeric(10, 2), nullable=False)
     description = Column(Text, nullable=True)
     course = Column(String(100), nullable=True)
@@ -311,3 +333,41 @@ class FinancialEntry(Base):
 
     contact = relationship("Contact", backref="financial_entries")
     creator = relationship("User", backref="financial_entries")
+
+class Tenant(Base):
+    __tablename__ = "tenants"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)                    # Nome da empresa/escola
+    slug = Column(String(100), unique=True, nullable=False)       # Identificador único (ex: "escola-futebol-sp")
+    owner_name = Column(String(255), nullable=False)              # Nome do responsável
+    owner_email = Column(String(255), nullable=False)             # Email do responsável
+    owner_phone = Column(String(30), nullable=True)               # Telefone do responsável
+    plan = Column(String(30), default="basic")                    # basic, pro, enterprise
+    status = Column(String(20), default="active")                 # active, inactive, suspended
+    max_users = Column(Integer, default=5)                        # Limite de usuários
+    max_channels = Column(Integer, default=2)                     # Limite de canais WhatsApp
+    notes = Column(Text, nullable=True)                           # Observações internas (só superadmin vê)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    users = relationship("User", back_populates="tenant")
+    channels = relationship("Channel", back_populates="tenant")
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    plan = Column(String(30), nullable=False, default="basic")          # basic, pro, enterprise
+    value = Column(Numeric(10, 2), nullable=False)                      # Valor mensal (ex: 597.00)
+    billing_day = Column(Integer, nullable=False, default=1)            # Dia do vencimento (1-28)
+    status = Column(String(20), default="active")                       # active, overdue, cancelled, trial
+    started_at = Column(DateTime, server_default=func.now())
+    next_billing = Column(DateTime, nullable=True)                      # Próximo vencimento
+    cancelled_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    tenant = relationship("Tenant", backref="subscription")
