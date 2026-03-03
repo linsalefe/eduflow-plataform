@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table
+from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table, Numeric
 from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table, Numeric
 from app.database import Base
 
 
@@ -47,6 +48,7 @@ class Contact(Base):
     ai_active = Column(Boolean, default=False)
     channel_id = Column(Integer, ForeignKey("channels.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    deal_value = Column(Numeric(10, 2), nullable=True, default=0)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -189,6 +191,7 @@ class CallLog(Base):
 
     user = relationship("User", backref="call_logs")
     channel = relationship("Channel", backref="call_logs")
+
 class LandingPage(Base):
     __tablename__ = "landing_pages"
 
@@ -292,3 +295,19 @@ class Notification(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", backref="notifications")
+
+
+class FinancialEntry(Base):
+    __tablename__ = "financial_entries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    type = Column(String(20), nullable=False)           # matricula, cancelamento, pagamento
+    value = Column(Numeric(10, 2), nullable=False)
+    description = Column(Text, nullable=True)
+    course = Column(String(100), nullable=True)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    contact = relationship("Contact", backref="financial_entries")
+    creator = relationship("User", backref="financial_entries")

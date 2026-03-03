@@ -14,6 +14,7 @@ from app.schedule_routes import router as schedule_router
 from app.calendar_routes import router as calendar_router
 from app.notification_routes import router as notification_router
 from app.landing_routes import router as landing_router
+from app.financial_routes import router as financial_router
 from app.notification_routes import notify_all_users
 from fastapi.staticfiles import StaticFiles
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
@@ -136,6 +137,7 @@ app.include_router(landing_public_router)
 app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
 app.include_router(voice_ai_router)
+app.include_router(financial_router)
 app.include_router(evolution_router)
 app.include_router(notification_router)
 app.include_router(task_router)

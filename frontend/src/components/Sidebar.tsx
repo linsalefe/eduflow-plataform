@@ -24,6 +24,7 @@ import {
   Search,
   Download,
   Target,
+  DollarSign,
 } from 'lucide-react';
 
 const menuGroups = [
@@ -33,8 +34,7 @@ const menuGroups = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
       { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true },
-      { href: '/relatorios', label: 'Relatórios', icon: Download },
+      { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
     ],
   },
   {
@@ -42,6 +42,7 @@ const menuGroups = [
     items: [
       { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
       { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
+      { href: '/relatorios', label: 'Relatórios', icon: Download },
     ],
   },
   {
@@ -49,6 +50,7 @@ const menuGroups = [
     items: [
       { href: '/users', label: 'Usuários', icon: Users },
       { href: '/automacoes', label: 'Automações', icon: Zap },
+      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true },  
       { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
       { href: '/agenda', label: 'Agenda', icon: Calendar },
       { href: '/canais', label: 'Canais', icon: Radio },
