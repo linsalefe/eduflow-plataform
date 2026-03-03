@@ -114,6 +114,10 @@ async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)
         await db.execute(delete(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id))
         await db.execute(delete(KnowledgeDocument).where(KnowledgeDocument.channel_id == channel_id))
         await db.execute(delete(AIConfig).where(AIConfig.channel_id == channel_id))
+        # Deletar mensagens pelos contact_wa_id dos contatos deste canal
+        contact_wa_ids = select(Contact.wa_id).where(Contact.channel_id == channel_id)
+        await db.execute(delete(Message).where(Message.contact_wa_id.in_(contact_wa_ids)))
+        # Deletar também mensagens órfãs pelo channel_id
         await db.execute(delete(Message).where(Message.channel_id == channel_id))
         await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
         await db.delete(channel)
