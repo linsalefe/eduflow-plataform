@@ -5,11 +5,10 @@ Gerencia instâncias WhatsApp e recebe webhooks.
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.database import get_db
 import json
-from app.models import Channel, Contact, Message, Schedule
-from app.models import Channel, Contact, Message
+from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission
 from app.evolution import client
 
 router = APIRouter(prefix="/api/evolution", tags=["Evolution API"])
@@ -106,6 +105,17 @@ async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)
     )
     channel = result.scalar_one_or_none()
     if channel:
+        channel_id = channel.id
+        # Deletar TODOS os registros dependentes
+        await db.execute(delete(FormSubmission).where(FormSubmission.channel_id == channel_id))
+        await db.execute(delete(LandingPage).where(LandingPage.channel_id == channel_id))
+        await db.execute(delete(Schedule).where(Schedule.channel_id == channel_id))
+        await db.execute(delete(CallLog).where(CallLog.channel_id == channel_id))
+        await db.execute(delete(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id))
+        await db.execute(delete(KnowledgeDocument).where(KnowledgeDocument.channel_id == channel_id))
+        await db.execute(delete(AIConfig).where(AIConfig.channel_id == channel_id))
+        await db.execute(delete(Message).where(Message.channel_id == channel_id))
+        await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
         await db.delete(channel)
         await db.commit()
 

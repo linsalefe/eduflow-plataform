@@ -11,7 +11,7 @@ import uuid
 SP_TZ = timezone(timedelta(hours=-3))
 
 from app.database import get_db
-from app.models import Channel, Contact, Message, Tag, contact_tags, Activity
+from app.models import Channel, Contact, Message, Tag, contact_tags, Activity, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, Schedule
 from app.whatsapp import send_text_message, send_template_message
 
 router = APIRouter(prefix="/api", tags=["api"])
@@ -866,7 +866,14 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db)):
     if not channel:
         raise HTTPException(status_code=404, detail="Canal não encontrado")
 
-    # Deletar mensagens e contatos associados
+    # Deletar TODOS os registros dependentes antes de remover o canal
+    await db.execute(delete(FormSubmission).where(FormSubmission.channel_id == channel_id))
+    await db.execute(delete(LandingPage).where(LandingPage.channel_id == channel_id))
+    await db.execute(delete(Schedule).where(Schedule.channel_id == channel_id))
+    await db.execute(delete(CallLog).where(CallLog.channel_id == channel_id))
+    await db.execute(delete(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id))
+    await db.execute(delete(KnowledgeDocument).where(KnowledgeDocument.channel_id == channel_id))
+    await db.execute(delete(AIConfig).where(AIConfig.channel_id == channel_id))
     await db.execute(delete(Message).where(Message.channel_id == channel_id))
     await db.execute(delete(Contact).where(Contact.channel_id == channel_id))
     await db.delete(channel)
