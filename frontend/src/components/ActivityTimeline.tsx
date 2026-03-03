@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  GitBranch, Tag, FileText, Bot, Clock, Loader2,
+  GitBranch, Tag, FileText, Bot, Clock, Loader2, Target, CheckCircle2,
 } from 'lucide-react';
 import api from '@/lib/api';
 
@@ -20,6 +20,8 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; bg: s
   tag_removed: { icon: Tag, color: 'text-red-400', bg: 'bg-red-400/15' },
   note: { icon: FileText, color: 'text-blue-400', bg: 'bg-blue-400/15' },
   ai_toggle: { icon: Bot, color: 'text-purple-400', bg: 'bg-purple-400/15' },
+  task_created: { icon: Target, color: 'text-indigo-400', bg: 'bg-indigo-400/15' },
+  task_completed: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-400/15' },
 };
 
 const defaultConfig = { icon: Clock, color: 'text-[#8696a0]', bg: 'bg-[#8696a0]/15' };
