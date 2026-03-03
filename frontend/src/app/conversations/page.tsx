@@ -71,6 +71,7 @@ interface Contact {
   direction: string | null;
   tags: ContactTag[];
   unread: number;
+  deal_value: number | null;
   created_at: string | null;
   channel_id: number | null;
   assigned_to: number | null;
@@ -1659,6 +1660,14 @@ export default function ConversationsPage() {
                             </div>
                           )}
                         </div>
+                      </div>
+
+                      {/* Valor do Lead */}
+                      <div className="pb-4 border-b border-[#2a3942]">
+                        <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Valor do Lead</p>
+                        <p className="text-lg font-bold text-emerald-400">
+                          {(selectedContact.deal_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </p>
                       </div>
 
                       {/* Tags */}
