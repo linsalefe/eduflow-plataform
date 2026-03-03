@@ -34,6 +34,17 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Usuário inativo")
 
+    # Verificar se tenant está ativo
+    tenant_features = {}
+    if user.tenant_id:
+        from app.models import Tenant
+        tenant_result = await db.execute(select(Tenant).where(Tenant.id == user.tenant_id))
+        tenant = tenant_result.scalar_one_or_none()
+        if tenant:
+            if not tenant.is_active:
+                raise HTTPException(status_code=403, detail="Conta suspensa. Entre em contato com o suporte.")
+            tenant_features = tenant.features or {}
+
     token = create_access_token({
         "sub": str(user.id),
         "role": user.role,
@@ -49,17 +60,27 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "email": user.email,
             "role": user.role,
             "tenant_id": user.tenant_id,
+            "features": tenant_features,
         },
     }
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user)):
+async def me(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    tenant_features = {}
+    if user.tenant_id:
+        from app.models import Tenant
+        tenant_result = await db.execute(select(Tenant).where(Tenant.id == user.tenant_id))
+        tenant = tenant_result.scalar_one_or_none()
+        if tenant:
+            tenant_features = tenant.features or {}
+
     return {
         "id": user.id,
         "name": user.name,
         "email": user.email,
         "role": user.role,
         "tenant_id": user.tenant_id,
+        "features": tenant_features,
     }
 
 
