@@ -277,3 +277,18 @@ class Task(Base):
     contact = relationship("Contact", backref="tasks")
     assigned_user = relationship("User", foreign_keys=[assigned_to], backref="assigned_tasks")
     creator = relationship("User", foreign_keys=[created_by], backref="created_tasks")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    type = Column(String(30), nullable=False)          # new_lead, lead_reply, task_overdue, status_change, ai_handoff
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=True)
+    is_read = Column(Boolean, default=False)
+    link = Column(String(255), nullable=True)           # /conversations?wa_id=xxx ou /tarefas
+    contact_wa_id = Column(String(20), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", backref="notifications")

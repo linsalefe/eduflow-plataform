@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
 from app.schedule_routes import router as schedule_router
 from app.calendar_routes import router as calendar_router
+from app.notification_routes import router as notification_router
 from app.landing_routes import router as landing_router
 from fastapi.staticfiles import StaticFiles
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
@@ -135,6 +136,7 @@ app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
 app.include_router(voice_ai_router)
 app.include_router(evolution_router)
+app.include_router(notification_router)
 app.include_router(task_router)
 app.include_router(schedule_router)
 app.include_router(export_router)
