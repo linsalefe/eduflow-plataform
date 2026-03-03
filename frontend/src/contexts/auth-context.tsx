@@ -1,13 +1,31 @@
 'use client';
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import api from '@/lib/api';
+
+interface Features {
+  dashboard?: boolean;
+  conversas?: boolean;
+  pipeline?: boolean;
+  financeiro?: boolean;
+  landing_pages?: boolean;
+  campanhas?: boolean;
+  relatorios?: boolean;
+  usuarios?: boolean;
+  automacoes?: boolean;
+  tarefas?: boolean;
+  voice_ai?: boolean;
+  ai_whatsapp?: boolean;
+  agenda?: boolean;
+  [key: string]: boolean | undefined;
+}
 
 interface User {
   id: number;
   name: string;
   email: string;
   role: string;
+  tenant_id?: number | null;
+  features?: Features;
 }
 
 interface AuthContextType {
@@ -15,6 +33,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  hasFeature: (feature: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -50,8 +69,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
+  const hasFeature = (feature: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'superadmin') return true;
+    if (!user.features) return true;
+    return user.features[feature] !== false;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, hasFeature }}>
       {children}
     </AuthContext.Provider>
   );

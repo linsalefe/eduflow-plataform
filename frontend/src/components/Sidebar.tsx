@@ -27,6 +27,22 @@ import {
   DollarSign,
 } from 'lucide-react';
 
+const featureMap: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/conversations': 'conversas',
+  '/pipeline': 'pipeline',
+  '/financeiro': 'financeiro',
+  '/dashboard-roi': 'campanhas',
+  '/landing-pages': 'landing_pages',
+  '/relatorios': 'relatorios',
+  '/users': 'usuarios',
+  '/automacoes': 'automacoes',
+  '/tarefas': 'tarefas',
+  '/voice-ai': 'voice_ai',
+  '/agenda': 'agenda',
+  '/canais': 'conversas',
+};
+
 const menuGroups = [
   {
     label: 'Principal',
@@ -66,7 +82,7 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, hasFeature } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [taskCount, setTaskCount] = useState(0);
@@ -182,13 +198,16 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
       {/* Navegação */}
       <nav className="flex-1 py-3 px-3 space-y-5 overflow-y-auto">
-        {menuGroups.map((group) => (
+        {menuGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => hasFeature(featureMap[item.href] || 'dashboard'));
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={group.label}>
             <p className={`text-[10px] font-semibold text-gray-600 uppercase tracking-widest px-3 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>
               {group.label}
             </p>
             <div className="space-y-0.5">
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                 const Icon = item.icon;
                 const showBadge = (item as any).hasBadge && unreadCount > 0;
@@ -251,7 +270,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Rodapé */}
