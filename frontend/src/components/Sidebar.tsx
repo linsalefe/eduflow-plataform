@@ -114,7 +114,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
     const interval = setInterval(() => { 
       fetchUnread(); 
       fetchTaskCount(); 
-    }, 10000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchUnread, fetchTaskCount]);
 

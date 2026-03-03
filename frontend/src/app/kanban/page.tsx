@@ -98,7 +98,7 @@ export default function KanbanPage() {
     const interval = setInterval(() => {
       loadCards();
       loadStats();
-    }, 10000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [filterChannel]);
 

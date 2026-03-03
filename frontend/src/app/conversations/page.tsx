@@ -211,7 +211,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     if (activeChannel) {
       loadContacts();
-      const interval = setInterval(loadContacts, 5000);
+      const interval = setInterval(loadContacts, 15000);
       return () => clearInterval(interval);
     }
   }, [activeChannel]);
@@ -225,7 +225,7 @@ export default function ConversationsPage() {
       loadMessages(selectedContact.wa_id);
       api.post(`/contacts/${selectedContact.wa_id}/read`);
       setNotesValue(selectedContact.notes || '');
-      const interval = setInterval(() => loadMessages(selectedContact.wa_id), 3000);
+      const interval = setInterval(() => loadMessages(selectedContact.wa_id), 10000);
       return () => clearInterval(interval);
     }
   }, [selectedContact]);

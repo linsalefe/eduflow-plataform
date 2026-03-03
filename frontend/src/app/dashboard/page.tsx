@@ -102,7 +102,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (user) {
       loadStats();
-      const interval = setInterval(loadStats, 30000);
+      const interval = setInterval(loadStats, 60000);
       return () => clearInterval(interval);
     }
   }, [user]);
