@@ -227,9 +227,12 @@ async def update_features(
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
 
-    current = tenant.features or {}
+    current = dict(tenant.features or {})
     current.update(data.features)
     tenant.features = current
+
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(tenant, "features")
 
     await db.commit()
     return {"message": "Features atualizadas", "features": tenant.features}
