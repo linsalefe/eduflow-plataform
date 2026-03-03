@@ -34,7 +34,11 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Usuário inativo")
 
-    token = create_access_token({"sub": str(user.id), "role": user.role})
+    token = create_access_token({
+        "sub": str(user.id),
+        "role": user.role,
+        "tenant_id": user.tenant_id,
+    })
 
     return {
         "access_token": token,
@@ -44,9 +48,9 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
             "name": user.name,
             "email": user.email,
             "role": user.role,
+            "tenant_id": user.tenant_id,
         },
     }
-
 
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):
@@ -55,6 +59,7 @@ async def me(user: User = Depends(get_current_user)):
         "name": user.name,
         "email": user.email,
         "role": user.role,
+        "tenant_id": user.tenant_id,
     }
 
 

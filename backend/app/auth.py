@@ -58,3 +58,20 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Usuário não encontrado ou inativo")
 
     return user
+
+
+async def get_current_superadmin(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Garante que o usuário é superadmin."""
+    if user.role != "superadmin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a superadmin")
+    return user
+
+async def get_tenant_id(
+    user: User = Depends(get_current_user),
+) -> int:
+    """Retorna o tenant_id do usuário logado."""
+    if user.tenant_id is None:
+        raise HTTPException(status_code=400, detail="Usuário sem tenant vinculado")
+    return user.tenant_id
