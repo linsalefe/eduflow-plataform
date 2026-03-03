@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from pydantic import BaseModel
+from app.notification_routes import notify_all_users
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import base64
@@ -503,6 +504,13 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         old_status = contact.lead_status
         contact.lead_status = req.lead_status
         await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}")
+        await notify_all_users(
+            db, "status_change",
+            f"{contact.name or wa_id} → {req.lead_status}",
+            f"Lead movido de {old_status or 'novo'} para {req.lead_status}",
+            f"/conversations",
+            wa_id,
+        )
     if req.notes is not None:
         contact.notes = req.notes
         await log_activity(db, wa_id, "note", "Notas atualizadas")
