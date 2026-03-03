@@ -25,6 +25,7 @@ import {
   Download,
   Target,
   DollarSign,
+  Shield,
 } from 'lucide-react';
 
 const featureMap: Record<string, string> = {
@@ -198,6 +199,29 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
       {/* Navegação */}
       <nav className="flex-1 py-3 px-3 space-y-5 overflow-y-auto">
+        {user?.role === 'superadmin' && (
+          <div className="mb-4">
+            <p className={`text-[10px] font-semibold text-gray-600 uppercase tracking-widest px-3 mb-2 ${collapsed ? 'lg:hidden' : ''}`}>
+              Superadmin
+            </p>
+            <Link
+              href="/admin"
+              onClick={handleNavClick}
+              className={`
+                relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium
+                transition-all duration-200
+                ${pathname === '/admin' ? 'bg-[#6366f1]/20 text-white' : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'}
+                ${collapsed ? 'lg:justify-center' : ''}
+              `}
+            >
+              {pathname === '/admin' && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#6366f1] rounded-r-full" />
+              )}
+              <Shield className={`w-[18px] h-[18px] ${pathname === '/admin' ? 'text-[#818cf8]' : 'text-gray-500'}`} />
+              <span className={collapsed ? 'lg:hidden' : ''}>Painel Admin</span>
+            </Link>
+          </div>
+        )}
         {menuGroups.map((group) => {
           const visibleItems = group.items.filter((item) => hasFeature(featureMap[item.href] || 'dashboard'));
           if (visibleItems.length === 0) return null;
