@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table, Numeric, UniqueConstraint
+from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Boolean, ForeignKey, func, Table, Numeric, UniqueConstraint, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, ForeignKey, Table, Numeric
 from app.database import Base
@@ -96,11 +96,11 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)  # NULL = superadmin
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, default="atendente")  # superadmin, admin, atendente
+    role = Column(String(20), nullable=False, default="atendente")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -338,18 +338,34 @@ class Tenant(Base):
     __tablename__ = "tenants"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(255), nullable=False)                    # Nome da empresa/escola
-    slug = Column(String(100), unique=True, nullable=False)       # Identificador único (ex: "escola-futebol-sp")
-    owner_name = Column(String(255), nullable=False)              # Nome do responsável
-    owner_email = Column(String(255), nullable=False)             # Email do responsável
-    owner_phone = Column(String(30), nullable=True)               # Telefone do responsável
-    plan = Column(String(30), default="basic")                    # basic, pro, enterprise
-    status = Column(String(20), default="active")                 # active, inactive, suspended
-    max_users = Column(Integer, default=5)                        # Limite de usuários
-    max_channels = Column(Integer, default=2)                     # Limite de canais WhatsApp
-    notes = Column(Text, nullable=True)                           # Observações internas (só superadmin vê)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(100), unique=True, nullable=False)
+    owner_name = Column(String(255), nullable=False)
+    owner_email = Column(String(255), nullable=False)
+    owner_phone = Column(String(30), nullable=True)
+    plan = Column(String(30), default="basic")
+    status = Column(String(20), default="active")
+    max_users = Column(Integer, default=5)
+    max_channels = Column(Integer, default=2)
+    notes = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    is_active = Column(Boolean, default=True)
+    features = Column(JSON, default={
+        "dashboard": True,
+        "conversas": True,
+        "pipeline": True,
+        "financeiro": True,
+        "landing_pages": True,
+        "campanhas": True,
+        "relatorios": True,
+        "usuarios": True,
+        "automacoes": True,
+        "tarefas": True,
+        "voice_ai": False,
+        "ai_whatsapp": True,
+        "agenda": True,
+    })
 
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")
@@ -359,12 +375,12 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
-    plan = Column(String(30), nullable=False, default="basic")          # basic, pro, enterprise
-    value = Column(Numeric(10, 2), nullable=False)                      # Valor mensal (ex: 597.00)
-    billing_day = Column(Integer, nullable=False, default=1)            # Dia do vencimento (1-28)
-    status = Column(String(20), default="active")                       # active, overdue, cancelled, trial
+    plan = Column(String(30), nullable=False, default="basic")
+    value = Column(Numeric(10, 2), nullable=False)
+    billing_day = Column(Integer, nullable=False, default=1)
+    status = Column(String(20), default="active")
     started_at = Column(DateTime, server_default=func.now())
-    next_billing = Column(DateTime, nullable=True)                      # Próximo vencimento
+    next_billing = Column(DateTime, nullable=True)
     cancelled_at = Column(DateTime, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
