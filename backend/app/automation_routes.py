@@ -6,7 +6,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from app.database import get_db
 from app.auth import get_current_user, get_tenant_id
-from app.models import AutomationFlow, AutomationStep, AutomationExecution
+from app.models import AutomationFlow, AutomationStep, AutomationExecution, Contact
 
 router = APIRouter(prefix="/api/automations", tags=["Automations"])
 
