@@ -51,6 +51,7 @@ const menuGroups = [
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
       { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+      { href: '/contatos', label: 'Contatos', icon: Users },
       { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
     ],
   },
