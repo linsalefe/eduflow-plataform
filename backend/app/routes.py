@@ -502,6 +502,45 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
         })
 
     return contacts_list
+@router.post("/contacts")
+async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id), current_user=Depends(get_current_user)):
+    from app.models import Channel
+    phone = req.get("phone", "").replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+    if not phone.startswith("55"):
+        phone = "55" + phone
+    existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
+    if existing.scalar_one_or_none():
+        raise HTTPException(400, "Contato já existe com esse telefone")
+    channel_id = req.get("channel_id")
+    if not channel_id:
+        ch = await db.execute(select(Channel).where(Channel.tenant_id == tenant_id, Channel.is_active == True).limit(1))
+        ch = ch.scalar_one_or_none()
+        channel_id = ch.id if ch else None
+    import json as json_lib
+    notes = json_lib.dumps({"course": req.get("course", "")}, ensure_ascii=False)
+    contact = Contact(
+        tenant_id=tenant_id,
+        wa_id=phone,
+        name=req.get("name", ""),
+        lead_status="novo",
+        channel_id=channel_id,
+        ai_active=False,
+        notes=notes,
+    )
+    db.add(contact)
+    await db.commit()
+    return {"wa_id": phone, "message": "Contato criado com sucesso"}
+
+@router.delete("/contacts/{wa_id}")
+async def delete_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id), current_user=Depends(get_current_user)):
+    result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(404, "Contato não encontrado")
+    await db.execute(text(f"DELETE FROM messages WHERE contact_wa_id = '{wa_id}'"))
+    await db.delete(contact)
+    await db.commit()
+    return {"message": "Contato excluído"}
 
 @router.post("/contacts/{wa_id}/read")
 async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
