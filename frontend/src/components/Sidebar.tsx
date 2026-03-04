@@ -32,6 +32,7 @@ const featureMap: Record<string, string> = {
   '/dashboard': 'dashboard',
   '/conversations': 'conversas',
   '/pipeline': 'pipeline',
+  '/contatos': 'contatos',
   '/financeiro': 'financeiro',
   '/dashboard-roi': 'campanhas',
   '/landing-pages': 'landing_pages',

@@ -43,6 +43,7 @@ const FEATURE_LABELS: Record<string, string> = {
   voice_ai: 'Voice AI',
   ai_whatsapp: 'IA WhatsApp',
   agenda: 'Agenda',
+  contatos: 'Contatos',
 };
 
 const PLAN_COLORS: Record<string, string> = {
