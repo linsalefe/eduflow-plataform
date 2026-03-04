@@ -52,6 +52,13 @@ interface Stats {
   sent_today: number;
 }
 
+interface QueueItem {
+  contact_wa_id: string;
+  contact_name: string;
+  current_step: number;
+  next_send_at: string;
+}
+
 const emptyStep = (): Step => ({ step_order: 1, delay_hours: 1, message: '' });
 
 export default function AutomacoesPage() {
@@ -59,6 +66,8 @@ export default function AutomacoesPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [queue, setQueue] = useState<Record<number, QueueItem[]>>({});
+  const [loadingQueue, setLoadingQueue] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editFlow, setEditFlow] = useState<Flow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -178,6 +187,24 @@ export default function AutomacoesPage() {
     }
   };
 
+  const toggleExpand = async (flow: Flow) => {
+    if (expanded === flow.id) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(flow.id);
+    if (queue[flow.id]) return;
+    setLoadingQueue(flow.id);
+    try {
+      const res = await api.get(`/automations/${flow.id}/queue`);
+      setQueue(prev => ({ ...prev, [flow.id]: res.data }));
+    } catch {
+      setQueue(prev => ({ ...prev, [flow.id]: [] }));
+    } finally {
+      setLoadingQueue(null);
+    }
+  };
+
   const formatDelay = (hours: number) => {
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
@@ -271,15 +298,16 @@ export default function AutomacoesPage() {
                     <button onClick={() => deleteFlow(flow)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setExpanded(expanded === flow.id ? null : flow.id)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                    <button onClick={() => toggleExpand(flow)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
                       {expanded === flow.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
 
-                {/* Steps expandidos */}
+                {/* Steps expandidos + Fila */}
                 {expanded === flow.id && (
                   <div className="px-5 pb-4 border-t border-gray-50">
+                    {/* Sequência */}
                     <div className="mt-4 space-y-3">
                       {flow.steps.map((step, i) => (
                         <div key={i} className="flex gap-3">
@@ -300,6 +328,40 @@ export default function AutomacoesPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    {/* Fila */}
+                    <div className="mt-5 pt-4 border-t border-gray-100">
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Fila de envio</p>
+                      {loadingQueue === flow.id ? (
+                        <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 text-[#6366f1] animate-spin" /></div>
+                      ) : !queue[flow.id] || queue[flow.id].length === 0 ? (
+                        <div className="text-center py-4 text-gray-400">
+                          <p className="text-[12px]">Nenhum lead na fila</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {queue[flow.id].map((item, i) => (
+                            <div key={i} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-full bg-[#6366f1]/10 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[11px] font-bold text-[#6366f1]">{item.contact_name.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-medium text-[#27273D]">{item.contact_name}</p>
+                                  <p className="text-[11px] text-gray-400">Mensagem {item.current_step}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 text-[11px] text-gray-500">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{new Date(item.next_send_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

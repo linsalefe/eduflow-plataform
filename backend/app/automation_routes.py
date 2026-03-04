@@ -195,3 +195,45 @@ async def get_stats(
         "active_flows": sum(1 for f in flows if f.is_active),
         "sent_today": sent_today,
     }
+# ── Fila de execuções de um fluxo ─────────────────────────
+@router.get("/{flow_id}/queue")
+async def get_flow_queue(
+    flow_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    # Verificar se o fluxo pertence ao tenant
+    flow_result = await db.execute(
+        select(AutomationFlow).where(
+            AutomationFlow.id == flow_id,
+            AutomationFlow.tenant_id == tenant_id,
+        )
+    )
+    if not flow_result.scalar_one_or_none():
+        raise HTTPException(404, "Fluxo não encontrado")
+
+    # Buscar execuções pendentes
+    exec_result = await db.execute(
+        select(AutomationExecution).where(
+            AutomationExecution.flow_id == flow_id,
+            AutomationExecution.status == "pending",
+        ).order_by(AutomationExecution.next_send_at)
+    )
+    executions = exec_result.scalars().all()
+
+    # Buscar nomes dos contatos
+    output = []
+    for ex in executions:
+        contact_result = await db.execute(
+            select(Contact).where(Contact.wa_id == ex.contact_wa_id)
+        )
+        contact = contact_result.scalar_one_or_none()
+        output.append({
+            "contact_wa_id": ex.contact_wa_id,
+            "contact_name": contact.name if contact else ex.contact_wa_id,
+            "current_step": ex.current_step,
+            "next_send_at": ex.next_send_at.isoformat(),
+        })
+
+    return output
