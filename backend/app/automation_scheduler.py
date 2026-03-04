@@ -218,4 +218,4 @@ async def start_automation_scheduler():
             await run_scheduler()
         except Exception as e:
             logger.error(f"❌ Erro no loop do scheduler: {e}")
-        await asyncio.sleep(900)  # 15 minutos
+        await asyncio.sleep(60)  # 15 minutos
