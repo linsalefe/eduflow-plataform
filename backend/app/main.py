@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from dotenv import load_dotenv
+from app.automation_scheduler import start_automation_scheduler
 import httpx
 from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
@@ -103,17 +104,18 @@ async def scheduler_job():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: inicia o job de sync
     task = asyncio.create_task(sync_job())
     cleanup_task = asyncio.create_task(cleanup_recordings_job())
     print("✅ Sync Exact Spotter agendado (a cada 10 min)")
     scheduler_task = asyncio.create_task(scheduler_job())
     print("📅 Scheduler de ligações agendado (a cada 1 min)")
+    automation_task = asyncio.create_task(start_automation_scheduler())  # 👈 ADICIONAR
+    print("🤖 Automation scheduler iniciado (a cada 15 min)")             # 👈 ADICIONAR
     yield
-    # Shutdown: cancela o job
     task.cancel()
     cleanup_task.cancel()
     scheduler_task.cancel()
+    automation_task.cancel()  # 👈 ADICIONAR
 
 
 app = FastAPI(title="EduFlow API", lifespan=lifespan)
