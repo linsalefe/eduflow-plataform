@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Zap, Plus, Trash2, ToggleLeft, ToggleRight,
   Loader2, ChevronDown, ChevronUp, Clock, MessageSquare,
-  CheckCircle, XCircle, Pencil, X
+  CheckCircle, XCircle, Pencil, X, Copy, Link
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/auth-context';
@@ -73,6 +73,10 @@ export default function AutomacoesPage() {
   const [editFlow, setEditFlow] = useState<Flow | null>(null);
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [webhookUrls, setWebhookUrls] = useState<Record<number, string>>({});
+  const [loadingWebhook, setLoadingWebhook] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   // Form state
   const [formName, setFormName] = useState('');
@@ -85,6 +89,7 @@ export default function AutomacoesPage() {
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
   useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => { if (user) loadChannels(); }, [user]);
 
   const loadData = async () => {
     try {
@@ -230,6 +235,33 @@ export default function AutomacoesPage() {
     if (minutes % 1440 === 0) return { value: minutes / 1440, unit: 'days' };
     if (minutes % 60 === 0) return { value: minutes / 60, unit: 'hours' };
     return { value: minutes, unit: 'minutes' };
+  };
+
+  const loadChannels = async () => {
+    try {
+      const res = await api.get('/channels');
+      setChannels(res.data.filter((c: any) => c.provider === 'evolution' || c.type === 'whatsapp'));
+    } catch {}
+  };
+
+  const loadWebhookUrl = async (channelId: number) => {
+    if (webhookUrls[channelId]) return;
+    setLoadingWebhook(channelId);
+    try {
+      const res = await api.get(`/webhook/lead-url/${channelId}`);
+      setWebhookUrls(prev => ({ ...prev, [channelId]: res.data.url }));
+    } catch {
+      toast.error('Erro ao gerar URL');
+    } finally {
+      setLoadingWebhook(null);
+    }
+  };
+
+  const copyUrl = (channelId: number, url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedId(channelId);
+    toast.success('URL copiada!');
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" /></div>;
@@ -389,6 +421,59 @@ export default function AutomacoesPage() {
             ))
           )}
         </div>
+
+        {/* Webhook LP Externa */}
+        {channels.length > 0 && (
+          <div className={`transition-all duration-700 delay-300 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-[#6366f1]/10 flex items-center justify-center">
+                    <Link className="w-4 h-4 text-[#6366f1]" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#27273D]">Integração LP Externa</p>
+                    <p className="text-[12px] text-gray-400">Cole a URL no formulário da sua landing page</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {channels.map(channel => (
+                  <div key={channel.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-gray-600">{channel.name}</span>
+                      {!webhookUrls[channel.id] && (
+                        <button
+                          onClick={() => loadWebhookUrl(channel.id)}
+                          disabled={loadingWebhook === channel.id}
+                          className="text-[12px] text-[#6366f1] hover:underline flex items-center gap-1 disabled:opacity-40"
+                        >
+                          {loadingWebhook === channel.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                          Gerar URL
+                        </button>
+                      )}
+                    </div>
+                    {webhookUrls[channel.id] && (
+                      <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-100 px-3 py-2.5">
+                        <p className="flex-1 text-[12px] text-gray-500 truncate font-mono">{webhookUrls[channel.id]}</p>
+                        <button
+                          onClick={() => copyUrl(channel.id, webhookUrls[channel.id])}
+                          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-[#6366f1] text-white text-[12px] font-medium rounded-lg hover:bg-[#4f46e5] transition-all active:scale-95"
+                        >
+                          {copiedId === channel.id ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copiedId === channel.id ? 'Copiado' : 'Copiar'}
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-gray-400">
+                      Campos aceitos: <code className="bg-gray-100 px-1 rounded">name</code>, <code className="bg-gray-100 px-1 rounded">phone</code>, <code className="bg-gray-100 px-1 rounded">course</code>, <code className="bg-gray-100 px-1 rounded">email</code>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal criar/editar */}
