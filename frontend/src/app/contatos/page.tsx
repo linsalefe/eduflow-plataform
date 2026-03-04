@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Plus, Trash2, Pencil, X, Loader2,
   Phone, User, BookOpen, ChevronDown, Filter,
-  CheckCircle, AlertCircle
+  CheckCircle, AlertCircle, Upload
 } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import { useAuth } from '@/contexts/auth-context';
@@ -165,6 +165,26 @@ export default function ContatosPage() {
     }
   };
 
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    toast.loading('Importando contatos...');
+    try {
+      const res = await api.post('/contacts/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      toast.dismiss();
+      toast.success(`${res.data.imported} contatos importados`);
+      loadContacts();
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err?.response?.data?.detail || 'Erro ao importar');
+    }
+    e.target.value = '';
+  };
+
   const formatPhone = (wa_id: string) => {
     const num = wa_id.replace(/^55/, '');
     if (num.length === 11) return `(${num.slice(0,2)}) ${num.slice(2,7)}-${num.slice(7)}`;
@@ -184,13 +204,20 @@ export default function ContatosPage() {
             <p className="text-sm text-gray-400 mb-0.5">CRM</p>
             <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">Contatos</h1>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white text-sm font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Novo contato
-          </button>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer">
+              <Upload className="w-4 h-4" />
+              Importar
+              <input type="file" accept=".xlsx,.csv" onChange={handleImport} className="hidden" />
+            </label>
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white text-sm font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Novo contato
+            </button>
+          </div>
         </div>
 
         {/* Filtros */}

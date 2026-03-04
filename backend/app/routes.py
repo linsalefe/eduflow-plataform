@@ -531,6 +531,54 @@ async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_i
     await db.commit()
     return {"wa_id": phone, "message": "Contato criado com sucesso"}
 
+@router.post("/contacts/import")
+async def import_contacts(file: UploadFile = File(...), db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id), current_user=Depends(get_current_user)):
+    import io, openpyxl, csv
+    from app.models import Channel
+    ch = await db.execute(select(Channel).where(Channel.tenant_id == tenant_id, Channel.is_active == True).limit(1))
+    ch = ch.scalar_one_or_none()
+    default_channel_id = ch.id if ch else None
+    content = await file.read()
+    rows = []
+    if file.filename.endswith('.csv'):
+        decoded = content.decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(decoded))
+        for row in reader:
+            rows.append(row)
+    else:
+        wb = openpyxl.load_workbook(io.BytesIO(content))
+        ws = wb.active
+        headers = [str(cell.value).strip().lower() if cell.value else '' for cell in ws[1]]
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            rows.append({headers[i]: (str(v).strip() if v is not None else '') for i, v in enumerate(row)})
+    imported = 0
+    for row in rows:
+        phone = str(row.get('telefone') or row.get('phone') or row.get('whatsapp') or '').strip()
+        phone = phone.replace('+', '').replace('-', '').replace(' ', '').replace('(', '').replace(')', '').replace('.', '')
+        if not phone or not phone.isdigit():
+            continue
+        if not phone.startswith('55'):
+            phone = '55' + phone
+        existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
+        if existing.scalar_one_or_none():
+            continue
+        name = str(row.get('nome') or row.get('name') or '').strip()
+        course = str(row.get('curso') or row.get('course') or '').strip()
+        import json as json_lib
+        contact = Contact(
+            tenant_id=tenant_id,
+            wa_id=phone,
+            name=name,
+            lead_status='novo',
+            channel_id=default_channel_id,
+            ai_active=False,
+            notes=json_lib.dumps({'course': course}, ensure_ascii=False),
+        )
+        db.add(contact)
+        imported += 1
+    await db.commit()
+    return {"imported": imported}
+
 @router.delete("/contacts/{wa_id}")
 async def delete_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id), current_user=Depends(get_current_user)):
     result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
