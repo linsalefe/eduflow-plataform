@@ -567,6 +567,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
             f"Lead movido de {old_status or 'novo'} para {req.lead_status}",
             f"/conversations",
             wa_id,
+            tenant_id=tenant_id,
         )
     if req.notes is not None:
         contact.notes = req.notes
