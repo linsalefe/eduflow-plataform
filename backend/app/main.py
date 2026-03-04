@@ -22,6 +22,7 @@ from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
 from app.export_routes import router as export_router
 from app.task_routes import router as task_router
+from app.automation_routes import router as automation_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
 from app.evolution.routes import router as evolution_router
@@ -139,6 +140,7 @@ app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
 app.include_router(tenant_router)
 app.include_router(voice_ai_router)
+app.include_router(automation_router)
 app.include_router(financial_router)
 app.include_router(evolution_router)
 app.include_router(notification_router)

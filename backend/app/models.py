@@ -387,3 +387,35 @@ class Subscription(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     tenant = relationship("Tenant", backref="subscription")
+
+class AutomationFlow(Base):
+    __tablename__ = "automation_flows"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    stage = Column(String(100), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+
+
+class AutomationStep(Base):
+    __tablename__ = "automation_steps"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    flow_id = Column(Integer, ForeignKey("automation_flows.id", ondelete="CASCADE"), nullable=False)
+    step_order = Column(Integer, nullable=False)
+    delay_hours = Column(Integer, nullable=False, default=1)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class AutomationExecution(Base):
+    __tablename__ = "automation_executions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    flow_id = Column(Integer, ForeignKey("automation_flows.id", ondelete="CASCADE"), nullable=False)
+    contact_wa_id = Column(String(100), nullable=False)
+    current_step = Column(Integer, nullable=False, default=0)
+    next_send_at = Column(DateTime, nullable=False)
+    status = Column(String(50), nullable=False, default="pending")
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
