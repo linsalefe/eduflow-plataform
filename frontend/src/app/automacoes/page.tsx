@@ -38,7 +38,6 @@ interface Step {
   message: string;
 }
 
-// CHANGE 1: Added channel_id to Flow interface
 interface Flow {
   id: number;
   name: string;
@@ -59,7 +58,15 @@ interface QueueItem {
   contact_wa_id: string;
   contact_name: string;
   current_step: number;
-  next_send_at: string;
+  status: string;
+  next_send_at: string | null;
+  sent_at: string | null;
+  error_message: string | null;
+}
+
+interface QueueData {
+  pending: QueueItem[];
+  history: QueueItem[];
 }
 
 interface Webhook {
@@ -85,14 +92,13 @@ export default function AutomacoesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editFlow, setEditFlow] = useState<Flow | null>(null);
   const [saving, setSaving] = useState(false);
-  const [queue, setQueue] = useState<Record<number, QueueItem[]>>({});
+  const [queue, setQueue] = useState<Record<number, QueueData>>({});
   const [loadingQueue, setLoadingQueue] = useState<number | null>(null);
 
   // Form fluxo
   const [formName, setFormName] = useState('');
   const [formStage, setFormStage] = useState('novo');
   const [formSteps, setFormSteps] = useState<Step[]>([emptyStep()]);
-  // CHANGE 2: Added formChannelId state
   const [formChannelId, setFormChannelId] = useState<number>(0);
 
   // Webhooks
@@ -165,7 +171,6 @@ export default function AutomacoesPage() {
     setFormName('');
     setFormStage('novo');
     setFormSteps([emptyStep()]);
-    // CHANGE 3: Set formChannelId on create
     if (channels.length > 0) setFormChannelId(channels[0].id);
     setShowModal(true);
   };
@@ -175,7 +180,6 @@ export default function AutomacoesPage() {
     setFormName(flow.name);
     setFormStage(flow.stage);
     setFormSteps(flow.steps.length > 0 ? flow.steps.map(s => ({ ...s, ...fromMinutes(s.delay_minutes) })) : [emptyStep()]);
-    // CHANGE 4: Set formChannelId on edit
     setFormChannelId(flow.channel_id || (channels.length > 0 ? channels[0].id : 0));
     setShowModal(true);
   };
@@ -217,7 +221,6 @@ export default function AutomacoesPage() {
     if (formSteps.some(s => !s.message.trim())) return toast.error('Preencha todas as mensagens');
     setSaving(true);
     try {
-      // CHANGE 5: Added channel_id to payload
       const payload = {
         name: formName,
         stage: formStage,
@@ -270,7 +273,7 @@ export default function AutomacoesPage() {
       const res = await api.get(`/automations/${flow.id}/queue`);
       setQueue(prev => ({ ...prev, [flow.id]: res.data }));
     } catch {
-      setQueue(prev => ({ ...prev, [flow.id]: [] }));
+      setQueue(prev => ({ ...prev, [flow.id]: { pending: [], history: [] } }));
     } finally {
       setLoadingQueue(null);
     }
@@ -467,15 +470,17 @@ export default function AutomacoesPage() {
                             </div>
                           ))}
                         </div>
+
+                        {/* Fila */}
                         <div className="mt-5 pt-4 border-t border-gray-100">
                           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Fila de envio</p>
                           {loadingQueue === flow.id ? (
                             <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 text-[#6366f1] animate-spin" /></div>
-                          ) : !queue[flow.id] || queue[flow.id].length === 0 ? (
-                            <div className="text-center py-4"><p className="text-[12px] text-gray-400">Nenhum lead na fila</p></div>
+                          ) : !queue[flow.id] || queue[flow.id].pending.length === 0 ? (
+                            <div className="text-center py-3"><p className="text-[12px] text-gray-400">Nenhum lead na fila</p></div>
                           ) : (
                             <div className="space-y-2">
-                              {queue[flow.id].map((item, i) => (
+                              {queue[flow.id].pending.map((item, i) => (
                                 <div key={i} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
                                   <div className="flex items-center gap-2.5">
                                     <div className="w-7 h-7 rounded-full bg-[#6366f1]/10 flex items-center justify-center flex-shrink-0">
@@ -488,13 +493,40 @@ export default function AutomacoesPage() {
                                   </div>
                                   <div className="flex items-center gap-1 text-[11px] text-gray-500">
                                     <Clock className="w-3 h-3" />
-                                    <span>{new Date(item.next_send_at + 'Z').toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span>{item.next_send_at ? new Date(item.next_send_at + 'Z').toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}</span>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           )}
                         </div>
+
+                        {/* Histórico */}
+                        {queue[flow.id]?.history && queue[flow.id].history.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-gray-100">
+                            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Histórico de envios</p>
+                            <div className="space-y-2">
+                              {queue[flow.id].history.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-xl border border-gray-100">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${item.status === 'completed' ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                                      {item.status === 'completed'
+                                        ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                                        : <X className="w-3.5 h-3.5 text-red-400" />}
+                                    </div>
+                                    <div>
+                                      <p className="text-[13px] font-medium text-[#27273D]">{item.contact_name}</p>
+                                      <p className="text-[11px] text-gray-400">{item.error_message || `Mensagem ${item.current_step} enviada`}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-[11px] text-gray-500">
+                                    {item.sent_at ? new Date(item.sent_at + 'Z').toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -590,7 +622,6 @@ export default function AutomacoesPage() {
                   {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                 </select>
               </div>
-              {/* CHANGE 6: Canal WhatsApp selector (only shown when more than 1 channel) */}
               {channels.length > 1 && (
                 <div>
                   <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Canal WhatsApp</label>

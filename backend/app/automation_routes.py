@@ -209,7 +209,6 @@ async def get_flow_queue(
     current_user=Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
 ):
-    # Verificar se o fluxo pertence ao tenant
     flow_result = await db.execute(
         select(AutomationFlow).where(
             AutomationFlow.id == flow_id,
@@ -219,27 +218,36 @@ async def get_flow_queue(
     if not flow_result.scalar_one_or_none():
         raise HTTPException(404, "Fluxo não encontrado")
 
-    # Buscar execuções pendentes
-    exec_result = await db.execute(
+    pending_result = await db.execute(
         select(AutomationExecution).where(
             AutomationExecution.flow_id == flow_id,
             AutomationExecution.status == "pending",
         ).order_by(AutomationExecution.next_send_at)
     )
-    executions = exec_result.scalars().all()
+    pending = pending_result.scalars().all()
 
-    # Buscar nomes dos contatos
-    output = []
-    for ex in executions:
-        contact_result = await db.execute(
-            select(Contact).where(Contact.wa_id == ex.contact_wa_id)
-        )
+    history_result = await db.execute(
+        select(AutomationExecution).where(
+            AutomationExecution.flow_id == flow_id,
+            AutomationExecution.status.in_(["completed", "failed"]),
+        ).order_by(AutomationExecution.updated_at.desc()).limit(20)
+    )
+    history = history_result.scalars().all()
+
+    async def enrich(ex):
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == ex.contact_wa_id))
         contact = contact_result.scalar_one_or_none()
-        output.append({
+        return {
             "contact_wa_id": ex.contact_wa_id,
             "contact_name": contact.name if contact else ex.contact_wa_id,
             "current_step": ex.current_step,
-            "next_send_at": ex.next_send_at.isoformat(),
-        })
+            "status": ex.status,
+            "next_send_at": ex.next_send_at.isoformat() if ex.next_send_at else None,
+            "sent_at": ex.sent_at.isoformat() if ex.sent_at else None,
+            "error_message": ex.error_message,
+        }
 
-    return output
+    output_pending = [await enrich(ex) for ex in pending]
+    output_history = [await enrich(ex) for ex in history]
+
+    return {"pending": output_pending, "history": output_history}

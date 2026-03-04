@@ -419,6 +419,8 @@ class AutomationExecution(Base):
     current_step = Column(Integer, nullable=False, default=0)
     next_send_at = Column(DateTime, nullable=False)
     status = Column(String(50), nullable=False, default="pending")
+    sent_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
 

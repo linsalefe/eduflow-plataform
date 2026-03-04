@@ -119,6 +119,10 @@ async def run_scheduler():
                     await process_execution(execution, db)
                 except Exception as e:
                     logger.error(f"❌ Erro execução {execution.id}: {e}")
+                    execution.error_message = str(e)
+                    execution.status = "failed"
+                    execution.updated_at = datetime.utcnow()
+                    await db.commit()
 
         except Exception as e:
             logger.error(f"❌ Erro no scheduler: {e}")
@@ -189,7 +193,7 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
         text=message,
     )
     logger.info(f"📨 Mensagem enviada para {execution.contact_wa_id} (step {execution.current_step})")
-
+    print(f"✅ Automação [{flow.name}] → {contact.name or execution.contact_wa_id}: '{message[:50]}'")
     # Verificar próximo step
     next_step_result = await db.execute(
         select(AutomationStep).where(
