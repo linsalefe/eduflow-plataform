@@ -558,6 +558,9 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         old_status = contact.lead_status
         contact.lead_status = req.lead_status
         await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id)
+        from app.automation_scheduler import trigger_automations_for_contact, cancel_automations_for_contact
+        await cancel_automations_for_contact(wa_id, db)
+        await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db)
         await notify_all_users(
             db, "status_change",
             f"{contact.name or wa_id} → {req.lead_status}",
