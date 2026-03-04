@@ -397,6 +397,7 @@ class AutomationFlow(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
+    channel_id = Column(Integer, ForeignKey("channels.id", ondelete="SET NULL"), nullable=True)
 
 
 class AutomationStep(Base):

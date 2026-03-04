@@ -166,11 +166,11 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
     )
     flow = flow_result.scalar_one_or_none()
 
+    channel_filter = [Channel.tenant_id == flow.tenant_id, Channel.is_active == True]
+    if flow.channel_id:
+        channel_filter.append(Channel.id == flow.channel_id)
     channel_result = await db.execute(
-        select(Channel).where(
-            Channel.tenant_id == flow.tenant_id,
-            Channel.is_active == True,
-        ).limit(1)
+        select(Channel).where(*channel_filter).limit(1)
     )
     channel = channel_result.scalar_one_or_none()
     if not channel:
