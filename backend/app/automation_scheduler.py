@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.database import async_session_maker
+from app.database import async_session
 from app.models import (
     AutomationFlow, AutomationStep, AutomationExecution,
     Contact, Channel
@@ -96,7 +96,7 @@ async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession):
 
 async def run_scheduler():
     """Job principal — processa execuções pendentes."""
-    async with async_session_maker() as db:
+    async with async_session() as db:
         try:
             now = datetime.utcnow()
 
