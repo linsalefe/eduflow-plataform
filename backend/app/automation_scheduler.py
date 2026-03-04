@@ -65,7 +65,7 @@ async def trigger_automations_for_contact(
             flow_id=flow.id,
             contact_wa_id=contact_wa_id,
             current_step=1,
-            next_send_at=datetime.utcnow() + timedelta(hours=step.delay_hours),
+            next_send_at=datetime.utcnow() + timedelta(minutes=step.delay_minutes),
             status="pending",
         )
         db.add(execution)
@@ -201,7 +201,7 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
 
     if next_step:
         execution.current_step += 1
-        execution.next_send_at = datetime.utcnow() + timedelta(hours=next_step.delay_hours)
+        execution.next_send_at = datetime.utcnow() + timedelta(minutes=next_step.delay_minutes)
         execution.updated_at = datetime.utcnow()
     else:
         execution.status = "completed"

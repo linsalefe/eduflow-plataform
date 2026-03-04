@@ -407,6 +407,7 @@ class AutomationStep(Base):
     delay_hours = Column(Integer, nullable=False, default=1)
     message = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+    delay_minutes = Column(Integer, nullable=False, default=60)
 
 
 class AutomationExecution(Base):

@@ -33,7 +33,8 @@ const STAGE_COLORS: Record<string, string> = {
 interface Step {
   id?: number;
   step_order: number;
-  delay_hours: number;
+  delay_minutes: number;
+  delay_unit: 'minutes' | 'hours' | 'days';
   message: string;
 }
 
@@ -59,7 +60,7 @@ interface QueueItem {
   next_send_at: string;
 }
 
-const emptyStep = (): Step => ({ step_order: 1, delay_hours: 1, message: '' });
+const emptyStep = (): Step => ({ step_order: 1, delay_minutes: 60, delay_unit: 'hours', message: '' });
 
 export default function AutomacoesPage() {
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -112,7 +113,7 @@ export default function AutomacoesPage() {
     setEditFlow(flow);
     setFormName(flow.name);
     setFormStage(flow.stage);
-    setFormSteps(flow.steps.length > 0 ? flow.steps : [emptyStep()]);
+    setFormSteps(flow.steps.length > 0 ? flow.steps.map(s => ({ ...s, ...fromMinutes(s.delay_minutes) })) : [emptyStep()]);
     setShowModal(true);
   };
 
@@ -124,7 +125,7 @@ export default function AutomacoesPage() {
   const addStep = () => {
     setFormSteps(prev => [
       ...prev,
-      { step_order: prev.length + 1, delay_hours: 24, message: '' },
+      { step_order: prev.length + 1, delay_minutes: 24, delay_unit: 'hours' as const, message: '' },
     ]);
   };
 
@@ -146,14 +147,20 @@ export default function AutomacoesPage() {
         await api.put(`/automations/${editFlow.id}`, {
           name: formName,
           stage: formStage,
-          steps: formSteps,
+          steps: formSteps.map(s => ({
+            ...s,
+            delay_minutes: toMinutes(s.delay_minutes, s.delay_unit),
+          })),
         });
         toast.success('Fluxo atualizado');
       } else {
         await api.post('/automations', {
           name: formName,
           stage: formStage,
-          steps: formSteps,
+          steps: formSteps.map(s => ({
+            ...s,
+            delay_minutes: toMinutes(s.delay_minutes, s.delay_unit),
+          })),
         });
         toast.success('Fluxo criado');
       }
@@ -205,11 +212,24 @@ export default function AutomacoesPage() {
     }
   };
 
-  const formatDelay = (hours: number) => {
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    const remaining = hours % 24;
-    return remaining > 0 ? `${days}d ${remaining}h` : `${days} dia${days > 1 ? 's' : ''}`;
+  const formatDelay = (minutes: number) => {
+    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 1440) return `${Math.floor(minutes / 60)}h${minutes % 60 > 0 ? ` ${minutes % 60}min` : ''}`;
+    const days = Math.floor(minutes / 1440);
+    const remaining = minutes % 1440;
+    return remaining > 0 ? `${days}d ${Math.floor(remaining / 60)}h` : `${days} dia${days > 1 ? 's' : ''}`;
+  };
+
+  const toMinutes = (value: number, unit: string) => {
+    if (unit === 'minutes') return value;
+    if (unit === 'hours') return value * 60;
+    return value * 1440;
+  };
+
+  const fromMinutes = (minutes: number): { value: number; unit: 'minutes' | 'hours' | 'days' } => {
+    if (minutes % 1440 === 0) return { value: minutes / 1440, unit: 'days' };
+    if (minutes % 60 === 0) return { value: minutes / 60, unit: 'hours' };
+    return { value: minutes, unit: 'minutes' };
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" /></div>;
@@ -320,7 +340,7 @@ export default function AutomacoesPage() {
                           <div className="flex-1 pb-2">
                             <div className="flex items-center gap-2 mb-1.5">
                               <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              <span className="text-[12px] text-gray-500">Enviar após <strong className="text-gray-700">{formatDelay(step.delay_hours)}</strong></span>
+                              <span className="text-[12px] text-gray-500">Enviar após <strong className="text-gray-700">{formatDelay(step.delay_minutes)}</strong></span>
                             </div>
                             <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                               <p className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">{step.message}</p>
@@ -437,11 +457,19 @@ export default function AutomacoesPage() {
                         <input
                           type="number"
                           min={1}
-                          value={step.delay_hours}
-                          onChange={e => updateStep(i, 'delay_hours', parseInt(e.target.value) || 1)}
+                          value={step.delay_minutes}
+                          onChange={e => updateStep(i, 'delay_minutes', parseInt(e.target.value) || 1)}
                           className="w-16 px-2 py-1 bg-white border border-gray-200 rounded-lg text-[13px] text-center text-gray-800 focus:outline-none focus:border-[#6366f1] transition-all"
                         />
-                        <span className="text-[12px] text-gray-500">horas</span>
+                        <select
+                          value={step.delay_unit}
+                          onChange={e => updateStep(i, 'delay_unit', e.target.value)}
+                          className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-700 focus:outline-none focus:border-[#6366f1] transition-all cursor-pointer"
+                        >
+                          <option value="minutes">Minutos</option>
+                          <option value="hours">Horas</option>
+                          <option value="days">Dias</option>
+                        </select>
                       </div>
 
                       {/* Mensagem */}

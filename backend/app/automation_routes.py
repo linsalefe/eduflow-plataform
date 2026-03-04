@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/automations", tags=["Automations"])
 
 class StepSchema(BaseModel):
     step_order: int
-    delay_hours: int
+    delay_minutes: int
     message: str
 
 
@@ -62,7 +62,7 @@ async def list_flows(
                 {
                     "id": s.id,
                     "step_order": s.step_order,
-                    "delay_hours": s.delay_hours,
+                    "delay_minutes": s.delay_minutes,
                     "message": s.message,
                 }
                 for s in steps
@@ -92,7 +92,7 @@ async def create_flow(
         db.add(AutomationStep(
             flow_id=flow.id,
             step_order=step.step_order,
-            delay_hours=step.delay_hours,
+            delay_minutes=step.delay_minutes,
             message=step.message,
         ))
 
