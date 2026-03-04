@@ -269,25 +269,8 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Info */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                      <div>
-                        <p className="text-gray-600 mb-1">Slug</p>
-                        <p className="text-gray-300 font-mono">{tenant.slug}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600 mb-1">Telefone</p>
-                        <p className="text-gray-300">{tenant.owner_phone || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600 mb-1">Máx. Usuários</p>
-                        <p className="text-gray-300">{tenant.max_users}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600 mb-1">Criado em</p>
-                        <p className="text-gray-300">{new Date(tenant.created_at).toLocaleDateString('pt-BR')}</p>
-                      </div>
-                    </div>
+                    {/* Editable Info */}
+                    <EditTenantInfo tenant={tenant} onSaved={fetchTenants} />
                   </div>
                 )}
               </div>
@@ -472,6 +455,161 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
             Criar Cliente
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+
+function EditTenantInfo({ tenant, onSaved }: { tenant: Tenant; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    plan: tenant.plan,
+    max_users: tenant.max_users,
+    max_channels: tenant.max_channels,
+    owner_name: tenant.owner_name,
+    owner_email: tenant.owner_email,
+    owner_phone: tenant.owner_phone || '',
+    notes: tenant.notes || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.patch(`/admin/tenants/${tenant.id}`, form);
+      onSaved();
+      setEditing(false);
+    } catch {
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+          <div>
+            <p className="text-gray-600 mb-1">Slug</p>
+            <p className="text-gray-300 font-mono">{tenant.slug}</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-1">Telefone</p>
+            <p className="text-gray-300">{tenant.owner_phone || '—'}</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-1">Máx. Usuários</p>
+            <p className="text-gray-300">{tenant.max_users}</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-1">Máx. Canais</p>
+            <p className="text-gray-300">{tenant.max_channels}</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-1">Plano</p>
+            <p className="text-gray-300 capitalize">{tenant.plan}</p>
+          </div>
+          <div>
+            <p className="text-gray-600 mb-1">Criado em</p>
+            <p className="text-gray-300">{new Date(tenant.created_at).toLocaleDateString('pt-BR')}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-gray-600 mb-1">Observações</p>
+            <p className="text-gray-300">{tenant.notes || '—'}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setEditing(true)}
+          className="mt-4 flex items-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl text-xs text-gray-300 font-medium transition-colors"
+        >
+          <Settings2 className="w-3.5 h-3.5" /> Editar Informações
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Plano</label>
+          <select
+            value={form.plan}
+            onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          >
+            <option value="basic">Basic</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Máx. Usuários</label>
+          <input
+            type="number"
+            value={form.max_users}
+            onChange={e => setForm(f => ({ ...f, max_users: parseInt(e.target.value) || 0 }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Máx. Canais</label>
+          <input
+            type="number"
+            value={form.max_channels}
+            onChange={e => setForm(f => ({ ...f, max_channels: parseInt(e.target.value) || 0 }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Telefone</label>
+          <input
+            value={form.owner_phone}
+            onChange={e => setForm(f => ({ ...f, owner_phone: e.target.value }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Responsável</label>
+          <input
+            value={form.owner_name}
+            onChange={e => setForm(f => ({ ...f, owner_name: e.target.value }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500 mb-1 block">Email</label>
+          <input
+            value={form.owner_email}
+            onChange={e => setForm(f => ({ ...f, owner_email: e.target.value }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="text-[10px] text-gray-500 mb-1 block">Observações</label>
+          <input
+            value={form.notes}
+            onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500/50"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 rounded-xl text-xs font-medium transition-colors"
+        >
+          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          Salvar
+        </button>
+        <button
+          onClick={() => setEditing(false)}
+          className="px-4 py-2 text-xs text-gray-400 hover:text-white transition-colors"
+        >
+          Cancelar
+        </button>
       </div>
     </div>
   );
