@@ -488,7 +488,7 @@ export default function AutomacoesPage() {
                                   </div>
                                   <div className="flex items-center gap-1 text-[11px] text-gray-500">
                                     <Clock className="w-3 h-3" />
-                                    <span>{new Date(item.next_send_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span>{new Date(item.next_send_at + 'Z').toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                                   </div>
                                 </div>
                               ))}
