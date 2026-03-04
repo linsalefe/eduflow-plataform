@@ -15,6 +15,7 @@ from app.schedule_routes import router as schedule_router
 from app.tenant_routes import router as tenant_router
 from app.calendar_routes import router as calendar_router
 from app.notification_routes import router as notification_router
+from app.webhook_routes import router as webhook_router, public_router as webhook_public_router
 from app.landing_routes import router as landing_router
 from app.financial_routes import router as financial_router
 from app.notification_routes import notify_all_users
@@ -147,6 +148,8 @@ app.include_router(financial_router)
 app.include_router(evolution_router)
 app.include_router(notification_router)
 app.include_router(task_router)
+app.include_router(webhook_router)
+app.include_router(webhook_public_router)
 app.include_router(schedule_router)
 app.include_router(export_router)
 
