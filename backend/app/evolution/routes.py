@@ -314,6 +314,8 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     ct = contact_update.scalar_one_or_none()
                     if ct:
                         ct.updated_at = msg_time
+                        from app.automation_scheduler import cancel_automations_for_contact
+                        await cancel_automations_for_contact(contact_phone, db)
 
                 print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
 
