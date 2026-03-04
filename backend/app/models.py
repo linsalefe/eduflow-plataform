@@ -420,3 +420,15 @@ class AutomationExecution(Base):
     status = Column(String(50), nullable=False, default="pending")
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
+
+class WebhookConfig(Base):
+    __tablename__ = "webhook_configs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    welcome_message = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=True)
+    token = Column(String(32), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
