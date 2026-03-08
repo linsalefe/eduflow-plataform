@@ -367,10 +367,54 @@ class Tenant(Base):
         "agenda": True,
     })
 
+    agent_plan_flags = Column(JSON, default={
+        "whatsapp": True,
+        "voice": False,
+        "followup": False,
+        "reactivation": False,
+        "briefing": False,
+    })
+
+    agent_flags = Column(JSON, default={})
+
+    kanban_triggers = Column(JSON, default={})
+
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")
 
+
+class LeadAgentContext(Base):
+    __tablename__ = "lead_agent_context"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=True)
+    lead_id = Column(Integer, ForeignKey("contacts.id"), nullable=True)
+
+    # Dados coletados pelo Nat-WA
+    wa_formacao = Column(String(255), nullable=True)
+    wa_atuacao = Column(String(255), nullable=True)
+    wa_motivacao = Column(String(255), nullable=True)
+    wa_disponibilidade = Column(String(255), nullable=True)
+
+    # Dados coletados pelo Nat-Voice
+    call_summary = Column(Text, nullable=True)
+    call_score = Column(Integer, nullable=True)
+    call_outcome = Column(String(50), nullable=True)
+    call_objections = Column(JSON, default=[])
+    meeting_date = Column(DateTime, nullable=True)
+
+    # Controle do orquestrador
+    current_agent = Column(String(50), nullable=True)
+    locked_by = Column(String(50), nullable=True)
+    locked_until = Column(DateTime, nullable=True)
+    last_event = Column(String(50), nullable=True)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Subscription(Base):
+    
     __tablename__ = "subscriptions"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
