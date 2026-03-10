@@ -119,7 +119,7 @@ class FollowupAgent:
                     Channel.type == "whatsapp",
                 )
             )
-            channel = channel_result.scalar_one_or_none()
+            channel = channel_result.scalars().first()
             if not channel:
                 print(f"❌ Nenhum canal WhatsApp ativo para tenant {tenant_id}")
                 return
