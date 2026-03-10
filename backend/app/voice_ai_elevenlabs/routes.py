@@ -165,7 +165,7 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         # Acionar Orquestrador
         try:
             from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
-            from app.models import Contact
+            
 
             phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
             contact_result = await db.execute(
