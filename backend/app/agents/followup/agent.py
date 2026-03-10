@@ -75,7 +75,7 @@ class FollowupAgent:
         await db.commit()
 
         # Enviar mensagem imediata de confirmação
-        phone = lead.phone or lead.wa_id
+        phone = lead.wa_id
         if not phone:
             print(f"❌ Lead {event.lead_id} sem telefone")
             return
