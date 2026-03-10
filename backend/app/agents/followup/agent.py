@@ -172,6 +172,23 @@ class FollowupAgent:
                 ))
                 print(f"📅 Lembrete D-0 agendado para {d0}")
 
+            # Briefing (15 min antes da reunião)
+            
+            briefing_time = meeting_date - timedelta(minutes=15)
+            if briefing_time > datetime.utcnow():
+                db.add(Schedule(
+                    tenant_id=tenant_id,
+                    contact_wa_id=lead.wa_id,
+                    phone=lead.wa_id,
+                    contact_name=lead_name,
+                    scheduled_at=briefing_time,
+                    scheduled_date=briefing_time.strftime("%d/%m/%Y"),
+                    scheduled_time=briefing_time.strftime("%H:%M"),
+                    type="briefing_agent",
+                    status="pending",
+                    notes="Briefing automático 15min antes da reunião",
+                ))
+                print(f"📋 Briefing agendado para {briefing_time}")
             await db.commit()
 
         except Exception as e:
