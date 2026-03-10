@@ -143,6 +143,37 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
         print(f"✅ ElevenLabs post-call salvo: call_id={ai_call.id}, lead={lead_name}, curso={course}, duracao={duration}s, outcome={outcome}")
         print(f"📊 Campos coletados: {collected_fields}")
+
+        # Acionar Orquestrador
+        try:
+            from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
+            from app.models import Contact
+
+            phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
+            contact_result = await db.execute(
+                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:]))
+            )
+            contact = contact_result.scalar_one_or_none()
+
+            if contact:
+                await orchestrator.on_event(
+                    AgentEvent(
+                        lead_id=contact.id,
+                        tenant_id=contact.tenant_id,
+                        event_type="call_completed",
+                        payload={
+                            "outcome": outcome,
+                            "summary": summary_text,
+                            "collected_fields": collected_fields,
+                        },
+                    ),
+                    db,
+                )
+            else:
+                print(f"⚠️ Contato não encontrado para número {to_number}")
+        except Exception as e:
+            print(f"⚠️ Erro ao acionar orquestrador: {e}")
+
         return {"status": "ok", "call_id": ai_call.id}
 
     except Exception as e:
