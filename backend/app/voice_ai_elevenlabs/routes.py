@@ -10,6 +10,8 @@ from datetime import datetime, timezone, timedelta
 from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
 from app.database import get_db
 from app.voice_ai.models import AICall, AICallTurn
+from app.models import Contact
+
 
 router = APIRouter(prefix="/api/voice-ai-el", tags=["Voice AI - ElevenLabs"])
 
@@ -100,13 +102,29 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         else:
             outcome = "completed"
 
-        # Summary
+        
+       # Summary
         summary_text = analysis.get("transcript_summary", "")
-
         now = datetime.now(SP_TZ).replace(tzinfo=None)
+
+        # Buscar contato pelo telefone para obter tenant_id
+        tenant_id = None
+        contact = None
+        contact_wa_id = None
+        if to_number:
+            phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
+            contact_result = await db.execute(
+                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:]))
+            )
+            contact = contact_result.scalar_one_or_none()
+            if contact:
+                tenant_id = contact.tenant_id
+                contact_wa_id = contact.wa_id
 
         # Criar registro
         ai_call = AICall(
+            tenant_id=tenant_id,
+            contact_wa_id=contact_wa_id,
             from_number=from_number,
             to_number=to_number,
             twilio_call_sid=call_sid,
