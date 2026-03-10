@@ -116,7 +116,7 @@ class FollowupAgent:
                 select(Channel).where(
                     Channel.tenant_id == tenant_id,
                     Channel.is_active == True,
-                    Channel.channel_type == "whatsapp",
+                    Channel.type == "whatsapp",
                 )
             )
             channel = channel_result.scalar_one_or_none()
@@ -136,7 +136,7 @@ class FollowupAgent:
             from app.models import Schedule
 
             lead_name = lead.name or "Lead"
-            phone = lead.phone or lead.wa_id
+            phone = lead.wa_id
 
             # Lembrete D-1 (dia anterior às 9h)
             d1 = (meeting_date - timedelta(days=1)).replace(hour=9, minute=0, second=0)
