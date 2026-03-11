@@ -1,21 +1,25 @@
 """
 Agente IA para WhatsApp via Evolution API.
 Qualifica leads vindos de campanhas/landing pages.
+Usa AIConfig (prompt por tenant) + RAG (base de conhecimento).
 """
 import os
 import json
+import re
+import uuid
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import Contact, Message
+from app.models import Contact, Message, AIConfig, Channel
 from app.evolution.client import send_text
+from app.ai_engine import search_knowledge
 from datetime import datetime, timezone, timedelta
 
 SP_TZ = timezone(timedelta(hours=-3))
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-SYSTEM_PROMPT = """Você é a Nat, assistente virtual do CENAT (Centro Nacional de Saúde Mental).
+DEFAULT_SYSTEM_PROMPT = """Você é a Nat, assistente virtual da instituição de ensino.
 
 Seu objetivo é qualificar leads que chegaram via campanha de WhatsApp. Você deve:
 
@@ -40,10 +44,8 @@ REGRAS:
 REGRAS CRÍTICAS DE ACTION:
 - "continue": Use enquanto ainda está coletando informações ou conversando
 - "trigger_call": Use IMEDIATAMENTE quando o lead confirmar que PODE atender ligação AGORA
-- "schedule_call": Use IMEDIATAMENTE quando o lead CONFIRMAR um dia e horário para receber a ligação. Exemplo: se o lead diz "amanhã às 10h" e você confirma, na resposta de confirmação JÁ use action "schedule_call" com dia_agendamento e horario_agendamento preenchidos
+- "schedule_call": Use IMEDIATAMENTE quando o lead CONFIRMAR um dia e horário
 - "end": Use quando o lead disser que não tem interesse ou a conversa encerrar
-
-IMPORTANTE: Quando o lead confirmar o agendamento (ex: "sim", "pode ser", "ok"), você DEVE usar action "schedule_call" e preencher dia_agendamento e horario_agendamento nos collected. NÃO use "continue" após confirmar agendamento.
 
 FORMATO DE RESPOSTA:
 Responda APENAS com JSON (sem markdown, sem backticks):
@@ -62,6 +64,32 @@ Responda APENAS com JSON (sem markdown, sem backticks):
 """
 
 
+async def get_ai_config(channel_id: int, db: AsyncSession) -> AIConfig | None:
+    """Busca configuração da IA para o canal."""
+    result = await db.execute(
+        select(AIConfig).where(AIConfig.channel_id == channel_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSession) -> int | None:
+    """Busca channel_id pelo instance_name ou pelo contato."""
+    # Tenta pelo instance_name do canal
+    ch_result = await db.execute(
+        select(Channel).where(Channel.instance_name == instance_name)
+    )
+    channel = ch_result.scalar_one_or_none()
+    if channel:
+        return channel.id
+
+    # Fallback: pelo contact
+    c_result = await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id)
+    )
+    contact = c_result.scalar_one_or_none()
+    return contact.channel_id if contact else None
+
+
 async def get_conversation_history(wa_id: str, db: AsyncSession, limit: int = 20) -> list:
     """Busca últimas mensagens do contato para contexto."""
     result = await db.execute(
@@ -77,7 +105,7 @@ async def get_conversation_history(wa_id: str, db: AsyncSession, limit: int = 20
     for msg in messages:
         role = "assistant" if msg.direction == "outbound" and msg.sent_by_ai else "user"
         if msg.direction == "outbound" and not msg.sent_by_ai:
-            continue  # Ignorar mensagens do consultor humano
+            continue
         history.append({"role": role, "content": msg.content})
 
     return history
@@ -94,13 +122,13 @@ async def process_message(
 ) -> dict:
     """Processa mensagem do lead e gera resposta da IA."""
 
-    # Buscar contexto do contato
+    # Buscar contato
     contact_result = await db.execute(
         select(Contact).where(Contact.wa_id == wa_id)
     )
     contact = contact_result.scalar_one_or_none()
 
-    # Montar curso (se vier da landing page, estará nas notas)
+    # Curso do lead
     course = ""
     if contact and contact.notes:
         try:
@@ -109,23 +137,42 @@ async def process_message(
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # Histórico de conversa
+    # ── Buscar AIConfig do canal ──────────────────────────────────────────────
+    ai_config = await get_ai_config(channel_id, db)
+    system_prompt = (ai_config.system_prompt or DEFAULT_SYSTEM_PROMPT) if ai_config else DEFAULT_SYSTEM_PROMPT
+    model = (ai_config.model or "gpt-4.1") if ai_config else "gpt-4.1"
+    temperature = float((ai_config.temperature or "0.3")) if ai_config else 0.3
+    max_tokens = (ai_config.max_tokens or 300) if ai_config else 300
+
+    # ── Buscar RAG ────────────────────────────────────────────────────────────
+    rag_context = ""
+    try:
+        relevant_docs = await search_knowledge(user_message, channel_id, db, top_k=3)
+        if relevant_docs:
+            rag_context = "\n\n📚 BASE DE CONHECIMENTO (use para responder):\n"
+            for doc in relevant_docs:
+                rag_context += f"\n[{doc['title']}]\n{doc['content']}\n"
+    except Exception as e:
+        print(f"⚠️ Erro ao buscar RAG: {e}")
+
+    # ── Histórico de conversa ─────────────────────────────────────────────────
     history = await get_conversation_history(wa_id, db)
 
-    # Montar mensagens para a LLM
+    # ── Montar mensagens ──────────────────────────────────────────────────────
+    lead_info = f"\nDados do lead: Nome={contact_name}, Curso de interesse={course or 'não informado'}"
+    
     messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "system", "content": f"Dados do lead: Nome={contact_name}, Curso de interesse={course or 'não informado'}"},
+        {"role": "system", "content": system_prompt + lead_info + rag_context},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
     try:
         response = await client.chat.completions.create(
-            model="gpt-4.1",
+            model=model,
             messages=messages,
-            temperature=0.3,
-            max_tokens=300,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         raw = response.choices[0].message.content.strip()
@@ -134,8 +181,6 @@ async def process_message(
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError:
-            # Tentar extrair JSON do texto
-            import re
             match = re.search(r'\{.*\}', raw, re.DOTALL)
             if match:
                 parsed = json.loads(match.group())
@@ -145,47 +190,37 @@ async def process_message(
         ai_message = parsed.get("message", "")
         collected = parsed.get("collected", {})
         action = parsed.get("action", "continue")
-        
+
         # Fallback: detectar action pelo conteúdo da mensagem
         msg_lower = ai_message.lower()
-        collected = parsed.get("collected", {})
-        
+
         if action == "continue":
-            # Detectar trigger_call
             if any(kw in msg_lower for kw in ["ligar em instantes", "vai te ligar agora", "ligação agora"]):
                 action = "trigger_call"
                 print(f"🔄 Action corrigido para trigger_call via fallback")
-            
-            # Detectar schedule_call
+
             elif any(kw in msg_lower for kw in ["agendado", "agendada", "vamos agendar", "vai te ligar amanhã", "vai te ligar na"]):
                 action = "schedule_call"
-                # Tentar extrair dia/horário da mensagem se não veio no collected
                 if not collected.get("dia_agendamento") or collected["dia_agendamento"] == "null":
-                    import re
                     if "amanhã" in msg_lower or "amanha" in msg_lower:
                         collected["dia_agendamento"] = "amanhã"
                     dia_match = re.search(r'(segunda|terça|terca|quarta|quinta|sexta|sábado|sabado|domingo)', msg_lower)
                     if dia_match:
                         collected["dia_agendamento"] = dia_match.group(1)
-                
                 if not collected.get("horario_agendamento") or collected["horario_agendamento"] == "null":
-                    import re
                     hora_match = re.search(r'(\d{1,2})\s*[h:]?\s*(\d{2})?\s*(da\s*(?:manhã|tarde|noite))?', msg_lower)
                     if hora_match:
                         collected["horario_agendamento"] = hora_match.group(0).strip()
-                
-                print(f"🔄 Action corrigido para schedule_call via fallback: dia={collected.get('dia_agendamento')}, hora={collected.get('horario_agendamento')}")
-            
-            # Detectar end
+                print(f"🔄 Action corrigido para schedule_call via fallback")
+
             elif any(kw in msg_lower for kw in ["obrigada pelo seu tempo", "qualquer dúvida", "até logo"]):
                 action = "end"
-                
+
         # Enviar resposta via Evolution
         if ai_message:
             await send_text(instance_name, wa_id, ai_message)
 
             # Salvar mensagem no banco
-            import uuid
             ai_msg = Message(
                 tenant_id=tenant_id,
                 wa_message_id=f"ai_{uuid.uuid4().hex[:16]}",
