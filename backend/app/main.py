@@ -99,8 +99,9 @@ async def scheduler_job():
                         print(f"❌ Erro agendamento {s.id}: {e}")
                 await db.commit()
 
-            # Followup reminders
-            result_followup = await db.execute(
+            async with async_session() as db:
+                # Followup reminders
+                result_followup = await db.execute(
                 select(Schedule).where(
                     Schedule.status == "pending",
                     Schedule.type == "followup_reminder",
@@ -136,8 +137,9 @@ async def scheduler_job():
                     print(f"❌ Erro lembrete {s.id}: {e}")
             await db.commit()
 
-            # Briefing agent
-            result_briefing = await db.execute(
+            async with async_session() as db:
+                # Briefing agent
+                result_briefing = await db.execute(
                 select(Schedule).where(
                     Schedule.status == "pending",
                     Schedule.type == "briefing_agent",
@@ -160,8 +162,7 @@ async def scheduler_job():
                     s.status = "failed"
                     s.notes = str(e)
                     print(f"❌ Erro briefing {s.id}: {e}")
-            await db.commit()
-
+                await db.commit()
         except Exception as e:
             print(f"❌ Erro scheduler_job: {e}")
 
