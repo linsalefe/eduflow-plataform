@@ -70,7 +70,7 @@ export default function AppLayout({ children, fullWidth = false }: { children: R
           </div>
         </div>
 
-        <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-200 ${fullWidth ? '' : 'px-4 lg:px-6 pb-4 lg:pb-6'}`}>
+        <main className={`flex-1 flex flex-col overflow-y-auto transition-all duration-200 ${fullWidth ? '' : 'px-4 lg:px-6 pb-4 lg:pb-6'}`}>
           {children}
         </main>
       </div>
