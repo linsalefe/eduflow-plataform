@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, Save, Info, Zap, ChevronDown } from 'lucide-react';
+import { Bot, Save, Info, Zap, ChevronDown, MessageSquare, RotateCcw } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 
@@ -13,13 +13,30 @@ const AGENTS = [
   { key: 'briefing', label: 'Briefing', description: 'Resumo do lead antes da reunião' },
 ];
 
-// Agentes que podem ser disparados por coluna do kanban
 const TRIGGER_AGENTS = [
   { key: 'followup', label: 'Follow-up' },
   { key: 'reactivation', label: 'Reativação' },
   { key: 'whatsapp', label: 'Nat WhatsApp' },
   { key: 'voice', label: 'Nat Voice' },
 ];
+
+const VARIABLES_INFO = 'Variáveis disponíveis: {nome}, {data}, {hora}, {interesse}, {empresa}';
+
+const DEFAULT_MESSAGES = {
+  followup: {
+    confirmation: 'Oi {nome}! 😊 Ficou confirmado o nosso bate-papo para *{data} às {hora}*. Qualquer dúvida pode me chamar aqui. Até lá! 👋',
+    reminder_d1: 'Oi {nome}! 😊 Só passando para lembrar que amanhã temos nosso bate-papo agendado para às {hora}. Te espero lá!',
+    reminder_d0: 'Oi {nome}! 🎯 Daqui a pouco temos nosso bate-papo! Esteja à vontade para tirar todas as suas dúvidas. Até já! 😊',
+  },
+  reactivation: {
+    no_show: 'Oi {nome}! Vi que não conseguiu no horário combinado. Sem problemas! Quer remarcar? 😊',
+    no_answer: 'Oi {nome}! Tentei te contatar algumas vezes mas não consegui falar. Posso te ajudar de outra forma?',
+    cold: 'Oi {nome}! Tudo bem? Passando para saber se ainda tem interesse. Posso te contar mais detalhes? 😊',
+  },
+  briefing: {
+    prompt: 'Gere um briefing objetivo sobre o lead para a consultora usar na reunião. Destaque motivação, perfil e principais pontos de atenção. Seja direto e prático.',
+  },
+};
 
 interface KanbanColumn {
   key: string;
@@ -34,11 +51,18 @@ interface KanbanTrigger {
   active: boolean;
 }
 
+interface AgentMessages {
+  followup: { confirmation: string; reminder_d1: string; reminder_d0: string };
+  reactivation: { no_show: string; no_answer: string; cold: string };
+  briefing: { prompt: string };
+}
+
 export default function AgentesPage() {
   const [planFlags, setPlanFlags] = useState<Record<string, boolean>>({});
   const [agentFlags, setAgentFlags] = useState<Record<string, boolean>>({});
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [kanbanTriggers, setKanbanTriggers] = useState<Record<string, KanbanTrigger>>({});
+  const [agentMessages, setAgentMessages] = useState<AgentMessages>(DEFAULT_MESSAGES);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -46,17 +70,24 @@ export default function AgentesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [planRes, flagsRes, columnsRes, triggersRes] = await Promise.all([
+        const [planRes, flagsRes, columnsRes, triggersRes, messagesRes] = await Promise.all([
           api.get('/tenant/agent-plan-flags'),
           api.get('/tenant/agent-flags'),
           api.get('/tenant/kanban-columns'),
           api.get('/tenant/kanban-triggers'),
+          api.get('/tenant/agent-messages'),
         ]);
         setPlanFlags(planRes.data);
         setAgentFlags(flagsRes.data);
         const sorted = [...columnsRes.data].sort((a: KanbanColumn, b: KanbanColumn) => a.order - b.order);
         setKanbanColumns(sorted);
         setKanbanTriggers(triggersRes.data || {});
+        const msgs = messagesRes.data || {};
+        setAgentMessages({
+          followup: { ...DEFAULT_MESSAGES.followup, ...(msgs.followup || {}) },
+          reactivation: { ...DEFAULT_MESSAGES.reactivation, ...(msgs.reactivation || {}) },
+          briefing: { ...DEFAULT_MESSAGES.briefing, ...(msgs.briefing || {}) },
+        });
       } catch (err) {
         console.error('Erro ao carregar configurações de agentes', err);
       } finally {
@@ -83,12 +114,25 @@ export default function AgentesPage() {
     }));
   };
 
+  const handleMessageChange = (agent: keyof AgentMessages, field: string, value: string) => {
+    setAgentMessages(prev => ({
+      ...prev,
+      [agent]: { ...prev[agent], [field]: value },
+    }));
+  };
+
+  const handleReset = (agent: keyof AgentMessages, field: string) => {
+    const defaultValue = (DEFAULT_MESSAGES[agent] as any)[field];
+    handleMessageChange(agent, field, defaultValue);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       await Promise.all([
         api.put('/tenant/agent-flags', agentFlags),
         api.put('/tenant/kanban-triggers', kanbanTriggers),
+        api.put('/tenant/agent-messages', agentMessages),
       ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -108,6 +152,31 @@ export default function AgentesPage() {
       </AppLayout>
     );
   }
+
+  const MessageField = ({
+    label, value, agent, field, rows = 3
+  }: {
+    label: string; value: string; agent: keyof AgentMessages; field: string; rows?: number;
+  }) => (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-gray-500">{label}</label>
+        <button
+          onClick={() => handleReset(agent, field)}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <RotateCcw className="w-3 h-3" />
+          Restaurar padrão
+        </button>
+      </div>
+      <textarea
+        value={value}
+        onChange={e => handleMessageChange(agent, field, e.target.value)}
+        rows={rows}
+        className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 leading-relaxed"
+      />
+    </div>
+  );
 
   const content = (
     <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-8">
@@ -140,7 +209,6 @@ export default function AgentesPage() {
           {AGENTS.map((agent) => {
             const available = planFlags[agent.key] ?? false;
             const active = agentFlags[agent.key] ?? false;
-
             return (
               <div
                 key={agent.key}
@@ -156,7 +224,6 @@ export default function AgentesPage() {
                     <p className="text-xs text-gray-500">{agent.description}</p>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3">
                   {!available && (
                     <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400">
@@ -195,11 +262,8 @@ export default function AgentesPage() {
         <p className="text-xs text-gray-500 mb-4">
           Configure qual agente é acionado automaticamente quando um lead entra em cada coluna do pipeline.
         </p>
-
         {kanbanColumns.length === 0 ? (
-          <div className="text-center py-8 text-gray-400 text-sm">
-            Nenhuma coluna configurada no pipeline.
-          </div>
+          <div className="text-center py-8 text-gray-400 text-sm">Nenhuma coluna configurada no pipeline.</div>
         ) : (
           <div className="space-y-2">
             {kanbanColumns.map((col) => {
@@ -207,24 +271,12 @@ export default function AgentesPage() {
               const isActive = trigger?.active || false;
               const selectedAgent = trigger?.agent || '';
               const delay = trigger?.delay || 0;
-
               return (
-                <div
-                  key={col.key}
-                  className={`rounded-xl border transition-all ${isActive ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}`}
-                >
-                  {/* Row principal */}
+                <div key={col.key} className={`rounded-xl border transition-all ${isActive ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="flex items-center gap-3 p-4">
-                    {/* Cor da coluna */}
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
-
-                    {/* Nome da coluna */}
                     <p className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">{col.label}</p>
-
-                    {/* Seta */}
                     {isActive && <span className="text-gray-300 text-xs flex-shrink-0">→</span>}
-
-                    {/* Dropdown agente */}
                     <div className="relative flex-shrink-0">
                       <select
                         value={selectedAgent}
@@ -242,31 +294,21 @@ export default function AgentesPage() {
                       </select>
                       <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                     </div>
-
-                    {/* Delay */}
                     {isActive && selectedAgent && (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         <input
-                          type="number"
-                          min={0}
-                          max={1440}
-                          value={delay}
+                          type="number" min={0} max={1440} value={delay}
                           onChange={e => handleTriggerChange(col.key, 'delay', Number(e.target.value))}
                           className="w-14 text-xs text-center border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                         />
                         <span className="text-xs text-gray-400">min</span>
                       </div>
                     )}
-
-                    {/* Toggle ativo */}
                     <button
                       onClick={() => handleTriggerChange(col.key, 'active', !isActive)}
-                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 flex-shrink-0
-                        ${isActive ? 'bg-amber-400' : 'bg-gray-200'}`}
+                      className={`relative w-10 h-5 rounded-full transition-colors duration-200 flex-shrink-0 ${isActive ? 'bg-amber-400' : 'bg-gray-200'}`}
                     >
-                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
-                        ${isActive ? 'translate-x-5' : 'translate-x-0'}`}
-                      />
+                      <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${isActive ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </div>
                 </div>
@@ -274,11 +316,57 @@ export default function AgentesPage() {
             })}
           </div>
         )}
-
         <p className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5" />
           O campo "min" define o atraso em minutos antes do agente ser acionado. Use 0 para disparar imediatamente.
         </p>
+      </div>
+
+      {/* ── Seção 3: Mensagens dos agentes ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <MessageSquare className="w-4 h-4 text-indigo-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Mensagens dos Agentes</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">{VARIABLES_INFO}</p>
+
+        <div className="space-y-4">
+
+          {/* Follow-up */}
+          {(planFlags['followup']) && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+              <p className="text-sm font-semibold text-gray-700">📋 Follow-up</p>
+              <MessageField label="Confirmação (enviada logo após qualificação)" value={agentMessages.followup.confirmation} agent="followup" field="confirmation" rows={3} />
+              <MessageField label="Lembrete D-1 (dia anterior às 9h)" value={agentMessages.followup.reminder_d1} agent="followup" field="reminder_d1" rows={2} />
+              <MessageField label="Lembrete D-0 (2h antes da reunião)" value={agentMessages.followup.reminder_d0} agent="followup" field="reminder_d0" rows={2} />
+            </div>
+          )}
+
+          {/* Reativação */}
+          {(planFlags['reactivation']) && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+              <p className="text-sm font-semibold text-gray-700">🔄 Reativação</p>
+              <MessageField label="No-show (lead não apareceu na reunião)" value={agentMessages.reactivation.no_show} agent="reactivation" field="no_show" rows={2} />
+              <MessageField label="Sem resposta (após múltiplas tentativas)" value={agentMessages.reactivation.no_answer} agent="reactivation" field="no_answer" rows={2} />
+              <MessageField label="Lead frio (7 dias sem movimentação)" value={agentMessages.reactivation.cold} agent="reactivation" field="cold" rows={2} />
+            </div>
+          )}
+
+          {/* Briefing */}
+          {(planFlags['briefing']) && (
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+              <p className="text-sm font-semibold text-gray-700">✨ Briefing</p>
+              <MessageField label="Prompt para geração do briefing (enviado à consultora 15min antes)" value={agentMessages.briefing.prompt} agent="briefing" field="prompt" rows={4} />
+            </div>
+          )}
+
+          {!planFlags['followup'] && !planFlags['reactivation'] && !planFlags['briefing'] && (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              Nenhum agente disponível no seu plano para configurar mensagens.
+            </div>
+          )}
+
+        </div>
       </div>
 
     </div>
