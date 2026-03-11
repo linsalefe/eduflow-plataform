@@ -42,7 +42,7 @@ const featureMap: Record<string, string> = {
   '/users': 'usuarios',
   '/automacoes': 'automacoes',
   '/tarefas': 'tarefas',
-  '/ai-config': 'voice_ai',
+  '/ai-config': 'ai_whatsapp',
   '/voice-ai': 'voice_ai',
   '/agenda': 'agenda',
   '/canais': 'conversas',
