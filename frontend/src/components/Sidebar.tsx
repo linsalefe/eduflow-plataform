@@ -44,7 +44,7 @@ const featureMap: Record<string, string> = {
   '/voice-ai': 'voice_ai',
   '/agenda': 'agenda',
   '/canais': 'conversas',
-  '/configuracoes/agentes': 'voice_ai',
+  '/configuracoes/agentes': 'dashboard',
 };
 
 const menuGroups = [
