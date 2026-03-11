@@ -26,6 +26,7 @@ import {
   Target,
   DollarSign,
   Shield,
+  Bot,
 } from 'lucide-react';
 
 const featureMap: Record<string, string> = {
@@ -43,6 +44,7 @@ const featureMap: Record<string, string> = {
   '/voice-ai': 'voice_ai',
   '/agenda': 'agenda',
   '/canais': 'conversas',
+  '/configuracoes/agentes': 'voice_ai',
 };
 
 const menuGroups = [
@@ -73,6 +75,7 @@ const menuGroups = [
       { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
       { href: '/agenda', label: 'Agenda', icon: Calendar },
       { href: '/canais', label: 'Canais', icon: Radio },
+      { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot },
     ],
   },
 ];
