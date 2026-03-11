@@ -409,3 +409,49 @@ async def update_kanban_columns(
 
     await db.commit()
     return {"message": "Colunas atualizadas", "kanban_columns": tenant.kanban_columns}
+
+@tenant_router.get("/agent-messages")
+async def get_agent_messages(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.agent_messages or {
+        "followup": {
+            "confirmation": "Oi {nome}! 😊 Ficou confirmado o nosso bate-papo para *{data} às {hora}*. Qualquer dúvida pode me chamar aqui. Até lá! 👋",
+            "reminder_d1": "Oi {nome}! 😊 Só passando para lembrar que amanhã temos nosso bate-papo agendado para às {hora}. Te espero lá!",
+            "reminder_d0": "Oi {nome}! 🎯 Daqui a pouco temos nosso bate-papo! Esteja à vontade para tirar todas as suas dúvidas. Até já! 😊"
+        },
+        "reactivation": {
+            "no_show": "Oi {nome}! Vi que não conseguiu no horário combinado. Sem problemas! Quer remarcar? 😊",
+            "no_answer": "Oi {nome}! Tentei te contatar algumas vezes mas não consegui falar. Posso te ajudar de outra forma?",
+            "cold": "Oi {nome}! Tudo bem? Passando para saber se ainda tem interesse. Posso te contar mais detalhes? 😊"
+        },
+        "briefing": {
+            "prompt": "Gere um briefing objetivo sobre o lead para a consultora usar na reunião. Destaque motivação, perfil e principais pontos de atenção. Seja direto e prático."
+        }
+    }
+
+
+@tenant_router.put("/agent-messages")
+async def update_agent_messages(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.agent_messages = data
+    flag_modified(tenant, "agent_messages")
+
+    await db.commit()
+    return {"message": "Mensagens atualizadas", "agent_messages": tenant.agent_messages}
+

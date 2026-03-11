@@ -378,6 +378,21 @@ class Tenant(Base):
     agent_flags = Column(JSON, default={})
 
     kanban_triggers = Column(JSON, default={})
+    agent_messages = Column(JSON, default={
+        "followup": {
+            "confirmation": "Oi {nome}! 😊 Aqui é a Nat.\n\nQue ótimo papo! Ficou confirmado o nosso bate-papo para *{data} às {hora}*.\n\nQualquer dúvida pode me chamar aqui. Até lá! 👋",
+            "reminder_d1": "Oi {nome}! 😊 Só passando para lembrar que amanhã temos nosso bate-papo agendado para às {hora}. Te espero lá!",
+            "reminder_d0": "Oi {nome}! 🎯 Daqui a pouco temos nosso bate-papo! Esteja à vontade para tirar todas as suas dúvidas. Até já! 😊"
+        },
+        "reactivation": {
+            "no_show": "Oi {nome}! Vi que não conseguiu no horário combinado. Sem problemas! Quer remarcar? 😊",
+            "no_answer": "Oi {nome}! Tentei te contatar algumas vezes mas não consegui falar. Posso te ajudar de outra forma?",
+            "cold": "Oi {nome}! Tudo bem? Passando para saber se ainda tem interesse. Posso te contar mais detalhes? 😊"
+        },
+        "briefing": {
+            "prompt": "Gere um briefing objetivo sobre o lead para a consultora usar na reunião. Destaque motivação, perfil e principais pontos de atenção. Seja direto e prático."
+        }
+    })
     kanban_columns = Column(JSON, default=[
     {"key": "novo", "label": "Novos Leads", "color": "#6366f1", "order": 0},
     {"key": "em_contato", "label": "Em Contato", "color": "#f59e0b", "order": 1},
