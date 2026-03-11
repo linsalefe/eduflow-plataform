@@ -78,7 +78,17 @@ class AgentOrchestrator:
         elif event.event_type == "meeting_no_show":
             if plan.get("reactivation") and flags.get("reactivation"):
                 return "TRIGGER_REACTIVATION"
-
+        elif event.event_type.startswith("kanban_"):
+            agent = event.event_type.replace("kanban_", "")
+            if plan.get(agent) and flags.get(agent):
+                if agent == "followup":
+                    return "TRIGGER_FOLLOWUP"
+                elif agent == "reactivation":
+                    return "TRIGGER_REACTIVATION"
+                elif agent == "voice":
+                    return "TRIGGER_VOICE_CALL"
+                elif agent == "whatsapp":
+                    return "TRIGGER_WHATSAPP"
         return None
 
     async def _execute(self, action: str, event: AgentEvent, ctx: LeadAgentContext, tenant: Tenant, db: AsyncSession):

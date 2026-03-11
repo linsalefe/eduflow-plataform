@@ -648,6 +648,24 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         from app.automation_scheduler import trigger_automations_for_contact, cancel_automations_for_contact
         await cancel_automations_for_contact(wa_id, db)
         await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db)
+        # Kanban triggers → orquestrador
+        try:
+            from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
+            from app.models import Tenant
+            tenant_result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+            tenant_obj = tenant_result.scalar_one_or_none()
+            if tenant_obj:
+                triggers = tenant_obj.kanban_triggers or {}
+                trigger = triggers.get(req.lead_status)
+                if trigger and trigger.get("active") and trigger.get("agent"):
+                    await orchestrator.on_event(AgentEvent(
+                        lead_id=contact.id,
+                        tenant_id=tenant_id,
+                        event_type=f"kanban_{trigger['agent']}",
+                        payload={"column": req.lead_status, "delay": trigger.get("delay", 0)},
+                    ), db)
+        except Exception as e:
+            print(f"⚠️ Erro ao acionar trigger kanban: {e}")
         await notify_all_users(
             db, "status_change",
             f"{contact.name or wa_id} → {req.lead_status}",
