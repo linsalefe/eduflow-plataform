@@ -389,9 +389,11 @@ async def get_kanban_columns(
     ]
 
 
+from typing import List, Any
+
 @tenant_router.put("/kanban-columns")
 async def update_kanban_columns(
-    data: list,
+    data: List[Any],
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
