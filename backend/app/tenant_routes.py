@@ -369,3 +369,41 @@ async def update_kanban_triggers(
 
     await db.commit()
     return {"message": "Kanban triggers atualizados", "kanban_triggers": tenant.kanban_triggers}
+
+@tenant_router.get("/kanban-columns")
+async def get_kanban_columns(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.kanban_columns or [
+        {"key": "novo", "label": "Novos Leads", "color": "#6366f1", "order": 0},
+        {"key": "em_contato", "label": "Em Contato", "color": "#f59e0b", "order": 1},
+        {"key": "qualificado", "label": "Qualificados", "color": "#8b5cf6", "order": 2},
+        {"key": "em_matricula", "label": "Em Matrícula", "color": "#06b6d4", "order": 3},
+        {"key": "matriculado", "label": "Matriculados", "color": "#10b981", "order": 4},
+        {"key": "perdido", "label": "Perdidos", "color": "#ef4444", "order": 5},
+    ]
+
+
+@tenant_router.put("/kanban-columns")
+async def update_kanban_columns(
+    data: list,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.kanban_columns = data
+    flag_modified(tenant, "kanban_columns")
+
+    await db.commit()
+    return {"message": "Colunas atualizadas", "kanban_columns": tenant.kanban_columns}

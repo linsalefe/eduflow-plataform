@@ -378,6 +378,14 @@ class Tenant(Base):
     agent_flags = Column(JSON, default={})
 
     kanban_triggers = Column(JSON, default={})
+    kanban_columns = Column(JSON, default=[
+    {"key": "novo", "label": "Novos Leads", "color": "#6366f1", "order": 0},
+    {"key": "em_contato", "label": "Em Contato", "color": "#f59e0b", "order": 1},
+    {"key": "qualificado", "label": "Qualificados", "color": "#8b5cf6", "order": 2},
+    {"key": "em_matricula", "label": "Em Matrícula", "color": "#06b6d4", "order": 3},
+    {"key": "matriculado", "label": "Matriculados", "color": "#10b981", "order": 4},
+    {"key": "perdido", "label": "Perdidos", "color": "#ef4444", "order": 5},
+    ])
 
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")
