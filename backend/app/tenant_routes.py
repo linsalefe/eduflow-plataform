@@ -82,6 +82,7 @@ async def list_tenants(
             "max_users": t.max_users,
             "max_channels": t.max_channels,
             "features": t.features or {},
+            "agent_plan_flags": t.agent_plan_flags or {},
             "notes": t.notes,
             "user_count": user_count,
             "contact_count": contact_count,
