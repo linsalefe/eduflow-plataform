@@ -75,7 +75,7 @@ export default function AgentesPage() {
             <Bot className="w-5 h-5 text-[#818cf8]" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-white">Agentes IA</h1>
+            <h1 className="text-xl font-semibold text-gray-900">Agentes IA</h1>
             <p className="text-sm text-gray-500">Configure quais agentes estão ativos no seu funil</p>
           </div>
         </div>
@@ -110,7 +110,7 @@ export default function AgentesPage() {
                   <Bot className={`w-4 h-4 ${active && available ? 'text-[#818cf8]' : 'text-gray-500'}`} />
                 </div>
                 <div>
-                  <p className={`text-sm font-medium ${available ? 'text-white' : 'text-gray-500'}`}>
+                  <p className={`text-sm font-medium ${available ? 'text-gray-900' : 'text-gray-400'}`}>
                     {agent.label}
                   </p>
                   <p className="text-xs text-gray-500">{agent.description}</p>
