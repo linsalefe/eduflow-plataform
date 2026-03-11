@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Bot, Save, Info } from 'lucide-react';
+import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 
 const AGENTS = [
@@ -57,13 +58,15 @@ export default function AgentesPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
-      </div>
+      <AppLayout>
+        <div className="p-6 flex items-center justify-center h-64">
+          <div className="w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppLayout>
     );
   }
 
-  return (
+  const content = (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
@@ -145,4 +148,6 @@ export default function AgentesPage() {
       </p>
     </div>
   );
+
+  return <AppLayout>{content}</AppLayout>;
 }
