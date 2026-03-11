@@ -12,7 +12,7 @@ from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
 from app.kanban_routes import router as kanban_router
 from app.schedule_routes import router as schedule_router
-from app.tenant_routes import router as tenant_router
+from app.tenant_routes import router as tenant_router, tenant_router as tenant_agent_router
 from app.calendar_routes import router as calendar_router
 from app.notification_routes import router as notification_router
 from app.webhook_routes import router as webhook_router, public_router as webhook_public_router
@@ -207,6 +207,7 @@ app.include_router(landing_public_router)
 app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
 app.include_router(tenant_router)
+app.include_router(tenant_agent_router)
 app.include_router(voice_ai_router)
 app.include_router(automation_router)
 app.include_router(financial_router)

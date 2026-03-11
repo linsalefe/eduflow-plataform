@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
 from app.models import Tenant, User, Contact, Channel
-from app.auth import get_current_user, hash_password
+from app.auth import get_current_user, get_tenant_id, hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -254,3 +254,117 @@ async def toggle_tenant(
 
     status = "ativado" if tenant.is_active else "desativado"
     return {"message": f"Tenant {status}", "is_active": tenant.is_active}
+
+# ============================================================
+# ROTAS DE AGENTES — SUPERADMIN
+# ============================================================
+
+@router.patch("/tenants/{tenant_id}/plan-flags")
+async def update_plan_flags(
+    tenant_id: int,
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_superadmin),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    current = dict(tenant.agent_plan_flags or {})
+    current.update(data)
+    tenant.agent_plan_flags = current
+
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(tenant, "agent_plan_flags")
+
+    await db.commit()
+    return {"message": "Plan flags atualizados", "agent_plan_flags": tenant.agent_plan_flags}
+
+
+# ============================================================
+# ROTAS DE AGENTES — TENANT
+# ============================================================
+
+tenant_router = APIRouter(prefix="/api/tenant", tags=["Tenant - Agentes"])
+
+
+@tenant_router.get("/agent-plan-flags")
+async def get_agent_plan_flags(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.agent_plan_flags or {}
+
+
+@tenant_router.get("/agent-flags")
+async def get_agent_flags(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.agent_flags or {}
+
+
+@tenant_router.put("/agent-flags")
+async def update_agent_flags(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    plan = tenant.agent_plan_flags or {}
+    for agent, value in data.items():
+        if value and not plan.get(agent):
+            raise HTTPException(status_code=403, detail=f"Agente '{agent}' não disponível no plano")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.agent_flags = data
+    flag_modified(tenant, "agent_flags")
+
+    await db.commit()
+    return {"message": "Agent flags atualizados", "agent_flags": tenant.agent_flags}
+
+
+@tenant_router.get("/kanban-triggers")
+async def get_kanban_triggers(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.kanban_triggers or {}
+
+
+@tenant_router.put("/kanban-triggers")
+async def update_kanban_triggers(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.kanban_triggers = data
+    flag_modified(tenant, "kanban_triggers")
+
+    await db.commit()
+    return {"message": "Kanban triggers atualizados", "kanban_triggers": tenant.kanban_triggers}
