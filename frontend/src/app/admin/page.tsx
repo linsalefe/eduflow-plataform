@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import {
   Building2, Users, MessageCircle, Plus, Power, Settings2,
   ChevronDown, ChevronUp, Shield, Eye, EyeOff, Loader2, X,
-  Check, AlertTriangle,
+  Check, AlertTriangle, Bot
 } from 'lucide-react';
 
 interface Tenant {
@@ -23,11 +23,20 @@ interface Tenant {
   max_users: number;
   max_channels: number;
   features: Record<string, boolean>;
+  agent_plan_flags?: Record<string, boolean>;
   notes: string | null;
   user_count: number;
   contact_count: number;
   created_at: string;
 }
+
+const AGENT_LABELS: Record<string, string> = {
+  whatsapp: 'Nat WhatsApp',
+  voice: 'Nat Voice',
+  followup: 'Follow-up',
+  reactivation: 'Reativação',
+  briefing: 'Briefing',
+};
 
 const FEATURE_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
@@ -59,7 +68,6 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: string; msg: string } | null>(null);
 
   const fetchTenants = useCallback(async () => {
@@ -93,6 +101,17 @@ export default function AdminPage() {
       fetchTenants();
     } catch {
       showToast('error', 'Erro ao alterar status');
+    }
+  };
+
+  const toggleAgentPlanFlag = async (tenantId: number, agent: string, current: boolean) => {
+    try {
+      await api.patch(`/admin/tenants/${tenantId}/plan-flags`, {
+        [agent]: !current,
+      });
+      fetchTenants();
+    } catch {
+      showToast('error', 'Erro ao atualizar agente');
     }
   };
 
@@ -259,6 +278,32 @@ export default function AdminPage() {
                               className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
                                 enabled
                                   ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
+                                  : 'bg-white/[0.02] text-gray-600 border border-white/[0.04]'
+                              }`}
+                            >
+                              {enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Agentes IA */}
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                        <Bot className="w-4 h-4" /> Agentes IA
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {Object.entries(AGENT_LABELS).map(([key, label]) => {
+                          const enabled = tenant.agent_plan_flags?.[key] ?? false;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => toggleAgentPlanFlag(tenant.id, key, enabled)}
+                              className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                                enabled
+                                  ? 'bg-violet-500/10 text-violet-300 border border-violet-500/20'
                                   : 'bg-white/[0.02] text-gray-600 border border-white/[0.04]'
                               }`}
                             >
