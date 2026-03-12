@@ -168,13 +168,16 @@ async def process_message(
     messages.append({"role": "user", "content": user_message})
 
     try:
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_completion_tokens=max_tokens,
-        )
+        api_params = {
+            "model": model,
+            "messages": messages,
+            "max_completion_tokens": max_tokens,
+        }
+        # GPT-5 não suporta temperature customizada
+        if not model.startswith("gpt-5"):
+            api_params["temperature"] = temperature
 
+        response = await client.chat.completions.create(**api_params)
         raw = response.choices[0].message.content.strip()
 
         # Parse JSON
