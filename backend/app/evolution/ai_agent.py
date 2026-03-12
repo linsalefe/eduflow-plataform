@@ -160,9 +160,32 @@ async def process_message(
 
     # ── Montar mensagens ──────────────────────────────────────────────────────
     lead_info = f"\nDados do lead: Nome={contact_name}, Curso de interesse={course or 'não informado'}"
-    
+
+    FORMAT_RULES = """
+
+REGRAS CRÍTICAS DE ACTION (NUNCA IGNORE):
+- "continue": Use enquanto ainda está coletando informações ou conversando
+- "trigger_call": Use IMEDIATAMENTE quando o lead confirmar que PODE atender ligação AGORA
+- "schedule_call": Use IMEDIATAMENTE quando o lead CONFIRMAR um dia e horário para reunião/ligação
+- "end": Use quando o lead disser que não tem interesse ou a conversa encerrar
+
+FORMATO DE RESPOSTA OBRIGATÓRIO:
+Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do JSON):
+{
+  "message": "texto da mensagem para o lead",
+  "collected": {
+    "formacao": "valor ou null",
+    "atuacao": "valor ou null",
+    "motivacao": "valor ou null",
+    "aceita_ligacao": "sim/nao/null",
+    "dia_agendamento": "valor ou null",
+    "horario_agendamento": "valor ou null"
+  },
+  "action": "continue/trigger_call/schedule_call/end"
+}"""
+
     messages = [
-        {"role": "system", "content": system_prompt + lead_info + rag_context},
+        {"role": "system", "content": system_prompt + lead_info + rag_context + FORMAT_RULES},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
