@@ -40,6 +40,11 @@ class ReactivationAgent:
             "cold_7d":         "cold_7d",
             "call_completed":  self._from_call_completed(event),
         }
+
+        # Evento vindo do kanban trigger → tratar como lead frio
+        if event.event_type.startswith("kanban_"):
+            return "cold_7d"
+
         return mapping.get(event.event_type, "")
 
     def _from_call_completed(self, event: AgentEvent) -> str:
