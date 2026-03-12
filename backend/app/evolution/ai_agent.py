@@ -178,7 +178,19 @@ async def process_message(
             api_params["temperature"] = temperature
 
         response = await client.chat.completions.create(**api_params)
-        raw = response.choices[0].message.content.strip()
+        raw = (response.choices[0].message.content or "").strip()
+
+        # Retry com gpt-4o-mini se resposta vazia
+        if not raw and model.startswith("gpt-5"):
+            print(f"⚠️ GPT-5 retornou vazio, tentando retry com gpt-4o-mini...")
+            retry_params = {
+                "model": "gpt-4o-mini",
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }
+            response = await client.chat.completions.create(**retry_params)
+            raw = (response.choices[0].message.content or "").strip()
 
         # Parse JSON
         try:
