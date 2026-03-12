@@ -68,7 +68,7 @@ async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSessio
     config = result.scalar_one_or_none()
 
     if not config:
-        config = AIConfig(channel_id=channel_id)
+        config = AIConfig(channel_id=channel_id, tenant_id=tenant_id)
         db.add(config)
 
     if req.is_enabled is not None:
