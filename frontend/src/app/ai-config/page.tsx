@@ -257,6 +257,8 @@ export default function AIConfigPage() {
                       onChange={e => setConfig({ ...config, model: e.target.value })}
                       className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
                     >
+                      <option value="gpt-4o">GPT-4o</option>
+                      <option value="gpt-4o-mini">GPT-4o Mini</option>
                       <option value="gpt-5">GPT-5</option>
                       <option value="gpt-5-mini">GPT-5 Mini</option>
                       <option value="gpt-5.1">GPT-5.1</option>
