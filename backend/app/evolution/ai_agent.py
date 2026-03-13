@@ -237,7 +237,7 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
                 action = "trigger_call"
                 print(f"🔄 Action corrigido para trigger_call via fallback")
 
-            elif any(kw in msg_lower for kw in ["agendado", "agendada", "vamos agendar", "vai te ligar amanhã", "vai te ligar na"]):
+            elif any(kw in msg_lower for kw in ["agendado", "agendada", "confirmado", "confirmada", "confirmado:", "vamos agendar", "vai te ligar amanhã", "vai te ligar na"]):
                 action = "schedule_call"
                 if not collected.get("dia_agendamento") or collected["dia_agendamento"] == "null":
                     if "amanhã" in msg_lower or "amanha" in msg_lower:
