@@ -102,66 +102,66 @@ async def scheduler_job():
             async with async_session() as db:
                 # Followup reminders
                 result_followup = await db.execute(
-                select(Schedule).where(
-                    Schedule.status == "pending",
-                    Schedule.type == "followup_reminder",
-                    Schedule.scheduled_at <= now,
-                )
-            )
-            followup_schedules = result_followup.scalars().all()
-            for s in followup_schedules:
-                try:
-                    from app.models import Contact, Channel
-                    from app.evolution.client import send_text
-                    lead_result = await db.execute(
-                        select(Contact).where(Contact.wa_id == s.contact_wa_id)
+                    select(Schedule).where(
+                        Schedule.status == "pending",
+                        Schedule.type == "followup_reminder",
+                        Schedule.scheduled_at <= now,
                     )
-                    lead = lead_result.scalar_one_or_none()
-                    if lead:
-                        channel_result = await db.execute(
-                            select(Channel).where(
-                                Channel.tenant_id == s.tenant_id,
-                                Channel.is_active == True,
-                                Channel.type == "whatsapp",
-                            )
+                )
+                followup_schedules = result_followup.scalars().all()
+                for s in followup_schedules:
+                    try:
+                        from app.models import Contact, Channel
+                        from app.evolution.client import send_text
+                        lead_result = await db.execute(
+                            select(Contact).where(Contact.wa_id == s.contact_wa_id)
                         )
-                        channel = channel_result.scalars().first()
-                        if channel:
-                            msg = s.notes or "Lembrete da sua reunião! 😊"
-                            await send_text(channel.instance_name, lead.wa_id, msg)
-                            print(f"📅 Lembrete enviado para {lead.name} ({lead.wa_id})")
-                    s.status = "completed"
-                except Exception as e:
-                    s.status = "failed"
-                    s.notes = str(e)
-                    print(f"❌ Erro lembrete {s.id}: {e}")
-            await db.commit()
+                        lead = lead_result.scalar_one_or_none()
+                        if lead:
+                            channel_result = await db.execute(
+                                select(Channel).where(
+                                    Channel.tenant_id == s.tenant_id,
+                                    Channel.is_active == True,
+                                    Channel.type == "whatsapp",
+                                )
+                            )
+                            channel = channel_result.scalars().first()
+                            if channel:
+                                msg = s.notes or "Lembrete da sua reunião! 😊"
+                                await send_text(channel.instance_name, lead.wa_id, msg)
+                                print(f"📅 Lembrete enviado para {lead.name} ({lead.wa_id})")
+                        s.status = "completed"
+                    except Exception as e:
+                        s.status = "failed"
+                        s.notes = str(e)
+                        print(f"❌ Erro lembrete {s.id}: {e}")
+                await db.commit()
 
             async with async_session() as db:
                 # Briefing agent
                 result_briefing = await db.execute(
-                select(Schedule).where(
-                    Schedule.status == "pending",
-                    Schedule.type == "briefing_agent",
-                    Schedule.scheduled_at <= now,
-                )
-            )
-            briefing_schedules = result_briefing.scalars().all()
-            for s in briefing_schedules:
-                try:
-                    from app.agents.briefing.agent import BriefingAgent
-                    from app.models import Contact
-                    lead_result = await db.execute(
-                        select(Contact).where(Contact.wa_id == s.contact_wa_id)
+                    select(Schedule).where(
+                        Schedule.status == "pending",
+                        Schedule.type == "briefing_agent",
+                        Schedule.scheduled_at <= now,
                     )
-                    lead = lead_result.scalar_one_or_none()
-                    if lead:
-                        await BriefingAgent().handle(lead.id, s.tenant_id, db)
-                    s.status = "completed"
-                except Exception as e:
-                    s.status = "failed"
-                    s.notes = str(e)
-                    print(f"❌ Erro briefing {s.id}: {e}")
+                )
+                briefing_schedules = result_briefing.scalars().all()
+                for s in briefing_schedules:
+                    try:
+                        from app.agents.briefing.agent import BriefingAgent
+                        from app.models import Contact
+                        lead_result = await db.execute(
+                            select(Contact).where(Contact.wa_id == s.contact_wa_id)
+                        )
+                        lead = lead_result.scalar_one_or_none()
+                        if lead:
+                            await BriefingAgent().handle(lead.id, s.tenant_id, db)
+                        s.status = "completed"
+                    except Exception as e:
+                        s.status = "failed"
+                        s.notes = str(e)
+                        print(f"❌ Erro briefing {s.id}: {e}")
                 await db.commit()
         except Exception as e:
             print(f"❌ Erro scheduler_job: {e}")
