@@ -76,6 +76,7 @@ async def scheduler_job():
             from datetime import datetime, timezone, timedelta
             SP = timezone(timedelta(hours=-3))
             now = datetime.now(SP).replace(tzinfo=None)
+            print(f"⏰ Scheduler rodando: {now}")
 
             async with async_session() as db:
                 result = await db.execute(
