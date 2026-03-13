@@ -92,18 +92,8 @@ class FollowupAgent:
         data_str = collected_fields.get("data_agendamento") or collected_fields.get("dia_agendamento") or ""
         hora_str = collected_fields.get("hora_agendamento") or collected_fields.get("horario_agendamento") or ""
 
-        # Enviar confirmação
-        msg = _render_template(
-            templates["confirmation"],
-            nome=lead_name,
-            data=data_str,
-            hora=hora_str,
-            interesse="",
-            empresa="",
-        )
-        await self._send_whatsapp(phone, msg, event.tenant_id, db)
-
-        # Agendar lembretes
+        # Agendar lembretes (confirmação já é feita pela Nat no WhatsApp)
+        
         if meeting_date:
             await self._schedule_reminders(lead, meeting_date, event.tenant_id, db, templates, lead_name, hora_str)
 
