@@ -402,6 +402,11 @@ class Tenant(Base):
     {"key": "perdido", "label": "Perdidos", "color": "#ef4444", "order": 5},
     ])
 
+    agent_pipeline_moves = Column(JSON, default={
+        "on_first_contact": "em_contato",
+        "on_schedule_call": "qualificado",
+    })
+
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")
 

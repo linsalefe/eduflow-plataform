@@ -363,7 +363,23 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 action = result.get("action", "continue")
                 print(f"🤖 IA respondeu para {phone}: {result.get('message', '')[:80]} [action={action}]")
 
+                # Mover lead para "em_contato" no primeiro atendimento da IA
+                try:
+                    from app.models import Tenant
+                    if ct and ct.lead_status == "novo":
+                        tenant_result_move = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+                        tenant_move = tenant_result_move.scalar_one_or_none()
+                        moves = (tenant_move.agent_pipeline_moves or {}) if tenant_move else {}
+                        target = moves.get("on_first_contact", "")
+                        if target:
+                            ct.lead_status = target
+                            await db.commit()
+                            print(f"📊 Pipeline: lead {ct.id} movido de 'novo' → '{target}'")
+                except Exception as e:
+                    print(f"❌ Erro ao mover lead no primeiro contato: {e}")
+
                 # Disparar ligação se lead aceitou
+
                 if action == "trigger_call":
                     try:
                         from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
@@ -433,6 +449,19 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                     },
                                 ), db)
                                 print(f"🤖 Orquestrador acionado para lead {ct.id}")
+
+                                # Mover lead na pipeline automaticamente
+                                try:
+                                    moves = (tenant_obj.agent_pipeline_moves or {}) if tenant_obj else {}
+                                    target_status = moves.get("on_schedule_call", "")
+                                    if target_status and ct.lead_status != target_status:
+                                        old_status = ct.lead_status
+                                        ct.lead_status = target_status
+                                        await db.commit()
+                                        print(f"📊 Pipeline: lead {ct.id} movido de '{old_status}' → '{target_status}'")
+                                except Exception as e:
+                                    print(f"❌ Erro ao mover lead na pipeline: {e}")
+
                             else:
                                 print(f"⚠️ Não conseguiu parsear data: dia={dia}, horario={horario}")
                         else:
