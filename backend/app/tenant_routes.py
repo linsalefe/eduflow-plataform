@@ -455,3 +455,32 @@ async def update_agent_messages(
     await db.commit()
     return {"message": "Mensagens atualizadas", "agent_messages": tenant.agent_messages}
 
+@tenant_router.get("/agent-pipeline-moves")
+async def get_agent_pipeline_moves(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.agent_pipeline_moves or {"on_first_contact": "em_contato", "on_schedule_call": "qualificado"}
+
+
+@tenant_router.put("/agent-pipeline-moves")
+async def update_agent_pipeline_moves(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.agent_pipeline_moves = data
+    flag_modified(tenant, "agent_pipeline_moves")
+    await db.commit()
+    return {"message": "Pipeline moves atualizados", "agent_pipeline_moves": tenant.agent_pipeline_moves}

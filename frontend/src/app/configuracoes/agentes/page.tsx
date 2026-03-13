@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, Save, Info, Zap, ChevronDown, MessageSquare, RotateCcw } from 'lucide-react';
+import { Bot, Save, Info, Zap, ChevronDown, MessageSquare, RotateCcw, ArrowRight } from 'lucide-react';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
 
@@ -63,6 +63,7 @@ export default function AgentesPage() {
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
   const [kanbanTriggers, setKanbanTriggers] = useState<Record<string, KanbanTrigger>>({});
   const [agentMessages, setAgentMessages] = useState<AgentMessages>(DEFAULT_MESSAGES);
+  const [pipelineMoves, setPipelineMoves] = useState<Record<string, string>>({ on_first_contact: 'em_contato', on_schedule_call: 'qualificado' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -70,24 +71,28 @@ export default function AgentesPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [planRes, flagsRes, columnsRes, triggersRes, messagesRes] = await Promise.all([
+        const [planRes, flagsRes, columnsRes, triggersRes, messagesRes, movesRes] = await Promise.all([
           api.get('/tenant/agent-plan-flags'),
           api.get('/tenant/agent-flags'),
           api.get('/tenant/kanban-columns'),
           api.get('/tenant/kanban-triggers'),
           api.get('/tenant/agent-messages'),
+          api.get('/tenant/agent-pipeline-moves'),
         ]);
         setPlanFlags(planRes.data);
         setAgentFlags(flagsRes.data);
         const sorted = [...columnsRes.data].sort((a: KanbanColumn, b: KanbanColumn) => a.order - b.order);
         setKanbanColumns(sorted);
         setKanbanTriggers(triggersRes.data || {});
+        
         const msgs = messagesRes.data || {};
         setAgentMessages({
           followup: { ...DEFAULT_MESSAGES.followup, ...(msgs.followup || {}) },
           reactivation: { ...DEFAULT_MESSAGES.reactivation, ...(msgs.reactivation || {}) },
           briefing: { ...DEFAULT_MESSAGES.briefing, ...(msgs.briefing || {}) },
         });
+
+        setPipelineMoves(movesRes.data || { on_first_contact: 'em_contato', on_schedule_call: 'qualificado' });
       } catch (err) {
         console.error('Erro ao carregar configurações de agentes', err);
       } finally {
@@ -133,6 +138,7 @@ export default function AgentesPage() {
         api.put('/tenant/agent-flags', agentFlags),
         api.put('/tenant/kanban-triggers', kanbanTriggers),
         api.put('/tenant/agent-messages', agentMessages),
+        api.put('/tenant/agent-pipeline-moves', pipelineMoves),
       ]);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -322,7 +328,62 @@ export default function AgentesPage() {
         </p>
       </div>
 
-      {/* ── Seção 3: Mensagens dos agentes ── */}
+      {/* ── Seção 3: Movimentação Automática ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <ArrowRight className="w-4 h-4 text-emerald-500" />
+          <h2 className="text-sm font-semibold text-gray-700">Movimentação Automática</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Configure para qual coluna do pipeline a IA move o lead automaticamente em cada etapa.
+        </p>
+        <div className="bg-white border border-gray-100 rounded-2xl p-5 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-500">Primeiro contato da IA</label>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400 w-32">Mover lead para →</span>
+              <div className="relative flex-1">
+                <select
+                  value={pipelineMoves.on_first_contact || ''}
+                  onChange={e => setPipelineMoves(prev => ({ ...prev, on_first_contact: e.target.value }))}
+                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  <option value="">Não mover</option>
+                  {kanbanColumns.map(col => (
+                    <option key={col.key} value={col.key}>{col.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-500">Reunião agendada pela IA</label>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400 w-32">Mover lead para →</span>
+              <div className="relative flex-1">
+                <select
+                  value={pipelineMoves.on_schedule_call || ''}
+                  onChange={e => setPipelineMoves(prev => ({ ...prev, on_schedule_call: e.target.value }))}
+                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                >
+                  <option value="">Não mover</option>
+                  {kanbanColumns.map(col => (
+                    <option key={col.key} value={col.key}>{col.label}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-gray-400 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5" />
+          Selecione "Não mover" se não quiser que a IA altere a coluna do lead nessa etapa.
+        </p>
+      </div>
+
+      {/* ── Seção 4: Mensagens dos agentes ── */}
       <div>
         <div className="flex items-center gap-2 mb-1">
           <MessageSquare className="w-4 h-4 text-indigo-500" />
