@@ -376,36 +376,63 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 # Agendar ligação se lead não pode agora
                 elif action == "schedule_call":
                     try:
-                        from app.models import Schedule
-                        notes_data = json.loads(ct.notes or "{}")
-                        course = notes_data.get("course", "Pós-graduação")
-                        collected = result.get("collected", {})
+                        from app.models import Schedule, Tenant
+                        from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
 
+                        collected = result.get("collected", {})
                         dia = collected.get("dia_agendamento", "")
                         horario = collected.get("horario_agendamento", "")
 
                         if dia and horario:
-                            # Converter dia/horário para datetime
                             from app.evolution.scheduler import parse_schedule_datetime
                             scheduled_dt = parse_schedule_datetime(dia, horario)
 
                             if scheduled_dt:
-                                schedule = Schedule(
+                                # Verificar se tenant tem voice ativo
+                                tenant_result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+                                tenant_obj = tenant_result.scalar_one_or_none()
+                                plan_flags = (tenant_obj.agent_plan_flags or {}) if tenant_obj else {}
+                                agent_flags = (tenant_obj.agent_flags or {}) if tenant_obj else {}
+
+                                if plan_flags.get("voice") and agent_flags.get("voice"):
+                                    # Tenant tem voz → agendar ligação automática
+                                    notes_data = json.loads(ct.notes or "{}")
+                                    course = notes_data.get("course", "Pós-graduação")
+                                    schedule = Schedule(
+                                        tenant_id=tenant_id,
+                                        type="voice_ai",
+                                        contact_wa_id=phone,
+                                        contact_name=sender_name,
+                                        phone=phone,
+                                        course=course,
+                                        scheduled_date=scheduled_dt.strftime("%Y-%m-%d"),
+                                        scheduled_time=scheduled_dt.strftime("%H:%M"),
+                                        scheduled_at=scheduled_dt,
+                                        status="pending",
+                                        channel_id=channel_id,
+                                    )
+                                    db.add(schedule)
+                                    await db.commit()
+                                    print(f"📞 Agendamento voice_ai criado: {sender_name} → {scheduled_dt}")
+                                else:
+                                    await db.commit()
+                                    print(f"👤 Tenant sem voice ativo — reunião com closer humana: {scheduled_dt}")
+
+                                # Sempre acionar orquestrador → FollowupAgent
+                                await orchestrator.on_event(AgentEvent(
+                                    lead_id=ct.id,
                                     tenant_id=tenant_id,
-                                    type="voice_ai",
-                                    contact_wa_id=phone,
-                                    contact_name=sender_name,
-                                    phone=phone,
-                                    course=course,
-                                    scheduled_date=scheduled_dt.strftime("%Y-%m-%d"),
-                                    scheduled_time=scheduled_dt.strftime("%H:%M"),
-                                    scheduled_at=scheduled_dt,
-                                    status="pending",
-                                    channel_id=channel_id,
-                                )
-                                db.add(schedule)
-                                await db.commit()
-                                print(f"📅 Agendamento criado: {sender_name} → {scheduled_dt}")
+                                    event_type="call_completed",
+                                    payload={
+                                        "outcome": "qualified",
+                                        "summary": f"Lead qualificado via WhatsApp. Reunião agendada para {scheduled_dt}",
+                                        "collected_fields": {
+                                            "data_agendamento": scheduled_dt.strftime("%d/%m/%Y"),
+                                            "hora_agendamento": scheduled_dt.strftime("%H:%M"),
+                                        },
+                                    },
+                                ), db)
+                                print(f"🤖 Orquestrador acionado para lead {ct.id}")
                             else:
                                 print(f"⚠️ Não conseguiu parsear data: dia={dia}, horario={horario}")
                         else:
