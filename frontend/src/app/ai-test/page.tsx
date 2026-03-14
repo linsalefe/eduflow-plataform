@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import {
   Bot, Send, Loader2, Trash2, User
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 
 interface ChatMessage {
@@ -110,7 +110,7 @@ export default function AITestPage() {
   if (!mounted) return null;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 bg-[#f8f9fb] flex flex-col overflow-hidden">
 
         {/* Header */}
@@ -300,6 +300,6 @@ export default function AITestPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

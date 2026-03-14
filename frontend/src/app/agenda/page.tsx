@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import { Calendar, Clock, Phone, User, GraduationCap, Plus, X, ChevronLeft, ChevronRight, Bot, UserCheck, Trash2, Edit3, Check, Ban } from 'lucide-react';
 
@@ -203,7 +203,7 @@ export default function AgendaPage() {
   const selectedDaySchedules = selectedDate ? getSchedulesForDate(selectedDate) : [];
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="px-4 lg:px-6 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -452,7 +452,7 @@ export default function AgendaPage() {
           onCancel={() => setConfirmAction(null)}
         />
       )}
-    </AppLayout>
+    </AppShell>
   );
 }
 

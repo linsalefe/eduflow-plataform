@@ -5,7 +5,7 @@ import {
   DollarSign, TrendingUp, Users, BookOpen,
   Plus, Trash2, Loader2, Filter, X, Calendar,
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -134,7 +134,7 @@ export default function FinanceiroPage() {
   );
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -420,6 +420,6 @@ export default function FinanceiroPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
-    </AppLayout>
+    </AppShell>
   );
 }

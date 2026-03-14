@@ -9,7 +9,7 @@ import {
   ExternalLink, Save, ArrowLeft, Play, Upload, ImageIcon, Trash2 as TrashIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 
@@ -393,7 +393,7 @@ export default function LandingPagesPage() {
 
   if (editorMode === 'list') {
     return (
-      <AppLayout>
+      <AppShell>
         <div className="p-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -456,7 +456,7 @@ export default function LandingPagesPage() {
           )}
         </div>
         <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel="Remover" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
-      </AppLayout>
+      </AppShell>
     );
   }
 
@@ -465,7 +465,7 @@ export default function LandingPagesPage() {
   // ═══════════════════════════════════════════
 
   return (
-    <AppLayout>
+    <AppShell>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Lora:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=Bitter:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet" />
       <div className="h-[calc(100vh-64px)] flex flex-col">
         {/* Top bar */}
@@ -691,7 +691,7 @@ export default function LandingPagesPage() {
         </div>
       </div>
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel="Remover" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
-    </AppLayout>
+    </AppShell>
   );
 }
 

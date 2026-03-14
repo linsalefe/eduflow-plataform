@@ -5,7 +5,7 @@ import {
   QrCode, X, RefreshCw, LogOut
 } from 'lucide-react';
 import { toast } from 'sonner';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 
@@ -218,7 +218,7 @@ export default function ChannelsPage() {
   };
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="max-w-5xl mx-auto space-y-6 pb-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-8">
@@ -555,6 +555,6 @@ export default function ChannelsPage() {
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))}
       />
-    </AppLayout>
+    </AppShell>
   );
 }

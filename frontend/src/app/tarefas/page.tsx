@@ -5,7 +5,7 @@ import {
   User, Flag, FileText, Loader2, Filter, Phone, Mail, Users,
   MessageCircle, Trash2, Edit3, ChevronDown, ListTodo, Target,
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -253,16 +253,16 @@ export default function TarefasPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppShell>
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
         </div>
-      </AppLayout>
+      </AppShell>
     );
   }
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 bg-gray-50 min-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
@@ -582,6 +582,6 @@ export default function TarefasPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
-    </AppLayout>
+    </AppShell>
   );
 }

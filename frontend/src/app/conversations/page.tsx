@@ -31,7 +31,7 @@ import {
   Target,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import ActivityTimeline from '@/components/ActivityTimeline';
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
@@ -733,7 +733,7 @@ export default function ConversationsPage() {
   });
 
   return (
-    <AppLayout fullWidth>
+    <AppShell fullWidth>
       <div className="flex h-full">
 
         {/* SIDEBAR CONTATOS */}
@@ -1933,6 +1933,6 @@ export default function ConversationsPage() {
         )}
 
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

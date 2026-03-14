@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import {
@@ -98,7 +98,7 @@ export default function CallsPage() {
   const inboundCalls = calls.filter((c) => c.direction === 'inbound').length;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 overflow-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -243,6 +243,6 @@ export default function CallsPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

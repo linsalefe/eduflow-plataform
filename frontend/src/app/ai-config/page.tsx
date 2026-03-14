@@ -5,7 +5,7 @@ import {
   Bot, Upload, Trash2, Save, FileText, Settings, ToggleLeft, ToggleRight,
   Loader2, CheckCircle, AlertCircle, ChevronDown, Sparkles, Database
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 
 interface ChannelInfo {
@@ -163,7 +163,7 @@ export default function AIConfigPage() {
   const totalChunks = documents.reduce((sum, d) => sum + d.chunks, 0);
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 bg-[#f8f9fb] overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
 
@@ -451,6 +451,6 @@ export default function AIConfigPage() {
           )}
         </div>
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

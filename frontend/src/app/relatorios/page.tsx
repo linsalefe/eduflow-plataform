@@ -5,7 +5,7 @@ import {
   Download, FileSpreadsheet, Users, GitBranch, MessageSquare,
   Loader2, CheckCircle, Calendar, Filter,
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -113,7 +113,7 @@ export default function RelatoriosPage() {
   };
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="max-w-4xl mx-auto space-y-6 pb-8">
 
         {/* Header */}
@@ -240,6 +240,6 @@ export default function RelatoriosPage() {
         </div>
 
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

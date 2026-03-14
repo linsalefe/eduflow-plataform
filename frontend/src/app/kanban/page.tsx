@@ -6,7 +6,7 @@ import {
   Loader2, ChevronDown, Filter, RefreshCw, FileText, Phone,
   GraduationCap, Calendar, Sparkles, AlertCircle
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 
 interface KanbanCard {
@@ -192,7 +192,7 @@ export default function KanbanPage() {
   if (!mounted) return null;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
 
         {/* Header */}
@@ -553,6 +553,6 @@ export default function KanbanPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

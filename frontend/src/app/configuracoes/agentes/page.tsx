@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Bot, Save, Info, Zap, ChevronDown, MessageSquare, RotateCcw, ArrowRight } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 
 const AGENTS = [
@@ -151,11 +151,11 @@ export default function AgentesPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppShell>
         <div className="p-6 flex items-center justify-center h-64">
           <div className="w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppLayout>
+      </AppShell>
     );
   }
 
@@ -433,5 +433,5 @@ export default function AgentesPage() {
     </div>
   );
 
-  return <AppLayout>{content}</AppLayout>;
+  return <AppShell>{content}</AppShell>;
 }

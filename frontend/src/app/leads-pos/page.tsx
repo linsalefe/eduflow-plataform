@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { GraduationCap, Search, RefreshCw, Loader2, Phone, Filter, X, Mail, Briefcase, MapPin, Clock, ExternalLink, MessageCircle, TrendingUp, FileCheck, XCircle as XCircleIcon, Users } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
 
@@ -184,7 +184,7 @@ export default function LeadsPosPage() {
 
   if (loading) {
     return (
-      <AppLayout>
+      <AppShell>
         <div className="animate-pulse space-y-6 max-w-7xl mx-auto">
           <div className="space-y-2">
             <div className="h-4 bg-gray-200 rounded w-32" />
@@ -198,7 +198,7 @@ export default function LeadsPosPage() {
           <div className="h-16 bg-gray-200 rounded-2xl" />
           <div className="h-96 bg-gray-200 rounded-2xl" />
         </div>
-      </AppLayout>
+      </AppShell>
     );
   }
 
@@ -207,7 +207,7 @@ export default function LeadsPosPage() {
   const hasActiveFilters = search || stageFilter || subSourceFilter;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto overflow-y-auto h-full pb-6">
 
         {/* Header */}
@@ -535,6 +535,6 @@ export default function LeadsPosPage() {
           </div>
         </div>
       )}
-    </AppLayout>
+    </AppShell>
   );
 }

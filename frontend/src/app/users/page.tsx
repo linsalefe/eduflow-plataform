@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { UserPlus, Shield, User, Mail, Loader2, Eye, EyeOff, X, AlertCircle, Lock, Users } from 'lucide-react';
@@ -96,7 +96,7 @@ export default function UsersPage() {
   const adminCount = users.filter(u => u.role === 'admin').length;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="space-y-4 lg:space-y-6 max-w-4xl mx-auto h-full overflow-y-auto pb-6">
 
         {/* Header */}
@@ -322,6 +322,6 @@ export default function UsersPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }

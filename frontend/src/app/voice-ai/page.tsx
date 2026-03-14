@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import {
@@ -234,7 +234,7 @@ export default function VoiceAIPage() {
   if (authLoading || !user) return null;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 overflow-auto bg-[#0a0f1a]">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-[#0a0f1a]/95 backdrop-blur border-b border-white/[0.06] px-8 py-5">
@@ -303,7 +303,7 @@ export default function VoiceAIPage() {
           />
         )}
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }
 

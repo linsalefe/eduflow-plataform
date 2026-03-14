@@ -5,7 +5,7 @@ import {
   Loader2, ArrowUpRight, Filter, Globe, Megaphone, FileText,
   PieChart
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from "@/components/app-shell";;
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
@@ -56,11 +56,11 @@ export default function DashboardROIPage() {
 
   if (loading || !data) {
     return (
-      <AppLayout>
+      <AppShell>
         <div className="flex items-center justify-center py-32">
           <Loader2 className="w-6 h-6 text-[#6366f1] animate-spin" />
         </div>
-      </AppLayout>
+      </AppShell>
     );
   }
 
@@ -68,7 +68,7 @@ export default function DashboardROIPage() {
   const totalFunnel = Object.values(data.funnel).reduce((a, b) => a + b, 0);
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="space-y-6 max-w-7xl mx-auto pb-8">
 
         {/* Header */}
@@ -270,6 +270,6 @@ export default function DashboardROIPage() {
         </div>
 
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }
