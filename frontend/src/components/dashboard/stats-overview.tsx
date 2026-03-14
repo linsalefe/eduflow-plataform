@@ -34,13 +34,14 @@ export function StatsOverview({
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-      {cards.map((card) => (
+      {cards.map((card, i) => (
         <KPICard
           key={card.key}
           label={card.label}
           value={values[card.key]}
           icon={card.icon}
           loading={loading}
+          index={i}
         />
       ))}
     </div>

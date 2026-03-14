@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 
 import { GreetingHeader } from '@/components/dashboard/greeting-header';
 import { StatsOverview } from '@/components/dashboard/stats-overview';
-import { DailyMessagesChart } from '@/components/dashboard/daily-messages-chart';
+import { HeroChart } from '@/components/dashboard/hero-chart';
 import { StatusDistribution } from '@/components/dashboard/status-distribution';
 import { AgentPerformance } from '@/components/dashboard/agent-performance';
 import { TagDistribution } from '@/components/dashboard/tag-distribution';
@@ -101,14 +101,6 @@ export default function DashboardPage() {
           <DashboardSkeleton />
         ) : (
           <>
-            {/* KPI Cards */}
-            <StatsOverview
-              totalContacts={stats.total_contacts}
-              newToday={stats.new_today}
-              inboundToday={stats.inbound_today}
-              outboundToday={stats.outbound_today}
-            />
-
             {/* Empty state for new accounts */}
             {stats.total_contacts === 0 ? (
               <EmptyState
@@ -120,18 +112,28 @@ export default function DashboardPage() {
               />
             ) : (
               <>
-                {/* Charts row: Messages + Funnel */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
-                  <div className="lg:col-span-2">
-                    <DailyMessagesChart
-                      data={stats.daily_messages}
-                      messagesWeek={stats.messages_week}
-                    />
-                  </div>
+                {/* Hero Chart — full width, elemento dominante */}
+                <HeroChart
+                  data={stats.daily_messages}
+                  totalWeek={stats.messages_week}
+                  trendPct={advanced?.trend_pct}
+                />
+
+                {/* KPI Cards com stagger animation */}
+                <StatsOverview
+                  totalContacts={stats.total_contacts}
+                  newToday={stats.new_today}
+                  inboundToday={stats.inbound_today}
+                  outboundToday={stats.outbound_today}
+                />
+
+                {/* Status + Tags */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                   <StatusDistribution
                     statusCounts={stats.status_counts}
                     totalContacts={stats.total_contacts}
                   />
+                  {advanced && <TagDistribution tags={advanced.tags} />}
                 </div>
 
                 {/* Advanced metrics */}
@@ -145,11 +147,13 @@ export default function DashboardPage() {
                         icon={Target}
                         trend={advanced.conversion_rate > 0 ? 'up' : 'neutral'}
                         previousValue={`${advanced.converted} de ${advanced.total}`}
+                        index={0}
                       />
                       <KPICard
                         label="Tempo Médio de Resposta"
                         value={formatResponseTime(advanced.avg_response_minutes)}
                         icon={Clock}
+                        index={1}
                       />
                       <KPICard
                         label="Novos Leads (semana)"
@@ -158,17 +162,15 @@ export default function DashboardPage() {
                         trend={advanced.trend_pct >= 0 ? 'up' : 'down'}
                         trendValue={`${advanced.trend_pct >= 0 ? '+' : ''}${advanced.trend_pct}%`}
                         previousValue={`${advanced.new_last_week} sem. passada`}
+                        index={2}
                       />
                     </div>
 
-                    {/* Agents + Tags */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
-                      <AgentPerformance
-                        agents={advanced.agents}
-                        unassignedLeads={advanced.unassigned_leads}
-                      />
-                      <TagDistribution tags={advanced.tags} />
-                    </div>
+                    {/* Agents */}
+                    <AgentPerformance
+                      agents={advanced.agents}
+                      unassignedLeads={advanced.unassigned_leads}
+                    />
                   </>
                 )}
 
@@ -178,21 +180,25 @@ export default function DashboardPage() {
                     label="Mensagens hoje"
                     value={stats.messages_today}
                     icon={MessageSquare}
+                    index={0}
                   />
                   <KPICard
                     label="Matriculados"
                     value={stats.status_counts['convertido'] || 0}
                     icon={Users}
+                    index={1}
                   />
                   <KPICard
                     label="Em Matrícula"
                     value={stats.status_counts['negociando'] || 0}
                     icon={TrendingUp}
+                    index={2}
                   />
                   <KPICard
                     label="Qualificados"
                     value={stats.status_counts['qualificado'] || 0}
                     icon={Activity}
+                    index={3}
                   />
                 </div>
               </>
