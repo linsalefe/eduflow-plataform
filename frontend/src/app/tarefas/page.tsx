@@ -255,7 +255,7 @@ export default function TarefasPage() {
     return (
       <AppShell>
         <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </AppShell>
     );
@@ -263,21 +263,21 @@ export default function TarefasPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 bg-gray-50 min-h-screen">
+      <div className="flex-1 bg-background min-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Target className="w-7 h-7 text-indigo-600" />
+                <Target className="w-7 h-7 text-primary" />
                 Tarefas
               </h1>
               <p className="text-sm text-gray-500 mt-1">Gerencie as atividades do time comercial</p>
             </div>
             <button
               onClick={openNew}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
               Nova Tarefa
@@ -312,7 +312,7 @@ export default function TarefasPage() {
                 onClick={() => setActiveFilter(tab.key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   activeFilter === tab.key
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-primary text-white'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -362,11 +362,11 @@ export default function TarefasPage() {
                       className="mt-0.5 flex-shrink-0"
                     >
                       {completing === task.id ? (
-                        <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
                       ) : task.status === 'completed' ? (
                         <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                       ) : (
-                        <Circle className="w-5 h-5 text-gray-300 hover:text-indigo-500 transition-colors cursor-pointer" />
+                        <Circle className="w-5 h-5 text-gray-300 hover:text-primary transition-colors cursor-pointer" />
                       )}
                     </button>
 
@@ -378,7 +378,7 @@ export default function TarefasPage() {
                         </p>
                         {/* Actions */}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                          <button onClick={() => openEdit(task)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                          <button onClick={() => openEdit(task)} className="p-1.5 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button onClick={() => setDeleteId(task.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -422,7 +422,7 @@ export default function TarefasPage() {
 
                         {/* Contato */}
                         {task.contact_name && (
-                          <span className="flex items-center gap-1 text-indigo-600">
+                          <span className="flex items-center gap-1 text-primary">
                             <MessageCircle className="w-3.5 h-3.5" />
                             {task.contact_name}
                           </span>
@@ -462,7 +462,7 @@ export default function TarefasPage() {
                   value={form.title}
                   onChange={e => setForm({ ...form, title: e.target.value })}
                   placeholder="Ex: Ligar para o João sobre matrícula"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
               </div>
 
@@ -474,7 +474,7 @@ export default function TarefasPage() {
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   placeholder="Detalhes adicionais..."
                   rows={2}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none"
                 />
               </div>
 
@@ -485,7 +485,7 @@ export default function TarefasPage() {
                   <select
                     value={form.type}
                     onChange={e => setForm({ ...form, type: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white"
                   >
                     {Object.entries(TYPE_MAP).map(([key, { label }]) => (
                       <option key={key} value={key}>{label}</option>
@@ -497,7 +497,7 @@ export default function TarefasPage() {
                   <select
                     value={form.priority}
                     onChange={e => setForm({ ...form, priority: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white"
                   >
                     {Object.entries(PRIORITY_MAP).map(([key, { label }]) => (
                       <option key={key} value={key}>{label}</option>
@@ -514,7 +514,7 @@ export default function TarefasPage() {
                     type="date"
                     value={form.due_date}
                     onChange={e => setForm({ ...form, due_date: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   />
                 </div>
                 <div>
@@ -523,7 +523,7 @@ export default function TarefasPage() {
                     type="time"
                     value={form.due_time}
                     onChange={e => setForm({ ...form, due_time: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                   />
                 </div>
               </div>
@@ -534,7 +534,7 @@ export default function TarefasPage() {
                 <select
                   value={form.assigned_to}
                   onChange={e => setForm({ ...form, assigned_to: Number(e.target.value) })}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white"
                 >
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
@@ -550,7 +550,7 @@ export default function TarefasPage() {
                   value={form.contact_wa_id}
                   onChange={e => setForm({ ...form, contact_wa_id: e.target.value })}
                   placeholder="Número WhatsApp do contato (ex: 5583999999999)"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none"
                 />
               </div>
             </div>
@@ -565,7 +565,7 @@ export default function TarefasPage() {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
+                className="px-4 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary rounded-xl transition-colors"
               >
                 {editingTask ? 'Salvar' : 'Criar Tarefa'}
               </button>
