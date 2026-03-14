@@ -211,7 +211,7 @@ export default function AgendaPage() {
             <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Agenda</h1>
             <p className="text-sm text-gray-500">Agendamentos de ligações da IA e consultoras</p>
           </div>
-          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl hover:bg-[#5558e6] transition-colors text-sm font-medium w-fit">
+          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl hover:bg-[#1e40af] transition-colors text-sm font-medium w-fit">
             <Plus className="w-4 h-4" /> Novo Agendamento
           </button>
         </div>
@@ -435,7 +435,7 @@ export default function AgendaPage() {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleSave} disabled={saving || !formPhone || !formDate || !formTime} className="flex-1 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl text-sm font-medium hover:bg-[#5558e6] disabled:opacity-50 transition-colors">
+              <button onClick={handleSave} disabled={saving || !formPhone || !formDate || !formTime} className="flex-1 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl text-sm font-medium hover:bg-[#1e40af] disabled:opacity-50 transition-colors">
                 {saving ? 'Salvando...' : editingSchedule ? 'Atualizar' : 'Agendar'}
               </button>
             </div>
