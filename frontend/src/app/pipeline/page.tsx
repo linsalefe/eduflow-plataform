@@ -6,7 +6,7 @@ import {
   Sparkles, FileText, ChevronRight, Settings2, GripVertical, Trash2,
   Plus, X, Save, AlertTriangle
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from '@/components/app-shell';
 import api from '@/lib/api';
 
 interface Lead {
@@ -406,7 +406,7 @@ export default function PipelinePage() {
     new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
 
         {/* Header */}
@@ -674,6 +674,6 @@ export default function PipelinePage() {
           />
         )}
       </div>
-    </AppLayout>
+    </AppShell>
   );
 }
