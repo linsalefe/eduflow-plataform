@@ -82,7 +82,7 @@ function StatCard({ icon: Icon, label, value, sub, color = 'indigo' }: {
   icon: any; label: string; value: string | number; sub?: string; color?: string;
 }) {
   const colors: Record<string, string> = {
-    indigo: 'from-indigo-500/20 to-indigo-600/10 text-indigo-400 border-indigo-500/20',
+    indigo: 'from-blue-700/20 to-blue-800/10 text-blue-400 border-blue-700/20',
     green: 'from-emerald-500/20 to-emerald-600/10 text-emerald-400 border-emerald-500/20',
     amber: 'from-amber-500/20 to-amber-600/10 text-amber-400 border-amber-500/20',
     red: 'from-red-500/20 to-red-600/10 text-red-400 border-red-500/20',
@@ -240,7 +240,7 @@ export default function VoiceAIPage() {
         <div className="sticky top-0 z-10 bg-[#0a0f1a]/95 backdrop-blur border-b border-white/[0.06] px-8 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-700 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-700/20">
                 <PhoneCall className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -254,13 +254,13 @@ export default function VoiceAIPage() {
               <div className="flex bg-white/5 rounded-xl p-1">
                 <button
                   onClick={() => setTab('dashboard')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'dashboard' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'dashboard' ? 'bg-blue-700/20 text-blue-400' : 'text-gray-400 hover:text-white'}`}
                 >
                   <BarChart3 className="w-4 h-4 inline mr-2" />Dashboard
                 </button>
                 <button
                   onClick={() => setTab('calls')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'calls' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-400 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'calls' ? 'bg-blue-700/20 text-blue-400' : 'text-gray-400 hover:text-white'}`}
                 >
                   <PhoneCall className="w-4 h-4 inline mr-2" />Chamadas
                 </button>
@@ -280,7 +280,7 @@ export default function VoiceAIPage() {
         <div className="p-8">
           {loading ? (
             <div className="flex items-center justify-center h-64">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-blue-700 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : tab === 'dashboard' ? (
             <DashboardView dashboard={dashboard} />
@@ -334,7 +334,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
         {/* Outcomes Breakdown */}
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
           <h3 className="text-sm font-semibold text-gray-300 mb-4 flex items-center gap-2">
-            <Award className="w-4 h-4 text-indigo-400" />
+            <Award className="w-4 h-4 text-blue-400" />
             Resultados das Chamadas
           </h3>
           <div className="space-y-3">
@@ -346,7 +346,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
                 <div className="flex items-center gap-3">
                   <div className="w-32 h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 rounded-full"
+                      className="h-full bg-blue-700 rounded-full"
                       style={{ width: `${(count / total) * 100}%` }}
                     />
                   </div>
@@ -373,7 +373,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
                   </span>
                   <div className="flex-1 h-6 bg-white/5 rounded-lg overflow-hidden flex">
                     <div
-                      className="h-full bg-indigo-500/60 rounded-l-lg"
+                      className="h-full bg-blue-700/60 rounded-l-lg"
                       style={{ width: `${(day.total / maxTotal) * 100}%` }}
                     />
                     {day.scheduled > 0 && (
@@ -390,7 +390,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
           </div>
           <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.06]">
             <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
-              <span className="w-3 h-3 rounded bg-indigo-500/60" /> Total
+              <span className="w-3 h-3 rounded bg-blue-700/60" /> Total
             </span>
             <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
               <span className="w-3 h-3 rounded bg-emerald-500/60" /> Agendados
@@ -522,8 +522,8 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
         {/* Header */}
         <div className="flex items-center justify-between px-4 lg:px-6 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
-              <PhoneCall className="w-5 h-5 text-indigo-400" />
+            <div className="w-10 h-10 rounded-xl bg-blue-700/20 flex items-center justify-center">
+              <PhoneCall className="w-5 h-5 text-blue-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">{call.lead_name || 'Lead'}</h2>
@@ -607,7 +607,7 @@ function CallDetailModal({ detail, onClose }: { detail: CallDetail; onClose: () 
                     key={i}
                     className={`flex ${turn.role === 'user' ? 'justify-start' : 'justify-end'}`}
                   >
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${turn.role === 'user' ? 'bg-white/[0.06] rounded-bl-md' : 'bg-indigo-500/20 rounded-br-md'}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${turn.role === 'user' ? 'bg-white/[0.06] rounded-bl-md' : 'bg-blue-700/20 rounded-br-md'}`}>
                       <p className="text-sm text-gray-200">{turn.text}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[10px] text-gray-600">{turn.state}</span>
