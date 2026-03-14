@@ -534,7 +534,7 @@ function ConversationsContent() {
         {/* ============================================================ */}
         {/* CHAT AREA                                                     */}
         {/* ============================================================ */}
-        <div className={`${selectedContact ? 'flex' : 'hidden lg:flex'} flex-1 flex-col min-w-0`}>
+        <div className={`${selectedContact ? 'flex' : 'hidden lg:flex'} flex-1 flex-col min-w-0 overflow-hidden`}>
           {selectedContact ? (
             <>
               {/* Chat Header */}
