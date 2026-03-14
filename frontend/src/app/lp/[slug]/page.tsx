@@ -539,7 +539,7 @@ export default function PublicLandingPage() {
   );
 
   const c = data.config;
-  const color = c.primaryColor || '#6366f1';
+  const color = c.primaryColor || '#1D4ED8';
   const newFmt = isNewFormat(c);
 
   const headingFont = c.headingFont || 'Playfair Display';

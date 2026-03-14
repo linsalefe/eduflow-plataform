@@ -956,7 +956,7 @@ export default function ConversationsPage() {
                     <button
                       onClick={() => setAssignFilter(assignFilter === 'mine' ? 'all' : 'mine')}
                       className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                        assignFilter === 'mine' ? 'bg-[#6366f1]/20 text-[#818cf8]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                        assignFilter === 'mine' ? 'bg-[#1D4ED8]/20 text-[#60a5fa]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
                       }`}
                     >
                       <User className="w-3 h-3" />
@@ -976,10 +976,10 @@ export default function ConversationsPage() {
                         key={u.id}
                         onClick={() => setAssignFilter(assignFilter === u.id ? 'all' : u.id)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                          assignFilter === u.id ? 'bg-[#6366f1]/20 text-[#818cf8]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                          assignFilter === u.id ? 'bg-[#1D4ED8]/20 text-[#60a5fa]' : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
                         }`}
                       >
-                        <div className="w-4 h-4 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[7px] font-bold">
+                        <div className="w-4 h-4 rounded-full bg-[#1D4ED8]/30 flex items-center justify-center text-[#60a5fa] text-[7px] font-bold">
                           {u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
                         {u.name.split(' ')[0]}
@@ -1095,7 +1095,7 @@ export default function ConversationsPage() {
                             {contact.assigned_to && (() => {
                               const assignedUser = teamUsers.find(u => u.id === contact.assigned_to);
                               return assignedUser ? (
-                                <div className="w-5 h-5 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[8px] font-bold" title={assignedUser.name}>
+                                <div className="w-5 h-5 rounded-full bg-[#1D4ED8]/30 flex items-center justify-center text-[#60a5fa] text-[8px] font-bold" title={assignedUser.name}>
                                   {assignedUser.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                                 </div>
                               ) : null;
@@ -1584,7 +1584,7 @@ export default function ConversationsPage() {
                             <div className="flex items-center gap-2">
                               {selectedContact.assigned_to ? (
                                 <>
-                                  <div className="w-6 h-6 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[9px] font-bold">
+                                  <div className="w-6 h-6 rounded-full bg-[#1D4ED8]/30 flex items-center justify-center text-[#60a5fa] text-[9px] font-bold">
                                     {teamUsers.find(u => u.id === selectedContact.assigned_to)?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
                                   </div>
                                   <span className="text-[13px] text-[#e9edef]">
@@ -1616,7 +1616,7 @@ export default function ConversationsPage() {
                                   onClick={() => assignContact(u.id)}
                                   className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left"
                                 >
-                                  <div className="w-6 h-6 rounded-full bg-[#6366f1]/30 flex items-center justify-center text-[#818cf8] text-[9px] font-bold">
+                                  <div className="w-6 h-6 rounded-full bg-[#1D4ED8]/30 flex items-center justify-center text-[#60a5fa] text-[9px] font-bold">
                                     {u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                                   </div>
                                   <span className="text-[13px] text-[#e9edef]">{u.name}</span>
@@ -1781,7 +1781,7 @@ export default function ConversationsPage() {
                             });
                             window.open(`/tarefas?new=1&${params.toString()}`, '_self');
                           }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-[#6366f1]/20 text-[#818cf8] text-[12px] font-medium rounded-xl hover:bg-[#6366f1]/30 transition-colors border border-[#6366f1]/20"
+                          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-[#1D4ED8]/20 text-[#60a5fa] text-[12px] font-medium rounded-xl hover:bg-[#1D4ED8]/30 transition-colors border border-[#1D4ED8]/20"
                         >
                           <Target className="w-4 h-4" />
                           Criar Tarefa para este Lead

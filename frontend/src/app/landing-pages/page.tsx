@@ -196,7 +196,7 @@ const defaultSections: Section[] = [
 ];
 
 const getDefaultConfig = (): LPConfig => ({
-  primaryColor: '#6366f1',
+  primaryColor: '#1D4ED8',
   secondaryColor: '#10b981',
   logoUrl: '',
   heroImageUrl: '',
@@ -400,7 +400,7 @@ export default function LandingPagesPage() {
               <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Landing Pages</h1>
               <p className="text-sm text-gray-500 mt-1">Crie páginas de captura para seus programas e campanhas</p>
             </div>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl hover:bg-[#4f46e5] transition-all text-sm font-medium">
+            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl hover:bg-[#1e40af] transition-all text-sm font-medium">
               <Plus className="w-4 h-4" />
               Nova Landing Page
             </button>
@@ -434,7 +434,7 @@ export default function LandingPagesPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 pt-3 border-t border-gray-50">
-                    <button onClick={() => openEdit(page)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#6366f1] hover:bg-[#6366f1]/5 rounded-lg transition-all">
+                    <button onClick={() => openEdit(page)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#1D4ED8] hover:bg-[#1D4ED8]/5 rounded-lg transition-all">
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
                     <button onClick={() => window.open(`/lp/${page.slug}`, '_blank')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-all">
@@ -491,7 +491,7 @@ export default function LandingPagesPage() {
                 <Eye className="w-3.5 h-3.5" /> Preview
               </button>
             )}
-            <button onClick={handleSave} disabled={saving || !title || !slug || !channelId} className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white rounded-lg hover:bg-[#4f46e5] transition-all text-xs font-medium disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving || !title || !slug || !channelId} className="flex items-center gap-2 px-4 py-2 bg-[#1D4ED8] text-white rounded-lg hover:bg-[#1e40af] transition-all text-xs font-medium disabled:opacity-50">
               {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
               Salvar
             </button>
@@ -507,7 +507,7 @@ export default function LandingPagesPage() {
           ]).map(tab => {
             const Icon = tab.icon;
             return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-all ${activeTab === tab.id ? 'bg-white text-[#6366f1] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-all ${activeTab === tab.id ? 'bg-white text-[#1D4ED8] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                 <Icon className="w-3.5 h-3.5" /> {tab.label}
               </button>
             );
@@ -537,8 +537,8 @@ export default function LandingPagesPage() {
                           </button>
                         </div>
                         <button onClick={() => setExpandedSection(isExpanded ? null : section.id)} className="flex items-center gap-3 flex-1 text-left">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${section.enabled ? 'bg-[#6366f1]/10' : 'bg-gray-100'}`}>
-                            <IconComp className={`w-4 h-4 ${section.enabled ? 'text-[#6366f1]' : 'text-gray-400'}`} />
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${section.enabled ? 'bg-[#1D4ED8]/10' : 'bg-gray-100'}`}>
+                            <IconComp className={`w-4 h-4 ${section.enabled ? 'text-[#1D4ED8]' : 'text-gray-400'}`} />
                           </div>
                           <span className={`text-sm font-medium ${section.enabled ? 'text-gray-800' : 'text-gray-400'}`}>{section.label}</span>
                           {section.locked && <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">fixo</span>}
@@ -546,7 +546,7 @@ export default function LandingPagesPage() {
                         <div className="flex items-center gap-2">
                           {!section.locked && (
                             <button onClick={() => toggleSection(section.id)} className="transition-all">
-                              {section.enabled ? <ToggleRight className="w-6 h-6 text-[#6366f1]" /> : <ToggleLeft className="w-6 h-6 text-gray-300" />}
+                              {section.enabled ? <ToggleRight className="w-6 h-6 text-[#1D4ED8]" /> : <ToggleLeft className="w-6 h-6 text-gray-300" />}
                             </button>
                           )}
                           <button onClick={() => setExpandedSection(isExpanded ? null : section.id)} className="p-1 text-gray-400 hover:text-gray-600 transition-all">
@@ -580,7 +580,7 @@ export default function LandingPagesPage() {
                     </div>
                     {!field.required ? (
                       <button onClick={() => setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, enabled: !f.enabled } : f) }))}>
-                        {field.enabled ? <ToggleRight className="w-6 h-6 text-[#6366f1]" /> : <ToggleLeft className="w-6 h-6 text-gray-300" />}
+                        {field.enabled ? <ToggleRight className="w-6 h-6 text-[#1D4ED8]" /> : <ToggleLeft className="w-6 h-6 text-gray-300" />}
                       </button>
                     ) : (
                       <span className="text-[10px] text-gray-300">sempre ativo</span>
@@ -593,13 +593,13 @@ export default function LandingPagesPage() {
                     <div className="space-y-2">
                       {(field.options || []).map((opt, i) => (
                         <div key={i} className="flex items-center gap-2">
-                          <input value={opt} onChange={(e) => { const newOpts = [...(field.options || [])]; newOpts[i] = e.target.value; setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, options: newOpts } : f) })); }} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+                          <input value={opt} onChange={(e) => { const newOpts = [...(field.options || [])]; newOpts[i] = e.target.value; setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, options: newOpts } : f) })); }} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
                           <button onClick={() => { const newOpts = (field.options || []).filter((_, idx) => idx !== i); setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, options: newOpts } : f) })); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg">
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       ))}
-                      <button onClick={() => setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, options: [...(f.options || []), ''] } : f) }))} className="text-xs text-[#6366f1] font-medium hover:underline">
+                      <button onClick={() => setConfig(prev => ({ ...prev, formFields: prev.formFields.map(f => f.id === field.id ? { ...f, options: [...(f.options || []), ''] } : f) }))} className="text-xs text-[#1D4ED8] font-medium hover:underline">
                         + Adicionar opção
                       </button>
                     </div>
@@ -617,14 +617,14 @@ export default function LandingPagesPage() {
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor Principal</label>
                     <div className="flex items-center gap-2">
                       <input type="color" value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
-                      <input value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6366f1]" />
+                      <input value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#1D4ED8]" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor Secundária</label>
                     <div className="flex items-center gap-2">
                       <input type="color" value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
-                      <input value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#6366f1]" />
+                      <input value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-[#1D4ED8]" />
                     </div>
                   </div>
                 </div>
@@ -660,7 +660,7 @@ export default function LandingPagesPage() {
                       <button
                         key={f.id}
                         onClick={() => setConfig(prev => ({ ...prev, headingFont: f.id }))}
-                        className={`p-3 rounded-xl border text-left transition-all ${config.headingFont === f.id ? 'border-[#6366f1] bg-[#6366f1]/5 ring-2 ring-[#6366f1]/20' : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`p-3 rounded-xl border text-left transition-all ${config.headingFont === f.id ? 'border-[#1D4ED8] bg-[#1D4ED8]/5 ring-2 ring-[#1D4ED8]/20' : 'border-gray-200 hover:border-gray-300'}`}
                       >
                         <p className="text-base font-bold text-gray-800" style={{ fontFamily: `'${f.id}', ${f.type}` }}>{f.label}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{f.preview}</p>
@@ -676,7 +676,7 @@ export default function LandingPagesPage() {
                       <button
                         key={f.id}
                         onClick={() => setConfig(prev => ({ ...prev, bodyFont: f.id }))}
-                        className={`p-3 rounded-xl border text-left transition-all ${config.bodyFont === f.id ? 'border-[#6366f1] bg-[#6366f1]/5 ring-2 ring-[#6366f1]/20' : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`p-3 rounded-xl border text-left transition-all ${config.bodyFont === f.id ? 'border-[#1D4ED8] bg-[#1D4ED8]/5 ring-2 ring-[#1D4ED8]/20' : 'border-gray-200 hover:border-gray-300'}`}
                       >
                         <p className="text-sm font-medium text-gray-800" style={{ fontFamily: `'${f.id}', ${f.type}` }}>{f.label}</p>
                         <p className="text-[10px] text-gray-400 mt-0.5">{f.preview}</p>
@@ -717,16 +717,16 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
         <div className="space-y-3">
           {d.items.map((item: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <input value={item.value} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], value: e.target.value }; onUpdate({ items }); }} placeholder="500" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] text-center" />
-              <input value={item.suffix} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], suffix: e.target.value }; onUpdate({ items }); }} placeholder="+" className="w-12 px-2 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] text-center" />
-              <input value={item.label} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], label: e.target.value }; onUpdate({ items }); }} placeholder="Alunos ativos" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+              <input value={item.value} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], value: e.target.value }; onUpdate({ items }); }} placeholder="500" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] text-center" />
+              <input value={item.suffix} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], suffix: e.target.value }; onUpdate({ items }); }} placeholder="+" className="w-12 px-2 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] text-center" />
+              <input value={item.label} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], label: e.target.value }; onUpdate({ items }); }} placeholder="Alunos ativos" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
               {d.items.length > 1 && (
                 <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
               )}
             </div>
           ))}
           {d.items.length < 6 && (
-            <button onClick={() => onUpdate({ items: [...d.items, { value: '', suffix: '+', label: '' }] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar stat</button>
+            <button onClick={() => onUpdate({ items: [...d.items, { value: '', suffix: '+', label: '' }] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar stat</button>
           )}
         </div>
       );
@@ -739,15 +739,15 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
           <p className="text-xs font-medium text-gray-500 mt-2">Destaques</p>
           {d.highlights.map((h: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <input value={h.label} onChange={(e) => { const hl = [...d.highlights]; hl[i] = { ...hl[i], label: e.target.value }; onUpdate({ highlights: hl }); }} placeholder="Label (ex: Duração)" className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
-              <input value={h.value} onChange={(e) => { const hl = [...d.highlights]; hl[i] = { ...hl[i], value: e.target.value }; onUpdate({ highlights: hl }); }} placeholder="Valor (ex: 12 meses)" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+              <input value={h.label} onChange={(e) => { const hl = [...d.highlights]; hl[i] = { ...hl[i], label: e.target.value }; onUpdate({ highlights: hl }); }} placeholder="Label (ex: Duração)" className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
+              <input value={h.value} onChange={(e) => { const hl = [...d.highlights]; hl[i] = { ...hl[i], value: e.target.value }; onUpdate({ highlights: hl }); }} placeholder="Valor (ex: 12 meses)" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
               {d.highlights.length > 1 && (
                 <button onClick={() => onUpdate({ highlights: d.highlights.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
               )}
             </div>
           ))}
           {d.highlights.length < 5 && (
-            <button onClick={() => onUpdate({ highlights: [...d.highlights, { label: '', value: '' }] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar destaque</button>
+            <button onClick={() => onUpdate({ highlights: [...d.highlights, { label: '', value: '' }] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar destaque</button>
           )}
         </div>
       );
@@ -758,13 +758,13 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
           <InputField label="Título da seção" value={d.sectionTitle} onChange={(v) => onUpdate({ sectionTitle: v })} placeholder="O que você vai aprender" />
           {d.items.map((item: string, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <input value={item} onChange={(e) => { const items = [...d.items]; items[i] = e.target.value; onUpdate({ items }); }} placeholder={`Tópico ${i + 1}`} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+              <input value={item} onChange={(e) => { const items = [...d.items]; items[i] = e.target.value; onUpdate({ items }); }} placeholder={`Tópico ${i + 1}`} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
               {d.items.length > 1 && (
                 <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
               )}
             </div>
           ))}
-          <button onClick={() => onUpdate({ items: [...d.items, ''] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar tópico</button>
+          <button onClick={() => onUpdate({ items: [...d.items, ''] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar tópico</button>
         </div>
       );
 
@@ -774,13 +774,13 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
           <InputField label="Título da seção" value={d.sectionTitle} onChange={(v) => onUpdate({ sectionTitle: v })} placeholder="Para quem é" />
           {d.items.map((item: string, i: number) => (
             <div key={i} className="flex items-center gap-2">
-              <input value={item} onChange={(e) => { const items = [...d.items]; items[i] = e.target.value; onUpdate({ items }); }} placeholder={`Perfil ${i + 1}`} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+              <input value={item} onChange={(e) => { const items = [...d.items]; items[i] = e.target.value; onUpdate({ items }); }} placeholder={`Perfil ${i + 1}`} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
               {d.items.length > 1 && (
                 <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
               )}
             </div>
           ))}
-          <button onClick={() => onUpdate({ items: [...d.items, ''] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar perfil</button>
+          <button onClick={() => onUpdate({ items: [...d.items, ''] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar perfil</button>
         </div>
       );
 
@@ -794,16 +794,16 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
                 <select value={item.icon} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], icon: e.target.value }; onUpdate({ items }); }} className="w-28 px-2 py-2 border border-gray-200 rounded-lg text-xs outline-none">
                   {['award', 'users', 'book', 'zap', 'target', 'clock', 'star', 'trending'].map(ic => <option key={ic} value={ic}>{ic}</option>)}
                 </select>
-                <input value={item.title} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], title: e.target.value }; onUpdate({ items }); }} placeholder="Título do diferencial" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+                <input value={item.title} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], title: e.target.value }; onUpdate({ items }); }} placeholder="Título do diferencial" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
                 {d.items.length > 1 && (
                   <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
                 )}
               </div>
-              <input value={item.desc} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], desc: e.target.value }; onUpdate({ items }); }} placeholder="Descrição breve" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+              <input value={item.desc} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], desc: e.target.value }; onUpdate({ items }); }} placeholder="Descrição breve" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
             </div>
           ))}
           {d.items.length < 9 && (
-            <button onClick={() => onUpdate({ items: [...d.items, { icon: 'star', title: '', desc: '' }] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar diferencial</button>
+            <button onClick={() => onUpdate({ items: [...d.items, { icon: 'star', title: '', desc: '' }] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar diferencial</button>
           )}
         </div>
       );
@@ -815,17 +815,17 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
           {d.items.map((item: any, i: number) => (
             <div key={i} className="p-3 border border-gray-100 rounded-lg space-y-2">
               <div className="flex items-center gap-2">
-                <input value={item.name} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], name: e.target.value }; onUpdate({ items }); }} placeholder="Nome" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
-                <input value={item.role} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], role: e.target.value }; onUpdate({ items }); }} placeholder="Cargo / Contexto" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+                <input value={item.name} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], name: e.target.value }; onUpdate({ items }); }} placeholder="Nome" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
+                <input value={item.role} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], role: e.target.value }; onUpdate({ items }); }} placeholder="Cargo / Contexto" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
                 {d.items.length > 1 && (
                   <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
                 )}
               </div>
-              <textarea value={item.text} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], text: e.target.value }; onUpdate({ items }); }} placeholder="Depoimento" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] resize-none" />
+              <textarea value={item.text} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], text: e.target.value }; onUpdate({ items }); }} placeholder="Depoimento" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] resize-none" />
             </div>
           ))}
           {d.items.length < 6 && (
-            <button onClick={() => onUpdate({ items: [...d.items, { name: '', role: '', text: '' }] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar depoimento</button>
+            <button onClick={() => onUpdate({ items: [...d.items, { name: '', role: '', text: '' }] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar depoimento</button>
           )}
         </div>
       );
@@ -837,16 +837,16 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
           {d.items.map((item: any, i: number) => (
             <div key={i} className="p-3 border border-gray-100 rounded-lg space-y-2">
               <div className="flex items-center gap-2">
-                <input value={item.q} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], q: e.target.value }; onUpdate({ items }); }} placeholder="Pergunta" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1]" />
+                <input value={item.q} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], q: e.target.value }; onUpdate({ items }); }} placeholder="Pergunta" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8]" />
                 {d.items.length > 1 && (
                   <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
                 )}
               </div>
-              <textarea value={item.a} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], a: e.target.value }; onUpdate({ items }); }} placeholder="Resposta" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] resize-none" />
+              <textarea value={item.a} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], a: e.target.value }; onUpdate({ items }); }} placeholder="Resposta" rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] resize-none" />
             </div>
           ))}
           {d.items.length < 10 && (
-            <button onClick={() => onUpdate({ items: [...d.items, { q: '', a: '' }] })} className="text-xs text-[#6366f1] font-medium hover:underline">+ Adicionar pergunta</button>
+            <button onClick={() => onUpdate({ items: [...d.items, { q: '', a: '' }] })} className="text-xs text-[#1D4ED8] font-medium hover:underline">+ Adicionar pergunta</button>
           )}
         </div>
       );
@@ -893,7 +893,7 @@ function InputField({ label, value, onChange, placeholder }: { label: string; va
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-      <input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] transition-all" />
+      <input value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] transition-all" />
     </div>
   );
 }
@@ -902,7 +902,7 @@ function TextareaField({ label, value, onChange, placeholder, rows = 2 }: { labe
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-      <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#6366f1] resize-none transition-all" />
+      <textarea value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#1D4ED8] resize-none transition-all" />
     </div>
   );
 }
@@ -985,12 +985,12 @@ function ImageUploader({ value, onChange, label, hint, previewHeight = 'h-16', p
       onDrop={handleDrop}
       onClick={() => !uploading && inputRef.current?.click()}
       className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-        dragOver ? 'border-[#6366f1] bg-[#6366f1]/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+        dragOver ? 'border-[#1D4ED8] bg-[#1D4ED8]/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
       {uploading ? (
         <div className="flex flex-col items-center gap-2">
-          <Loader2 className="w-6 h-6 animate-spin text-[#6366f1]" />
+          <Loader2 className="w-6 h-6 animate-spin text-[#1D4ED8]" />
           <p className="text-xs text-gray-500">Enviando...</p>
         </div>
       ) : (

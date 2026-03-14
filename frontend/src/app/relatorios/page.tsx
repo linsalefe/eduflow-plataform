@@ -166,7 +166,7 @@ export default function RelatoriosPage() {
                             <select
                               value={statusFilter}
                               onChange={(e) => setStatusFilter(e.target.value)}
-                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 focus:border-[#6366f1]"
+                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-[#1D4ED8]"
                             >
                               {statusOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -178,7 +178,7 @@ export default function RelatoriosPage() {
                             <select
                               value={daysFilter}
                               onChange={(e) => setDaysFilter(Number(e.target.value))}
-                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/20 focus:border-[#6366f1]"
+                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-[#1D4ED8]"
                             >
                               {daysOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -199,7 +199,7 @@ export default function RelatoriosPage() {
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : isDownloaded
                           ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                          : 'bg-[#6366f1] text-white hover:bg-[#4f46e5]'
+                          : 'bg-[#1D4ED8] text-white hover:bg-[#1e40af]'
                     }`}
                   >
                     {isDownloading ? (

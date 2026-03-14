@@ -29,7 +29,7 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  novo: '#6366f1', em_contato: '#f59e0b', qualificado: '#8b5cf6',
+  novo: '#1D4ED8', em_contato: '#f59e0b', qualificado: '#8b5cf6',
   negociando: '#06b6d4', convertido: '#10b981', perdido: '#ef4444',
 };
 
@@ -58,7 +58,7 @@ export default function DashboardROIPage() {
     return (
       <AppShell>
         <div className="flex items-center justify-center py-32">
-          <Loader2 className="w-6 h-6 text-[#6366f1] animate-spin" />
+          <Loader2 className="w-6 h-6 text-[#1D4ED8] animate-spin" />
         </div>
       </AppShell>
     );
@@ -80,7 +80,7 @@ export default function DashboardROIPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total de Leads', value: data.total_leads, icon: Users, color: '#6366f1', bg: 'bg-indigo-50' },
+            { label: 'Total de Leads', value: data.total_leads, icon: Users, color: '#1D4ED8', bg: 'bg-indigo-50' },
             { label: 'Origens ativas', value: data.by_source.length, icon: Globe, color: '#06b6d4', bg: 'bg-cyan-50' },
             { label: 'Campanhas', value: data.by_campaign.length, icon: Megaphone, color: '#f59e0b', bg: 'bg-amber-50' },
             { label: 'Landing Pages', value: data.by_page.length, icon: FileText, color: '#10b981', bg: 'bg-emerald-50' },
@@ -108,7 +108,7 @@ export default function DashboardROIPage() {
                 <p className="text-sm text-gray-400 mt-0.5">Últimos 30 dias</p>
               </div>
               <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-[#6366f1]" />
+                <BarChart3 className="w-4 h-4 text-[#1D4ED8]" />
               </div>
             </div>
 
@@ -129,7 +129,7 @@ export default function DashboardROIPage() {
                       </span>
                       <div className="w-full bg-gray-50 rounded-md overflow-hidden" style={{ height: '130px' }}>
                         <div
-                          className="w-full bg-[#6366f1] rounded-md transition-all duration-300 group-hover:bg-[#4f46e5]"
+                          className="w-full bg-[#1D4ED8] rounded-md transition-all duration-300 group-hover:bg-[#1e40af]"
                           style={{
                             height: `${Math.max(pct, day.total > 0 ? 8 : 2)}%`,
                             marginTop: `${100 - Math.max(pct, day.total > 0 ? 8 : 2)}%`,
@@ -171,12 +171,12 @@ export default function DashboardROIPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-gray-400">{pct.toFixed(0)}%</span>
-                          <span className="text-[11px] font-bold text-[#6366f1] bg-indigo-50 px-1.5 py-0.5 rounded-md tabular-nums">{s.total}</span>
+                          <span className="text-[11px] font-bold text-[#1D4ED8] bg-indigo-50 px-1.5 py-0.5 rounded-md tabular-nums">{s.total}</span>
                         </div>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#6366f1] rounded-full transition-all duration-500"
+                          className="h-full bg-[#1D4ED8] rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(pct, 4)}%` }}
                         />
                       </div>

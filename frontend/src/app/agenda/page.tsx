@@ -211,7 +211,7 @@ export default function AgendaPage() {
             <h1 className="text-xl lg:text-2xl font-bold text-gray-800">Agenda</h1>
             <p className="text-sm text-gray-500">Agendamentos de ligações da IA e consultoras</p>
           </div>
-          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl hover:bg-[#5558e6] transition-colors text-sm font-medium w-fit">
+          <button onClick={() => openNewSchedule()} className="flex items-center gap-2 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl hover:bg-[#5558e6] transition-colors text-sm font-medium w-fit">
             <Plus className="w-4 h-4" /> Novo Agendamento
           </button>
         </div>
@@ -219,7 +219,7 @@ export default function AgendaPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
           {[
-            { label: 'Hoje', value: stats.today, color: 'text-[#6366f1]', bg: 'bg-[#6366f1]/10' },
+            { label: 'Hoje', value: stats.today, color: 'text-[#1D4ED8]', bg: 'bg-[#1D4ED8]/10' },
             { label: 'Pendentes', value: stats.pending, color: 'text-amber-600', bg: 'bg-amber-50' },
             { label: 'Concluídos', value: stats.completed, color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Cancelados', value: stats.cancelled, color: 'text-gray-500', bg: 'bg-gray-50' },
@@ -233,10 +233,10 @@ export default function AgendaPage() {
 
         {/* View Toggle */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button onClick={() => setView('calendar')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-[#1D4ED8] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             <Calendar className="w-4 h-4 inline mr-1.5" />Calendário
           </button>
-          <button onClick={() => setView('list')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#6366f1] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button onClick={() => setView('list')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === 'list' ? 'bg-[#1D4ED8] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             <Clock className="w-4 h-4 inline mr-1.5" />Lista
           </button>
           <div className="ml-auto">
@@ -253,7 +253,7 @@ export default function AgendaPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" /></div>
+          <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#1D4ED8] border-t-transparent rounded-full animate-spin" /></div>
         ) : view === 'calendar' ? (
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Calendar */}
@@ -283,8 +283,8 @@ export default function AgendaPage() {
                       key={day}
                       onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
                       className={`relative p-2 rounded-lg text-sm transition-all min-h-[60px] flex flex-col items-center ${
-                        isSelected ? 'bg-[#6366f1] text-white' :
-                        isToday ? 'bg-[#6366f1]/10 text-[#6366f1] font-bold' :
+                        isSelected ? 'bg-[#1D4ED8] text-white' :
+                        isToday ? 'bg-[#1D4ED8]/10 text-[#1D4ED8] font-bold' :
                         'hover:bg-gray-50 text-gray-700'
                       }`}
                     >
@@ -315,7 +315,7 @@ export default function AgendaPage() {
                 <>
                   <div className="flex items-center justify-between mb-4">
                     <h4 className="font-semibold text-gray-800">{formatDate(selectedDate)}</h4>
-                    <button onClick={() => openNewSchedule(selectedDate)} className="p-1.5 bg-[#6366f1]/10 text-[#6366f1] rounded-lg hover:bg-[#6366f1]/20">
+                    <button onClick={() => openNewSchedule(selectedDate)} className="p-1.5 bg-[#1D4ED8]/10 text-[#1D4ED8] rounded-lg hover:bg-[#1D4ED8]/20">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
@@ -346,8 +346,8 @@ export default function AgendaPage() {
               <div className="divide-y divide-gray-100">
                 {filteredSchedules.map(s => (
                   <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.type === 'voice_ai' ? 'bg-[#6366f1]/10' : 'bg-pink-50'}`}>
-                      {s.type === 'voice_ai' ? <Bot className="w-5 h-5 text-[#6366f1]" /> : <UserCheck className="w-5 h-5 text-pink-500" />}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.type === 'voice_ai' ? 'bg-[#1D4ED8]/10' : 'bg-pink-50'}`}>
+                      {s.type === 'voice_ai' ? <Bot className="w-5 h-5 text-[#1D4ED8]" /> : <UserCheck className="w-5 h-5 text-pink-500" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-800 truncate">{s.contact_name || s.phone}</p>
@@ -391,15 +391,15 @@ export default function AgendaPage() {
                 <>
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do Lead</label>
-                    <input value={formName} onChange={e => setFormName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1]" placeholder="Nome completo" />
+                    <input value={formName} onChange={e => setFormName(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8]" placeholder="Nome completo" />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Telefone *</label>
-                    <input value={formPhone} onChange={e => setFormPhone(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1]" placeholder="5581999999999" />
+                    <input value={formPhone} onChange={e => setFormPhone(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8]" placeholder="5581999999999" />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500 mb-1 block">Curso</label>
-                    <input value={formCourse} onChange={e => setFormCourse(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1]" placeholder="Ex: Psicologia Hospitalar" />
+                    <input value={formCourse} onChange={e => setFormCourse(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8]" placeholder="Ex: Psicologia Hospitalar" />
                   </div>
                 </>
               )}
@@ -407,18 +407,18 @@ export default function AgendaPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Data *</label>
-                  <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1]" />
+                  <input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8]" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-500 mb-1 block">Horário *</label>
-                  <input type="time" value={formTime} onChange={e => setFormTime(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1]" />
+                  <input type="time" value={formTime} onChange={e => setFormTime(e.target.value)} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8]" />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Tipo</label>
                 <div className="flex gap-2">
-                  <button onClick={() => setFormType('voice_ai')} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${formType === 'voice_ai' ? 'border-[#6366f1] bg-[#6366f1]/10 text-[#6366f1]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                  <button onClick={() => setFormType('voice_ai')} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${formType === 'voice_ai' ? 'border-[#1D4ED8] bg-[#1D4ED8]/10 text-[#1D4ED8]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                     <Bot className="w-4 h-4" /> Voice AI
                   </button>
                   <button onClick={() => setFormType('consultant')} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${formType === 'consultant' ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
@@ -429,13 +429,13 @@ export default function AgendaPage() {
 
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">Notas</label>
-                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#6366f1] resize-none" placeholder="Observações..." />
+                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#1D4ED8] resize-none" placeholder="Observações..." />
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
-              <button onClick={handleSave} disabled={saving || !formPhone || !formDate || !formTime} className="flex-1 px-4 py-2.5 bg-[#6366f1] text-white rounded-xl text-sm font-medium hover:bg-[#5558e6] disabled:opacity-50 transition-colors">
+              <button onClick={handleSave} disabled={saving || !formPhone || !formDate || !formTime} className="flex-1 px-4 py-2.5 bg-[#1D4ED8] text-white rounded-xl text-sm font-medium hover:bg-[#5558e6] disabled:opacity-50 transition-colors">
                 {saving ? 'Salvando...' : editingSchedule ? 'Atualizar' : 'Agendar'}
               </button>
             </div>
@@ -461,8 +461,8 @@ function ScheduleCard({ schedule: s, onEdit, onCancel, onDelete }: { schedule: S
     <div className={`p-3.5 rounded-xl border ${s.status === 'cancelled' ? 'opacity-50' : ''} ${STATUS_MAP[s.status]?.bg || 'bg-gray-50 border-gray-200'}`}>
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.type === 'voice_ai' ? 'bg-[#6366f1]/10' : 'bg-pink-50'}`}>
-            {s.type === 'voice_ai' ? <Bot className="w-4 h-4 text-[#6366f1]" /> : <UserCheck className="w-4 h-4 text-pink-500" />}
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.type === 'voice_ai' ? 'bg-[#1D4ED8]/10' : 'bg-pink-50'}`}>
+            {s.type === 'voice_ai' ? <Bot className="w-4 h-4 text-[#1D4ED8]" /> : <UserCheck className="w-4 h-4 text-pink-500" />}
           </div>
           <div>
             <p className="text-sm font-medium text-gray-800">{s.contact_name || s.phone}</p>

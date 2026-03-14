@@ -6,7 +6,7 @@ export default function PrivacyPage() {
         {/* Header */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-[#6366f1] rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-[#1D4ED8] rounded-xl flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
@@ -198,8 +198,8 @@ export default function PrivacyPage() {
             </p>
             <div className="mt-4 bg-gray-50 rounded-xl p-5 border border-gray-100">
               <p className="font-medium text-gray-800">EduFlow</p>
-              <p className="mt-1">E-mail: <a href="mailto:privacidade@eduflowia.com" className="text-[#6366f1] hover:underline">privacidade@eduflowia.com</a></p>
-              <p className="mt-1">Website: <a href="https://portal.eduflowia.com" className="text-[#6366f1] hover:underline">portal.eduflowia.com</a></p>
+              <p className="mt-1">E-mail: <a href="mailto:privacidade@eduflowia.com" className="text-[#1D4ED8] hover:underline">privacidade@eduflowia.com</a></p>
+              <p className="mt-1">Website: <a href="https://portal.eduflowia.com" className="text-[#1D4ED8] hover:underline">portal.eduflowia.com</a></p>
             </div>
           </section>
 

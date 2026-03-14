@@ -153,7 +153,7 @@ export default function AgentesPage() {
     return (
       <AppShell>
         <div className="p-6 flex items-center justify-center h-64">
-          <div className="w-6 h-6 border-2 border-[#6366f1] border-t-transparent rounded-full animate-spin" />
+          <div className="w-6 h-6 border-2 border-[#1D4ED8] border-t-transparent rounded-full animate-spin" />
         </div>
       </AppShell>
     );
@@ -190,8 +190,8 @@ export default function AgentesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#6366f1]/20 flex items-center justify-center">
-            <Bot className="w-5 h-5 text-[#818cf8]" />
+          <div className="w-10 h-10 rounded-xl bg-[#1D4ED8]/20 flex items-center justify-center">
+            <Bot className="w-5 h-5 text-[#60a5fa]" />
           </div>
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Agentes IA</h1>
@@ -201,7 +201,7 @@ export default function AgentesPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] hover:bg-[#5558e3] text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-[#1D4ED8] hover:bg-[#5558e3] text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Salvando...' : saved ? 'Salvo! ✓' : 'Salvar'}
@@ -222,8 +222,8 @@ export default function AgentesPage() {
                   ${available ? 'bg-white border-gray-100 hover:border-gray-200' : 'bg-gray-50 border-gray-100 opacity-50'}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${active && available ? 'bg-[#6366f1]/10' : 'bg-gray-100'}`}>
-                    <Bot className={`w-4 h-4 ${active && available ? 'text-[#818cf8]' : 'text-gray-400'}`} />
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${active && available ? 'bg-[#1D4ED8]/10' : 'bg-gray-100'}`}>
+                    <Bot className={`w-4 h-4 ${active && available ? 'text-[#60a5fa]' : 'text-gray-400'}`} />
                   </div>
                   <div>
                     <p className={`text-sm font-medium ${available ? 'text-gray-900' : 'text-gray-400'}`}>{agent.label}</p>
@@ -241,7 +241,7 @@ export default function AgentesPage() {
                     onClick={() => handleToggle(agent.key)}
                     disabled={!available}
                     className={`relative w-11 h-6 rounded-full transition-colors duration-200
-                      ${active && available ? 'bg-[#6366f1]' : 'bg-gray-200'}
+                      ${active && available ? 'bg-[#1D4ED8]' : 'bg-gray-200'}
                       ${!available ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200

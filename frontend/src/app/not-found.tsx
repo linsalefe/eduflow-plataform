@@ -8,12 +8,12 @@ export default function NotFound() {
     <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center px-4">
       <div className="text-center max-w-md">
         <div className="relative mb-6">
-          <span className="text-[120px] lg:text-[160px] font-bold text-[#6366f1]/10 leading-none select-none">
+          <span className="text-[120px] lg:text-[160px] font-bold text-[#1D4ED8]/10 leading-none select-none">
             404
           </span>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 bg-[#6366f1]/10 rounded-2xl flex items-center justify-center">
-              <Search className="w-8 h-8 text-[#6366f1]" />
+            <div className="w-16 h-16 bg-[#1D4ED8]/10 rounded-2xl flex items-center justify-center">
+              <Search className="w-8 h-8 text-[#1D4ED8]" />
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@ export default function NotFound() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#6366f1] text-white rounded-xl text-sm font-medium hover:bg-[#5558e6] transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#1D4ED8] text-white rounded-xl text-sm font-medium hover:bg-[#5558e6] transition-colors"
           >
             <Home className="w-4 h-4" />
             Ir para Dashboard

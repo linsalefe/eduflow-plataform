@@ -75,7 +75,7 @@ function CallbackContent() {
             <p className="text-sm text-gray-400 mb-4">{message}</p>
             <button
               onClick={() => router.push('/canais')}
-              className="px-6 py-2.5 rounded-xl bg-[#6366f1] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
+              className="px-6 py-2.5 rounded-xl bg-[#1D4ED8] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
             >
               Voltar para Canais
             </button>
