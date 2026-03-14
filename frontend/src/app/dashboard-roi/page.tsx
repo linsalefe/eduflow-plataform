@@ -58,7 +58,7 @@ export default function DashboardROIPage() {
     return (
       <AppShell>
         <div className="flex items-center justify-center py-32">
-          <Loader2 className="w-6 h-6 text-[#1D4ED8] animate-spin" />
+          <Loader2 className="w-6 h-6 text-primary animate-spin" />
         </div>
       </AppShell>
     );
@@ -108,7 +108,7 @@ export default function DashboardROIPage() {
                 <p className="text-sm text-gray-400 mt-0.5">Últimos 30 dias</p>
               </div>
               <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-[#1D4ED8]" />
+                <BarChart3 className="w-4 h-4 text-primary" />
               </div>
             </div>
 
@@ -129,7 +129,7 @@ export default function DashboardROIPage() {
                       </span>
                       <div className="w-full bg-gray-50 rounded-md overflow-hidden" style={{ height: '130px' }}>
                         <div
-                          className="w-full bg-[#1D4ED8] rounded-md transition-all duration-300 group-hover:bg-[#1e40af]"
+                          className="w-full bg-primary rounded-md transition-all duration-300 group-hover:bg-primary/90"
                           style={{
                             height: `${Math.max(pct, day.total > 0 ? 8 : 2)}%`,
                             marginTop: `${100 - Math.max(pct, day.total > 0 ? 8 : 2)}%`,
@@ -171,12 +171,12 @@ export default function DashboardROIPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] text-gray-400">{pct.toFixed(0)}%</span>
-                          <span className="text-[11px] font-bold text-[#1D4ED8] bg-indigo-50 px-1.5 py-0.5 rounded-md tabular-nums">{s.total}</span>
+                          <span className="text-[11px] font-bold text-primary bg-indigo-50 px-1.5 py-0.5 rounded-md tabular-nums">{s.total}</span>
                         </div>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#1D4ED8] rounded-full transition-all duration-500"
+                          className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${Math.max(pct, 4)}%` }}
                         />
                       </div>

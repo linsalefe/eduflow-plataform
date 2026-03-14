@@ -231,7 +231,7 @@ export default function ChannelsPage() {
           <button
             onClick={() => { setShowNewModal(true); setFormName(''); }}
             disabled={channels.filter(c => c.provider === 'evolution').length >= 2}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1D4ED8] text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Novo Canal
@@ -241,7 +241,7 @@ export default function ChannelsPage() {
         {/* Channels List */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 text-[#1D4ED8] animate-spin" />
+            <Loader2 className="w-6 h-6 text-primary animate-spin" />
           </div>
         ) : channels.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
@@ -252,7 +252,7 @@ export default function ChannelsPage() {
             <p className="text-sm text-gray-400 mb-6">Conecte seu primeiro WhatsApp para começar</p>
             <button
               onClick={() => setShowNewModal(true)}
-              className="px-6 py-2.5 rounded-xl bg-[#1D4ED8] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
+              className="px-6 py-2.5 rounded-xl bg-primary text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
             >
               Conectar WhatsApp
             </button>

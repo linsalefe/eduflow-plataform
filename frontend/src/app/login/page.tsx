@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-16 relative">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#1D4ED8]/15 via-transparent to-[#3b82f6]/5" />
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#1D4ED8]/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
         <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#3b82f6]/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }} />
 
         {/* Subtle grid */}
@@ -130,7 +130,7 @@ export default function LoginPage() {
       {/* ── Lado direito — Form ── */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 relative">
         {/* Glow behind card */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#1D4ED8]/8 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/8 rounded-full blur-3xl pointer-events-none" />
 
         <div
           className={`w-full max-w-[420px] relative z-10 transition-all duration-700 ease-out delay-300 ${
@@ -174,7 +174,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="seu@email.com"
                     required
-                    className="pl-10 h-12 bg-gray-50 border-gray-200 rounded-xl text-sm focus:border-[#1D4ED8] focus:ring-[#1D4ED8]/10"
+                    className="pl-10 h-12 bg-gray-50 border-gray-200 rounded-xl text-sm focus:border-primary focus:ring-[#1D4ED8]/10"
                   />
                 </div>
               </div>
@@ -193,7 +193,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="pl-10 pr-12 h-12 bg-gray-50 border-gray-200 rounded-xl text-sm focus:border-[#1D4ED8] focus:ring-[#1D4ED8]/10"
+                    className="pl-10 pr-12 h-12 bg-gray-50 border-gray-200 rounded-xl text-sm focus:border-primary focus:ring-[#1D4ED8]/10"
                   />
                   <button
                     type="button"
@@ -209,7 +209,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-[#1D4ED8] hover:bg-[#1e40af] text-white font-medium rounded-xl shadow-lg shadow-[#1D4ED8]/25 hover:shadow-xl hover:shadow-[#1D4ED8]/30 active:scale-[0.98] transition-all duration-200 mt-1"
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-medium rounded-xl shadow-lg shadow-[#1D4ED8]/25 hover:shadow-xl hover:shadow-[#1D4ED8]/30 active:scale-[0.98] transition-all duration-200 mt-1"
               >
                 {loading ? (
                   <>

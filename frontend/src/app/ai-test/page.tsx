@@ -111,7 +111,7 @@ export default function AITestPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 bg-[#f8f9fb] flex flex-col overflow-hidden">
+      <div className="flex-1 bg-background flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
@@ -121,7 +121,7 @@ export default function AITestPage() {
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#27273D]">Teste da Nat</h1>
+                <h1 className="text-xl font-bold text-foreground">Teste da Nat</h1>
                 <p className="text-[12px] text-gray-400">Simule uma conversa com a IA antes de colocar em produção</p>
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function AITestPage() {
                   <Bot className="w-10 h-10 text-emerald-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-[#27273D]">🤖 Teste da Nat</h2>
+                  <h2 className="text-lg font-bold text-foreground">🤖 Teste da Nat</h2>
                   <p className="text-[13px] text-gray-400 mt-1 max-w-md mx-auto">
                     Simule uma conversa como se fosse um lead. A Nat vai responder usando o prompt e a base de conhecimento configurados.
                   </p>
@@ -221,7 +221,7 @@ export default function AITestPage() {
                   <div
                     className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed whitespace-pre-wrap ${
                       msg.role === 'user'
-                        ? 'bg-[#1D4ED8] text-white rounded-br-md'
+                        ? 'bg-primary text-white rounded-br-md'
                         : 'bg-white border border-gray-200 text-[#374151] rounded-bl-md shadow-sm'
                     }`}
                   >

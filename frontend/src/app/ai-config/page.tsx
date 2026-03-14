@@ -164,7 +164,7 @@ export default function AIConfigPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 bg-[#f8f9fb] overflow-y-auto">
+      <div className="flex-1 bg-background overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
 
           {/* Header */}
@@ -174,7 +174,7 @@ export default function AIConfigPage() {
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-[#27273D]">Configuração da IA</h1>
+                <h1 className="text-xl font-bold text-foreground">Configuração da IA</h1>
                 <p className="text-[13px] text-gray-400">Configure o agente Nat para atendimento automático</p>
               </div>
             </div>
@@ -220,7 +220,7 @@ export default function AIConfigPage() {
                       <Sparkles className={`w-5 h-5 ${config.is_enabled ? 'text-emerald-600' : 'text-gray-400'}`} />
                     </div>
                     <div>
-                      <p className="font-semibold text-[15px] text-[#27273D]">
+                      <p className="font-semibold text-[15px] text-foreground">
                         {config.is_enabled ? '🤖 Agente Nat Ativo' : 'Agente Nat Desativado'}
                       </p>
                       <p className="text-[12px] text-gray-400">
@@ -348,7 +348,7 @@ export default function AIConfigPage() {
                       <Database className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-[#27273D]">Base de Conhecimento</h2>
+                      <h2 className="text-lg font-bold text-foreground">Base de Conhecimento</h2>
                       <p className="text-[12px] text-gray-400">
                         Documentos que a Nat usa para responder ({documents.length} docs · {totalChunks} chunks · {totalTokens.toLocaleString()} tokens)
                       </p>
@@ -420,7 +420,7 @@ export default function AIConfigPage() {
                             <FileText className="w-4 h-4 text-blue-500" />
                           </div>
                           <div>
-                            <p className="text-[13px] font-medium text-[#27273D]">{doc.title}</p>
+                            <p className="text-[13px] font-medium text-foreground">{doc.title}</p>
                             <p className="text-[11px] text-gray-400">
                               {doc.chunks} chunks · {doc.total_tokens.toLocaleString()} tokens
                               {doc.created_at && ` · ${new Date(doc.created_at).toLocaleDateString('pt-BR')}`}

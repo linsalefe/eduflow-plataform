@@ -51,7 +51,7 @@ function CallbackContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center">
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="bg-white rounded-2xl p-10 shadow-lg border border-gray-100 text-center max-w-md">
         {status === 'loading' && (
           <>
@@ -75,7 +75,7 @@ function CallbackContent() {
             <p className="text-sm text-gray-400 mb-4">{message}</p>
             <button
               onClick={() => router.push('/canais')}
-              className="px-6 py-2.5 rounded-xl bg-[#1D4ED8] text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
+              className="px-6 py-2.5 rounded-xl bg-primary text-white text-[13px] font-medium hover:bg-[#5558e6] transition-all"
             >
               Voltar para Canais
             </button>
@@ -88,7 +88,7 @@ function CallbackContent() {
 
 export default function OAuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#E1306C] animate-spin" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-12 h-12 text-[#E1306C] animate-spin" /></div>}>
       <CallbackContent />
     </Suspense>
   );

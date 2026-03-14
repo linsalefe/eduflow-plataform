@@ -193,7 +193,7 @@ export default function KanbanPage() {
 
   return (
     <AppShell>
-      <div className="flex-1 bg-[#f8f9fb] overflow-hidden flex flex-col">
+      <div className="flex-1 bg-background overflow-hidden flex flex-col">
 
         {/* Header */}
         <div className="px-4 lg:px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
@@ -203,7 +203,7 @@ export default function KanbanPage() {
                 <Bot className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg lg:text-xl font-bold text-[#27273D]">Kanban — Atendimentos IA</h1>
+                <h1 className="text-lg lg:text-xl font-bold text-foreground">Kanban — Atendimentos IA</h1>
                 <p className="text-[12px] text-gray-400">
                   Acompanhe todos os leads atendidos pela Nat
                   {stats && ` · ${stats.total} total`}
@@ -310,7 +310,7 @@ export default function KanbanPage() {
                                   </span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-semibold text-[#27273D] truncate">
+                                  <p className="text-[13px] font-semibold text-foreground truncate">
                                     {card.lead_name || card.contact_wa_id}
                                   </p>
                                   <p className="text-[11px] text-gray-400 truncate flex items-center gap-1">
@@ -415,7 +415,7 @@ export default function KanbanPage() {
                       </span>
                     </div>
                     <div>
-                      <p className="text-[16px] font-bold text-[#27273D]">
+                      <p className="text-[16px] font-bold text-foreground">
                         {selectedCard.lead_name || selectedCard.contact_wa_id}
                       </p>
                       <p className="text-[12px] text-gray-400 flex items-center gap-1.5">

@@ -107,7 +107,7 @@ export default function CallsPage() {
           </div>
           <button
             onClick={fetchCalls}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1D4ED8] text-white rounded-xl text-sm hover:bg-[#347aab] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm hover:bg-[#347aab] transition-colors"
           >
             <RefreshCw className="w-4 h-4" /> Atualizar
           </button>
@@ -163,7 +163,7 @@ export default function CallsPage() {
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-20">
-              <div className="animate-spin w-6 h-6 border-2 border-[#1D4ED8] border-t-transparent rounded-full" />
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
             </div>
           ) : calls.length === 0 ? (
             <div className="text-center py-20">
@@ -224,7 +224,7 @@ export default function CallsPage() {
                               href={call.drive_file_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[#1D4ED8] hover:text-[#347aab] transition-colors"
+                              className="text-primary hover:text-[#347aab] transition-colors"
                               title="Abrir no Google Drive"
                             >
                               <ExternalLink className="w-4 h-4" />

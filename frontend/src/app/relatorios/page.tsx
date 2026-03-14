@@ -118,7 +118,7 @@ export default function RelatoriosPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D]">Relatórios</h1>
+          <h1 className="text-xl lg:text-2xl font-semibold text-foreground">Relatórios</h1>
           <p className="text-sm text-gray-400 mt-1">Exporte dados da plataforma em planilhas Excel formatadas.</p>
         </div>
 
@@ -142,7 +142,7 @@ export default function RelatoriosPage() {
                       <Icon className={`w-5 h-5 ${report.color}`} />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-[15px] font-semibold text-[#27273D]">{report.title}</h3>
+                      <h3 className="text-[15px] font-semibold text-foreground">{report.title}</h3>
                       <p className="text-[13px] text-gray-400 mt-0.5 leading-relaxed">{report.description}</p>
 
                       {/* Abas */}
@@ -166,7 +166,7 @@ export default function RelatoriosPage() {
                             <select
                               value={statusFilter}
                               onChange={(e) => setStatusFilter(e.target.value)}
-                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-[#1D4ED8]"
+                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-primary"
                             >
                               {statusOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -178,7 +178,7 @@ export default function RelatoriosPage() {
                             <select
                               value={daysFilter}
                               onChange={(e) => setDaysFilter(Number(e.target.value))}
-                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-[#1D4ED8]"
+                              className="text-[12px] px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/20 focus:border-primary"
                             >
                               {daysOptions.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -199,7 +199,7 @@ export default function RelatoriosPage() {
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : isDownloaded
                           ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                          : 'bg-[#1D4ED8] text-white hover:bg-[#1e40af]'
+                          : 'bg-primary text-white hover:bg-primary/90'
                     }`}
                   >
                     {isDownloading ? (
