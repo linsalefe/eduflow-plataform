@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geist = Geist({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "EduFlow",
@@ -21,14 +30,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={geist.className}>
-        <AuthProvider>{children}</AuthProvider>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+        <AuthProvider>
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
+        </AuthProvider>
         <Toaster
           position="top-right"
           richColors
           toastOptions={{
             duration: 3000,
-            style: { fontSize: '13px' },
+            style: { fontSize: "13px" },
           }}
         />
       </body>
