@@ -3,12 +3,44 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, TrendingUp, Users, BookOpen,
-  Plus, Trash2, Loader2, Filter, X, Calendar,
+  Plus, Trash2, Loader2, Calendar, X,
 } from 'lucide-react';
-import AppShell from "@/components/app-shell";;
+import AppShell from '@/components/app-shell';
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 import { toast } from 'sonner';
+import { KPICard } from '@/components/dashboard/kpi-card';
+import { PageHeader } from '@/components/ui/page-header';
+import { ChartCard } from '@/components/dashboard/chart-card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Entry {
   id: number;
@@ -135,95 +167,87 @@ export default function FinanceiroPage() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <DollarSign className="w-6 h-6 text-emerald-600" />
-              Financeiro
-            </h1>
-            <p className="text-sm text-gray-500 mt-0.5">Controle de matrículas e receita</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Seletor de mês */}
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <select
-                value={month}
-                onChange={(e) => setMonth(Number(e.target.value))}
-                className="text-sm bg-transparent outline-none text-gray-700"
-              >
-                {MONTHS.map((m, i) => (
-                  <option key={i} value={i + 1}>{m}</option>
-                ))}
-              </select>
-              <select
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="text-sm bg-transparent outline-none text-gray-700"
-              >
-                {[2024, 2025, 2026, 2027].map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+      <div className="max-w-7xl mx-auto space-y-6 pb-10" data-density="medium">
+        <PageHeader
+          title="Financeiro"
+          description="Controle de matrículas e receita"
+          actions={
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(Number(e.target.value))}
+                  className="text-sm bg-transparent outline-none text-foreground"
+                >
+                  {MONTHS.map((m, i) => (
+                    <option key={i} value={i + 1}>{m}</option>
+                  ))}
+                </select>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  className="text-sm bg-transparent outline-none text-foreground"
+                >
+                  {[2024, 2025, 2026, 2027].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <Button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Registrar Matrícula
+              </Button>
             </div>
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors text-sm font-medium shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Registrar Matrícula
-            </button>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Cards */}
-        {summary && (
+        {/* KPI Cards */}
+        {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-gray-500">Receita do Mês</p>
-                <DollarSign className="w-5 h-5 text-emerald-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.revenue)}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-gray-500">Receita Líquida</p>
-                <TrendingUp className="w-5 h-5 text-blue-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.net_revenue)}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-gray-500">Matrículas</p>
-                <Users className="w-5 h-5 text-indigo-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{summary.total_enrollments}</p>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm text-gray-500">Ticket Médio</p>
-                <BookOpen className="w-5 h-5 text-amber-500" />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(summary.avg_ticket)}</p>
-            </div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="p-[var(--card-pad,16px)]">
+                <Skeleton className="h-3 w-24 mb-3" />
+                <Skeleton className="h-8 w-28" />
+              </Card>
+            ))}
+          </div>
+        ) : summary && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <KPICard
+              label="Receita do Mês"
+              value={formatCurrency(summary.revenue)}
+              icon={DollarSign}
+            />
+            <KPICard
+              label="Receita Líquida"
+              value={formatCurrency(summary.net_revenue)}
+              icon={TrendingUp}
+            />
+            <KPICard
+              label="Matrículas"
+              value={summary.total_enrollments}
+              icon={Users}
+            />
+            <KPICard
+              label="Ticket Médio"
+              value={formatCurrency(summary.avg_ticket)}
+              icon={BookOpen}
+            />
           </div>
         )}
 
-        {/* Receita por Curso */}
+        {/* Revenue by Course */}
         {summary && summary.by_course.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Receita por Curso</h3>
+          <ChartCard title="Receita por Curso">
             <div className="space-y-2">
               {summary.by_course.map((item, i) => {
                 const maxRevenue = Math.max(...summary.by_course.map(c => c.revenue));
                 const width = maxRevenue > 0 ? (item.revenue / maxRevenue) * 100 : 0;
                 return (
                   <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-600 w-40 truncate">{item.course}</span>
-                    <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                    <span className="text-[13px] text-muted-foreground w-40 truncate">{item.course}</span>
+                    <div className="flex-1 bg-muted rounded-full h-6 overflow-hidden">
                       <div
                         className="h-full bg-emerald-500 rounded-full flex items-center justify-end px-2"
                         style={{ width: `${Math.max(width, 8)}%` }}
@@ -231,186 +255,196 @@ export default function FinanceiroPage() {
                         <span className="text-[11px] text-white font-medium">{formatCurrency(item.revenue)}</span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-400 w-16 text-right">{item.count} matr.</span>
+                    <span className="text-[var(--font-size-caption)] text-muted-foreground w-16 text-right tabular-nums">
+                      {item.count} matr.
+                    </span>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </ChartCard>
         )}
 
-        {/* Tabela de Entradas */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700">Entradas do Mês</h3>
+        {/* Entries Table */}
+        <Card className="overflow-hidden shadow-[var(--shadow-xs)]">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-[var(--font-size-body)] font-semibold text-foreground">Entradas do Mês</h3>
           </div>
           {loading ? (
             <div className="flex justify-center py-10">
-              <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+              <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : entries.length === 0 ? (
-            <div className="text-center py-10">
-              <DollarSign className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Nenhuma entrada neste mês</p>
-            </div>
+            <EmptyState
+              icon={DollarSign}
+              title="Nenhuma entrada neste mês"
+              description="Registre uma matrícula ou pagamento para começar."
+              actionLabel="Registrar Matrícula"
+              onAction={() => setShowModal(true)}
+            />
           ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-[11px] text-gray-400 uppercase border-b border-gray-100">
-                  <th className="px-5 py-3">Contato</th>
-                  <th className="px-5 py-3">Tipo</th>
-                  <th className="px-5 py-3">Curso</th>
-                  <th className="px-5 py-3">Valor</th>
-                  <th className="px-5 py-3">Responsável</th>
-                  <th className="px-5 py-3">Data</th>
-                  <th className="px-5 py-3 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Contato</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Tipo</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Curso</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Valor</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Responsável</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Data</TableHead>
+                  <TableHead className="w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <td className="px-5 py-3 text-sm text-gray-700 font-medium">{entry.contact_name}</td>
-                    <td className="px-5 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        entry.type === 'matricula'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : entry.type === 'cancelamento'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {entry.type === 'matricula' ? 'Matrícula' : entry.type === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-sm text-gray-500">{entry.course || '—'}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-gray-900">{formatCurrency(entry.value)}</td>
-                    <td className="px-5 py-3 text-sm text-gray-500">{entry.created_by_name}</td>
-                    <td className="px-5 py-3 text-xs text-gray-400">{entry.created_at ? formatDate(entry.created_at) : '—'}</td>
-                    <td className="px-5 py-3">
-                      <button
-                        onClick={() => setDeleteId(entry.id)}
-                        className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                  <TableRow key={entry.id}>
+                    <TableCell className="text-[var(--font-size-body)] font-medium text-foreground">
+                      {entry.contact_name}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={`text-[11px] font-medium ${
+                          entry.type === 'matricula'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : entry.type === 'cancelamento'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-blue-50 text-blue-700 border-blue-200'
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
+                        {entry.type === 'matricula' ? 'Matrícula' : entry.type === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-[var(--font-size-body)] text-muted-foreground">
+                      {entry.course || '—'}
+                    </TableCell>
+                    <TableCell className="text-[var(--font-size-body)] font-semibold text-foreground tabular-nums">
+                      {formatCurrency(entry.value)}
+                    </TableCell>
+                    <TableCell className="text-[var(--font-size-body)] text-muted-foreground">
+                      {entry.created_by_name}
+                    </TableCell>
+                    <TableCell className="text-[var(--font-size-caption)] text-muted-foreground tabular-nums">
+                      {entry.created_at ? formatDate(entry.created_at) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteId(entry.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
+        </Card>
       </div>
 
-      {/* Modal Criar Entrada */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Registrar Entrada</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
+      {/* Create Entry Dialog */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Registrar Entrada</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Type selector */}
+            <div className="flex gap-2">
+              {['matricula', 'pagamento', 'cancelamento'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setForm({ ...form, type: t })}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                    form.type === t
+                      ? t === 'cancelamento'
+                        ? 'bg-red-50 border-red-300 text-red-700'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {t === 'matricula' ? 'Matrícula' : t === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
+                </button>
+              ))}
             </div>
-            <div className="px-6 py-5 space-y-4">
-              {/* Tipo */}
-              <div className="flex gap-2">
-                {['matricula', 'pagamento', 'cancelamento'].map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setForm({ ...form, type: t })}
-                    className={`flex-1 py-2 text-sm font-medium rounded-xl border transition-colors ${
-                      form.type === t
-                        ? t === 'cancelamento'
-                          ? 'bg-red-50 border-red-300 text-red-700'
-                          : 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                    }`}
-                  >
-                    {t === 'matricula' ? 'Matrícula' : t === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
-                  </button>
-                ))}
-              </div>
 
-              {/* Contato */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Contato *</label>
-                <input
-                  type="text"
-                  placeholder="Buscar por nome ou telefone..."
-                  value={contactSearch}
-                  onChange={(e) => {
-                    setContactSearch(e.target.value);
-                    setForm({ ...form, contact_wa_id: '' });
-                  }}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-400"
-                />
-                {contactSearch && !form.contact_wa_id && (
-                  <div className="mt-1 max-h-32 overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-lg">
-                    {filteredContacts.slice(0, 8).map(c => (
-                      <button
-                        key={c.wa_id}
-                        onClick={() => {
-                          setForm({ ...form, contact_wa_id: c.wa_id });
-                          setContactSearch(c.name);
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
-                      >
-                        <span className="text-gray-700">{c.name}</span>
-                        <span className="text-gray-400 ml-2 text-xs">{c.wa_id}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Valor */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Valor (R$) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={form.value}
-                  onChange={(e) => setForm({ ...form, value: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-400"
-                />
-              </div>
-
-              {/* Curso */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Curso</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Pós-graduação em Psicologia"
-                  value={form.course}
-                  onChange={(e) => setForm({ ...form, course: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-400"
-                />
-              </div>
-
-              {/* Descrição */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Descrição</label>
-                <input
-                  type="text"
-                  placeholder="Observação opcional..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-emerald-400"
-                />
-              </div>
+            {/* Contact search */}
+            <div className="space-y-1.5">
+              <Label>Contato *</Label>
+              <Input
+                placeholder="Buscar por nome ou telefone..."
+                value={contactSearch}
+                onChange={(e) => {
+                  setContactSearch(e.target.value);
+                  setForm({ ...form, contact_wa_id: '' });
+                }}
+              />
+              {contactSearch && !form.contact_wa_id && (
+                <div className="max-h-32 overflow-y-auto bg-card border border-border rounded-lg shadow-lg">
+                  {filteredContacts.slice(0, 8).map(c => (
+                    <button
+                      key={c.wa_id}
+                      onClick={() => {
+                        setForm({ ...form, contact_wa_id: c.wa_id });
+                        setContactSearch(c.name);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
+                    >
+                      <span className="text-foreground">{c.name}</span>
+                      <span className="text-muted-foreground ml-2 text-xs">{c.wa_id}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">
-                Cancelar
-              </button>
-              <button onClick={handleSubmit} className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-xl hover:bg-emerald-700 transition-colors">
-                Registrar
-              </button>
+
+            {/* Value */}
+            <div className="space-y-1.5">
+              <Label>Valor (R$) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0,00"
+                value={form.value}
+                onChange={(e) => setForm({ ...form, value: e.target.value })}
+              />
+            </div>
+
+            {/* Course */}
+            <div className="space-y-1.5">
+              <Label>Curso</Label>
+              <Input
+                placeholder="Ex: Pós-graduação em Psicologia"
+                value={form.course}
+                onChange={(e) => setForm({ ...form, course: e.target.value })}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1.5">
+              <Label>Descrição</Label>
+              <Input
+                placeholder="Observação opcional..."
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} className="bg-emerald-600 hover:bg-emerald-700">
+              Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirm Delete */}
       <ConfirmModal
