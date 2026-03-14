@@ -55,8 +55,8 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-16 relative">
         {/* Background layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#1D4ED8]/15 via-transparent to-[#3b82f6]/5" />
-        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s' }} />
-        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#3b82f6]/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '8s', animationDelay: '2s' }} />
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-[#1D4ED8]/10 rounded-full blur-3xl blob-drift" />
+        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#3b82f6]/8 rounded-full blur-3xl blob-drift-reverse" />
 
         {/* Subtle grid */}
         <div
@@ -143,8 +143,8 @@ export default function LoginPage() {
             <span className="text-2xl font-bold text-white">EduFlow</span>
           </div>
 
-          {/* Glassmorphism card */}
-          <div className="bg-white/[0.95] backdrop-blur-xl rounded-2xl p-8 shadow-2xl shadow-black/30 border border-white/20">
+          {/* Glassmorphism card com animated gradient border */}
+          <div className="login-card-glow backdrop-blur-xl p-8 shadow-2xl shadow-black/30">
             {/* Header */}
             <div className="mb-7">
               <h2 className="text-[22px] font-bold text-[#0f172a]">Bem-vindo de volta</h2>
@@ -165,7 +165,7 @@ export default function LoginPage() {
                 <Label htmlFor="email" className="text-[13px] font-medium text-gray-500">
                   Email
                 </Label>
-                <div className="relative">
+                <div className="relative input-glow rounded-xl transition-all">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <Input
                     id="email"
@@ -184,7 +184,7 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-[13px] font-medium text-gray-500">
                   Senha
                 </Label>
-                <div className="relative">
+                <div className="relative input-glow rounded-xl transition-all">
                   <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <Input
                     id="password"

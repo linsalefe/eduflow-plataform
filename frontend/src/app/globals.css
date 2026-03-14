@@ -333,3 +333,64 @@ a, button, input, select, textarea {
   transition-duration: 100ms;
   transition-timing-function: ease-out;
 }
+
+/* ============================================================
+   LOGIN — Animated gradient border
+   ============================================================ */
+@keyframes border-rotate {
+  from { --border-angle: 0deg; }
+  to { --border-angle: 360deg; }
+}
+
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.login-card-glow {
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1rem;
+}
+
+.login-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 40%,
+    rgba(29, 78, 216, 0.3) 50%,
+    transparent 60%
+  );
+  animation: border-rotate 6s linear infinite;
+  z-index: -1;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+}
+
+/* Input focus glow */
+.input-glow:focus-within {
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1), 0 0 20px rgba(29, 78, 216, 0.08);
+  border-color: #1D4ED8;
+  transition: box-shadow 300ms ease-out, border-color 200ms ease-out;
+}
+
+/* Floating blob drift animation */
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -20px) scale(1.05); }
+  50% { transform: translate(-10px, 20px) scale(0.95); }
+  75% { transform: translate(-30px, -10px) scale(1.02); }
+}
+
+.blob-drift {
+  animation: blob-drift 20s ease-in-out infinite;
+}
+
+.blob-drift-reverse {
+  animation: blob-drift 25s ease-in-out infinite reverse;
+}
