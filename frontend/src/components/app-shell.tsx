@@ -438,8 +438,8 @@ function AppShellInner({ children, fullWidth = false }: AppShellProps) {
 
         {/* Page content */}
         <main
-          className={`flex-1 overflow-y-auto ${
-            fullWidth ? '' : 'px-4 lg:px-6 py-4 lg:py-6'
+          className={`flex-1 ${
+            fullWidth ? 'overflow-hidden' : 'overflow-y-auto px-4 lg:px-6 py-4 lg:py-6'
           }`}
         >
           {children}
