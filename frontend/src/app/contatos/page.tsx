@@ -3,17 +3,40 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, Plus, Trash2, Pencil, X, Loader2,
-  Phone, User, BookOpen, ChevronDown, Filter,
-  CheckCircle, AlertCircle, Upload
+  Plus, Trash2, Pencil, Loader2, Phone, User,
+  CheckCircle, Upload, X,
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from '@/components/app-shell';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { ColumnDef } from '@tanstack/react-table';
+import { DataTable } from '@/components/ui/data-table';
+import { PageHeader } from '@/components/ui/page-header';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { TableSkeleton } from '@/components/skeletons/table-skeleton';
+import ConfirmModal from '@/components/ConfirmModal';
 
 const STAGES = [
-  { key: 'all', label: 'Todos' },
   { key: 'novo', label: 'Novos Leads' },
   { key: 'em_contato', label: 'Em Contato' },
   { key: 'qualificado', label: 'Qualificados' },
@@ -22,8 +45,8 @@ const STAGES = [
   { key: 'perdido', label: 'Perdidos' },
 ];
 
-const STAGE_COLORS: Record<string, string> = {
-  novo: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+const STAGE_STYLES: Record<string, string> = {
+  novo: 'bg-blue-50 text-blue-700 border-blue-200',
   em_contato: 'bg-amber-50 text-amber-700 border-amber-200',
   qualificado: 'bg-purple-50 text-purple-700 border-purple-200',
   negociando: 'bg-cyan-50 text-cyan-700 border-cyan-200',
@@ -41,33 +64,48 @@ interface Contact {
   ai_active: boolean;
 }
 
+const getCourse = (notes: string | null) => {
+  try {
+    const parsed = JSON.parse(notes || '{}');
+    return parsed.course || '';
+  } catch {
+    return '';
+  }
+};
+
+const formatPhone = (wa_id: string) => {
+  const num = wa_id.replace(/^55/, '');
+  if (num.length === 11) return `(${num.slice(0, 2)}) ${num.slice(2, 7)}-${num.slice(7)}`;
+  return wa_id;
+};
+
 export default function ContatosPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [stageFilter, setStageFilter] = useState('all');
-  const [mounted, setMounted] = useState(false);
-
-  // Modal criar/editar
   const [showModal, setShowModal] = useState(false);
   const [editContact, setEditContact] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [formName, setFormName] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formCourse, setFormCourse] = useState('');
-  const [formChannelId, setFormChannelId] = useState<number>(0);
+  const [formChannelId, setFormChannelId] = useState<string>('');
   const [channels, setChannels] = useState<any[]>([]);
-
-  // Modal confirmar delete
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
-  useEffect(() => { if (user) { loadContacts(); loadChannels(); } }, [user]);
+  useEffect(() => {
+    if (!authLoading && !user) router.push('/login');
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (user) {
+      loadContacts();
+      loadChannels();
+    }
+  }, [user]);
 
   const loadContacts = async () => {
     try {
@@ -84,31 +122,16 @@ export default function ContatosPage() {
     try {
       const res = await api.get('/channels');
       setChannels(res.data);
-      if (res.data.length > 0) setFormChannelId(res.data[0].id);
+      if (res.data.length > 0) setFormChannelId(String(res.data[0].id));
     } catch {}
   };
-
-  const getCourse = (notes: string | null) => {
-    try {
-      const parsed = JSON.parse(notes || '{}');
-      return parsed.course || '';
-    } catch { return ''; }
-  };
-
-  const filtered = contacts.filter(c => {
-    const matchSearch = !search ||
-      c.name?.toLowerCase().includes(search.toLowerCase()) ||
-      c.wa_id.includes(search);
-    const matchStage = stageFilter === 'all' || c.lead_status === stageFilter;
-    return matchSearch && matchStage;
-  });
 
   const openCreate = () => {
     setEditContact(null);
     setFormName('');
     setFormPhone('');
     setFormCourse('');
-    if (channels.length > 0) setFormChannelId(channels[0].id);
+    if (channels.length > 0) setFormChannelId(String(channels[0].id));
     setShowModal(true);
   };
 
@@ -117,13 +140,13 @@ export default function ContatosPage() {
     setFormName(c.name || '');
     setFormPhone(c.wa_id.replace(/^55/, ''));
     setFormCourse(getCourse(c.notes));
-    setFormChannelId(c.channel_id || (channels.length > 0 ? channels[0].id : 0));
+    setFormChannelId(String(c.channel_id || (channels.length > 0 ? channels[0].id : '')));
     setShowModal(true);
   };
 
   const handleSave = async () => {
     if (!formName.trim()) return toast.error('Informe o nome');
-    if (!formPhone.trim()) return toast.error('Informe o telefone');
+    if (!editContact && !formPhone.trim()) return toast.error('Informe o telefone');
     setSaving(true);
     try {
       if (editContact) {
@@ -137,7 +160,7 @@ export default function ContatosPage() {
           name: formName,
           phone: formPhone,
           course: formCourse,
-          channel_id: formChannelId,
+          channel_id: Number(formChannelId),
         });
         toast.success('Contato criado');
       }
@@ -185,196 +208,249 @@ export default function ContatosPage() {
     e.target.value = '';
   };
 
-  const formatPhone = (wa_id: string) => {
-    const num = wa_id.replace(/^55/, '');
-    if (num.length === 11) return `(${num.slice(0,2)}) ${num.slice(2,7)}-${num.slice(7)}`;
-    return wa_id;
-  };
+  const columns: ColumnDef<Contact, any>[] = [
+    {
+      accessorKey: 'name',
+      header: 'Nome',
+      cell: ({ row }) => {
+        const c = row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary/10 text-primary text-[12px] font-bold">
+                {(c.name || c.wa_id).charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-[13px] font-medium text-foreground">{c.name || c.wa_id}</p>
+              {c.ai_active && (
+                <p className="text-[11px] text-emerald-500">IA ativa</p>
+              )}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: 'wa_id',
+      header: 'Telefone',
+      cell: ({ row }) => (
+        <span className="text-[13px] text-muted-foreground font-mono tabular-nums">
+          {formatPhone(row.original.wa_id)}
+        </span>
+      ),
+    },
+    {
+      id: 'course',
+      header: 'Curso',
+      cell: ({ row }) => (
+        <span className="text-[13px] text-muted-foreground">
+          {getCourse(row.original.notes) || '—'}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'lead_status',
+      header: 'Estágio',
+      cell: ({ row }) => {
+        const status = row.original.lead_status;
+        const label = STAGES.find((s) => s.key === status)?.label || status;
+        return (
+          <Badge
+            variant="outline"
+            className={`text-[11px] font-medium ${STAGE_STYLES[status] || 'bg-muted text-muted-foreground'}`}
+          >
+            {label}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'Criado em',
+      cell: ({ row }) => (
+        <span className="text-[12px] text-muted-foreground tabular-nums">
+          {row.original.created_at
+            ? new Date(row.original.created_at + 'Z').toLocaleDateString('pt-BR')
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => {
+        const c = row.original;
+        return (
+          <div className="flex items-center gap-1 justify-end">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                openEdit(c);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDeleteTarget(c);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-8 h-8 text-[#6366f1] animate-spin" /></div>;
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
-    <AppLayout>
-      <div className="space-y-6 max-w-6xl mx-auto pb-10">
-
-        {/* Header */}
-        <div className={`flex items-center justify-between transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
-          <div>
-            <p className="text-sm text-gray-400 mb-0.5">CRM</p>
-            <h1 className="text-xl lg:text-2xl font-semibold text-[#27273D] tracking-tight">Contatos</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all cursor-pointer">
-              <Upload className="w-4 h-4" />
-              Importar
-              <input type="file" accept=".xlsx,.csv" onChange={handleImport} className="hidden" />
-            </label>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#6366f1] text-white text-sm font-medium rounded-xl hover:bg-[#4f46e5] hover:shadow-lg hover:shadow-[#6366f1]/20 active:scale-[0.98] transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              Novo contato
-            </button>
-          </div>
-        </div>
-
-        {/* Filtros */}
-        <div className={`flex flex-col sm:flex-row gap-3 transition-all duration-700 delay-75 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nome ou telefone..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#6366f1] transition-all"
-            />
-          </div>
-          <select
-            value={stageFilter}
-            onChange={e => setStageFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-[#6366f1] transition-all cursor-pointer"
-          >
-            {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
-        </div>
-
-        {/* Stats */}
-        <div className={`flex items-center gap-2 text-[12px] text-gray-400 transition-all duration-700 delay-100 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-          <span className="font-medium text-[#27273D]">{filtered.length}</span> contatos encontrados
-          {search && <span>· busca: "<span className="text-[#6366f1]">{search}</span>"</span>}
-        </div>
-
-        {/* Tabela */}
-        <div className={`bg-white rounded-2xl border border-gray-100 overflow-hidden transition-all duration-700 delay-150 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          {loading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 text-[#6366f1] animate-spin" /></div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center">
-              <User className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-400">Nenhum contato encontrado</p>
-              <p className="text-xs text-gray-300 mt-1">Clique em "Novo contato" para adicionar</p>
+    <AppShell>
+      <div className="max-w-6xl mx-auto pb-10" data-density="medium">
+        <PageHeader
+          title="Contatos"
+          description={`${contacts.length} contatos no CRM`}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" asChild className="cursor-pointer">
+                <label>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar
+                  <input
+                    type="file"
+                    accept=".xlsx,.csv"
+                    onChange={handleImport}
+                    className="hidden"
+                  />
+                </label>
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo contato
+              </Button>
             </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-50">
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Nome</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Telefone</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Curso</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Estágio</th>
-                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Criado em</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map(c => (
-                  <tr key={c.wa_id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#6366f1]/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[12px] font-bold text-[#6366f1]">{(c.name || c.wa_id).charAt(0).toUpperCase()}</span>
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-medium text-[#27273D]">{c.name || c.wa_id}</p>
-                          {c.ai_active && <p className="text-[11px] text-emerald-500">IA ativa</p>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5 hidden sm:table-cell">
-                      <p className="text-[13px] text-gray-500 font-mono">{formatPhone(c.wa_id)}</p>
-                    </td>
-                    <td className="px-5 py-3.5 hidden md:table-cell">
-                      <p className="text-[13px] text-gray-500">{getCourse(c.notes) || '—'}</p>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium border ${STAGE_COLORS[c.lead_status] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                        {STAGES.find(s => s.key === c.lead_status)?.label || c.lead_status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      <p className="text-[12px] text-gray-400">
-                        {c.created_at ? new Date(c.created_at + 'Z').toLocaleDateString('pt-BR') : '—'}
-                      </p>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-[#6366f1] hover:bg-[#6366f1]/5 rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeleteTarget(c)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+          }
+        />
+
+        {loading ? (
+          <TableSkeleton columns={5} rows={10} />
+        ) : contacts.length === 0 ? (
+          <EmptyState
+            icon={User}
+            title="Nenhum contato ainda"
+            description="Crie seu primeiro contato ou importe uma planilha para começar."
+            actionLabel="Novo contato"
+            onAction={openCreate}
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={contacts}
+            searchPlaceholder="Buscar por nome ou telefone..."
+            searchKey="name"
+          />
+        )}
       </div>
 
       {/* Modal criar/editar */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-100" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-[15px] font-semibold text-[#27273D]">{editContact ? 'Editar contato' : 'Novo contato'}</h2>
-              <button onClick={() => setShowModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editContact ? 'Editar contato' : 'Novo contato'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Nome</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="Nome completo"
+              />
             </div>
-            <div className="px-6 py-5 space-y-4">
-              <div>
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Nome</label>
-                <input type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Nome completo" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#6366f1] focus:bg-white transition-all" />
+
+            {!editContact && (
+              <div className="space-y-1.5">
+                <Label>WhatsApp</Label>
+                <Input
+                  type="tel"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="83988046720"
+                />
               </div>
-              {!editContact && (
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">WhatsApp</label>
-                  <input type="tel" value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="83988046720" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#6366f1] focus:bg-white transition-all" />
-                </div>
-              )}
-              <div>
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Curso de interesse</label>
-                <input type="text" value={formCourse} onChange={e => setFormCourse(e.target.value)} placeholder="Ex: Pós-graduação em Psicologia" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-[#6366f1] focus:bg-white transition-all" />
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Curso de interesse</Label>
+              <Input
+                value={formCourse}
+                onChange={(e) => setFormCourse(e.target.value)}
+                placeholder="Ex: Pós-graduação em Psicologia"
+              />
+            </div>
+
+            {!editContact && channels.length > 1 && (
+              <div className="space-y-1.5">
+                <Label>Canal WhatsApp</Label>
+                <Select value={formChannelId} onValueChange={setFormChannelId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o canal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {channels.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              {!editContact && channels.length > 1 && (
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Canal WhatsApp</label>
-                  <select value={formChannelId} onChange={e => setFormChannelId(Number(e.target.value))} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-[#6366f1] focus:bg-white transition-all cursor-pointer">
-                    {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
-              <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 bg-[#6366f1] text-white rounded-xl text-[13px] font-medium hover:bg-[#4f46e5] active:scale-[0.98] transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                {saving ? 'Salvando...' : editContact ? 'Salvar' : 'Criar contato'}
-              </button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {editContact ? 'Salvar' : 'Criar contato'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modal confirmar delete */}
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-gray-100 p-6" onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <Trash2 className="w-5 h-5 text-red-500" />
-            </div>
-            <h2 className="text-[15px] font-semibold text-[#27273D] text-center mb-1">Excluir contato</h2>
-            <p className="text-[13px] text-gray-400 text-center mb-5">Tem certeza que deseja excluir <strong>{deleteTarget.name}</strong>? Todas as mensagens serão removidas.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-[13px] font-medium hover:bg-red-600 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
-                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {deleting ? 'Excluindo...' : 'Excluir'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </AppLayout>
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Excluir contato"
+        message={`Tem certeza que deseja excluir ${deleteTarget?.name || 'este contato'}? Todas as mensagens serão removidas.`}
+        confirmLabel={deleting ? 'Excluindo...' : 'Excluir'}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        variant="danger"
+      />
+    </AppShell>
   );
 }
