@@ -7,7 +7,7 @@ import {
   Loader2, ChevronDown, ChevronUp, Clock,
   CheckCircle, Pencil, X, Copy, Link
 } from 'lucide-react';
-import AppLayout from '@/components/AppLayout';
+import AppShell from '@/components/app-shell';
 import { useAuth } from '@/contexts/auth-context';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -350,7 +350,7 @@ export default function AutomacoesPage() {
   if (!user) return null;
 
   return (
-    <AppLayout>
+    <AppShell>
       <div className="space-y-6 max-w-4xl mx-auto pb-10">
 
         {/* Header */}
@@ -707,6 +707,6 @@ export default function AutomacoesPage() {
           </div>
         </div>
       )}
-    </AppLayout>
+    </AppShell>
   );
 }
