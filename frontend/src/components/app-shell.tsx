@@ -218,6 +218,7 @@ function SidebarNavContent({
                   asChild
                   isActive={pathname === '/admin'}
                   tooltip="Painel Admin"
+                  className={pathname === '/admin' ? 'sidebar-item-active' : ''}
                 >
                   <Link href="/admin" onClick={onNavigate}>
                     <Shield className="w-[18px] h-[18px]" />
@@ -254,6 +255,7 @@ function SidebarNavContent({
                         asChild
                         isActive={isActive}
                         tooltip={item.label}
+                        className={isActive ? 'sidebar-item-active' : ''}
                       >
                         <Link href={item.href} onClick={onNavigate}>
                           <Icon className="w-[18px] h-[18px]" />
@@ -261,7 +263,7 @@ function SidebarNavContent({
                           {showBadge && (
                             <Badge
                               variant="default"
-                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-500 text-white border-0"
+                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-500 text-white border-0 badge-unread"
                             >
                               {unreadCount > 99 ? '99+' : unreadCount}
                             </Badge>
@@ -269,7 +271,7 @@ function SidebarNavContent({
                           {showTaskBadge && (
                             <Badge
                               variant="default"
-                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-amber-500 hover:bg-amber-500 text-white border-0"
+                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-amber-500 hover:bg-amber-500 text-white border-0 badge-unread"
                             >
                               {taskCount > 99 ? '99+' : taskCount}
                             </Badge>
