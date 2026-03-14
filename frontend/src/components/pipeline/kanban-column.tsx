@@ -3,6 +3,7 @@
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { KanbanCard, Lead } from './kanban-card';
 import { LucideIcon, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface KanbanColumnProps {
   columnKey: string;
@@ -11,6 +12,7 @@ interface KanbanColumnProps {
   icon: LucideIcon;
   leads: Lead[];
   onCardClick: (lead: Lead) => void;
+  index?: number;
 }
 
 export function KanbanColumn({
@@ -20,24 +22,42 @@ export function KanbanColumn({
   icon: Icon,
   leads,
   onCardClick,
+  index = 0,
 }: KanbanColumnProps) {
   return (
-    <div className="w-[280px] flex-shrink-0 flex flex-col">
+    <motion.div
+      className="w-[280px] flex-shrink-0 flex flex-col"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: index * 0.06,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+    >
       {/* Column Header */}
       <div
         className="px-4 py-3 rounded-t-xl border border-b-0"
-        style={{ backgroundColor: `${color}18`, borderColor: `${color}40` }}
+        style={{
+          background: `linear-gradient(135deg, ${color}14 0%, ${color}08 100%)`,
+          borderColor: `${color}30`,
+        }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Icon className="w-4 h-4" style={{ color }} />
-            <span className="text-[13px] font-semibold" style={{ color }}>
+            <div
+              className="h-6 w-6 rounded-md flex items-center justify-center"
+              style={{ backgroundColor: `${color}20` }}
+            >
+              <Icon className="w-3.5 h-3.5" style={{ color }} />
+            </div>
+            <span className="text-[13px] font-semibold text-foreground">
               {label}
             </span>
           </div>
           <span
-            className="text-[12px] font-bold px-2 py-0.5 rounded-full"
-            style={{ color, backgroundColor: `${color}25` }}
+            className="text-[12px] font-bold px-2 py-0.5 rounded-full tabular-nums"
+            style={{ color, backgroundColor: `${color}18` }}
           >
             {leads.length}
           </span>
@@ -50,31 +70,39 @@ export function KanbanColumn({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 border border-t-0 rounded-b-xl p-2.5 space-y-2.5 overflow-y-auto transition-all duration-200 min-h-[120px]"
+            className="flex-1 border border-t-0 rounded-b-xl p-2.5 space-y-2 overflow-y-auto transition-all duration-200 min-h-[120px]"
             style={
               snapshot.isDraggingOver
                 ? {
-                    boxShadow: `0 0 0 2px ${color}`,
-                    backgroundColor: `${color}08`,
-                    borderColor: `${color}40`,
+                    boxShadow: `inset 0 0 0 2px ${color}40`,
+                    backgroundColor: `${color}06`,
+                    borderColor: `${color}30`,
                   }
                 : {
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    borderColor: `${color}40`,
+                    backgroundColor: 'var(--card)',
+                    borderColor: `${color}30`,
                   }
             }
           >
             {leads.length === 0 && !snapshot.isDraggingOver && (
-              <div className="text-center py-10 text-muted-foreground/30">
-                <Users className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-[12px]">Nenhum lead</p>
+              <div className="text-center py-10">
+                <div className="relative w-12 h-12 mx-auto mb-2">
+                  <div
+                    className="absolute inset-0 rounded-full opacity-10"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Users className="w-5 h-5" style={{ color, opacity: 0.4 }} />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground/50">Nenhum lead</p>
               </div>
             )}
 
             {snapshot.isDraggingOver && leads.length === 0 && (
               <div
-                className="border-2 border-dashed rounded-xl p-4 text-center"
-                style={{ borderColor: color }}
+                className="border-2 border-dashed rounded-xl p-4 text-center transition-colors"
+                style={{ borderColor: `${color}60` }}
               >
                 <p className="text-[12px] font-medium" style={{ color }}>
                   Soltar aqui
@@ -82,8 +110,8 @@ export function KanbanColumn({
               </div>
             )}
 
-            {leads.map((lead, index) => (
-              <Draggable key={lead.wa_id} draggableId={lead.wa_id} index={index}>
+            {leads.map((lead, idx) => (
+              <Draggable key={lead.wa_id} draggableId={lead.wa_id} index={idx}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
@@ -105,6 +133,6 @@ export function KanbanColumn({
           </div>
         )}
       </Droppable>
-    </div>
+    </motion.div>
   );
 }

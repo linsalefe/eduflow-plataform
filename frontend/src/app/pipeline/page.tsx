@@ -7,6 +7,7 @@ import {
   GripVertical, Trash2, Plus, X, Save, AlertTriangle, Loader2,
 } from 'lucide-react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { motion } from 'framer-motion';
 import AppShell from '@/components/app-shell';
 import api from '@/lib/api';
 import { PageHeader } from '@/components/ui/page-header';
@@ -127,6 +128,13 @@ export default function PipelinePage() {
         return (l.name || '').toLowerCase().includes(s) || l.wa_id.includes(s);
       });
 
+  const totalFiltered = search
+    ? leads.filter((l) => {
+        const s = search.toLowerCase();
+        return (l.name || '').toLowerCase().includes(s) || l.wa_id.includes(s);
+      }).length
+    : leads.length;
+
   return (
     <AppShell>
       <div className="flex-1 overflow-hidden flex flex-col" data-density="medium">
@@ -135,7 +143,8 @@ export default function PipelinePage() {
           <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
             <PageHeader
               title="Pipeline"
-              description={`Funil de matrículas · ${leads.length} leads`}
+              description="Funil de matrículas"
+              badge={`${totalFiltered} leads`}
               className="mb-0"
             />
             <div className="flex items-center gap-2">
@@ -147,6 +156,14 @@ export default function PipelinePage() {
                   placeholder="Buscar lead..."
                   className="pl-9 h-9 w-40 lg:w-52"
                 />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -172,29 +189,40 @@ export default function PipelinePage() {
           </div>
 
           {/* Stats pills */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+          <motion.div
+            className="flex gap-2 mt-4 overflow-x-auto pb-1"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+          >
             {columns.map((col) => {
-              const count = leads.filter((l) => l.lead_status === col.key).length;
+              const count = getLeadsByStatus(col.key).length;
               return (
                 <div
                   key={col.key}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-shrink-0"
-                  style={{ backgroundColor: `${col.color}15` }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-shrink-0 border transition-colors"
+                  style={{
+                    backgroundColor: `${col.color}0a`,
+                    borderColor: `${col.color}20`,
+                  }}
                 >
                   <div
-                    className="w-2 h-2 rounded-full"
+                    className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: col.color }}
                   />
+                  <span className="text-[12px] font-medium tabular-nums text-foreground">
+                    {col.label}
+                  </span>
                   <span
-                    className="text-[12px] font-medium tabular-nums"
+                    className="text-[12px] font-bold tabular-nums"
                     style={{ color: col.color }}
                   >
-                    {col.label}: {count}
+                    {count}
                   </span>
                 </div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
 
         {/* Board */}
@@ -204,7 +232,7 @@ export default function PipelinePage() {
           ) : (
             <DragDropContext onDragEnd={onDragEnd}>
               <div className="flex gap-4 h-full min-w-max">
-                {columns.map((col) => {
+                {columns.map((col, i) => {
                   const Icon = ICON_MAP[col.key] || Users;
                   return (
                     <KanbanColumn
@@ -215,6 +243,7 @@ export default function PipelinePage() {
                       icon={Icon}
                       leads={getLeadsByStatus(col.key)}
                       onCardClick={setSelectedLead}
+                      index={i}
                     />
                   );
                 })}
