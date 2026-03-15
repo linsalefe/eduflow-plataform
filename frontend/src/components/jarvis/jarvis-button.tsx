@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Loader2, Volume2, X, Sparkles } from 'lucide-react';
+import { Mic, X, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 
@@ -14,10 +14,10 @@ export function JarvisButton() {
   const [answer, setAnswer] = useState('');
   const [error, setError] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const finalTranscriptRef = useRef('');
@@ -32,7 +32,16 @@ export function JarvisButton() {
     };
   }, []);
 
-  // Monitor mic volume for ring reactivity
+  // ESC to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) closeOverlay();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  // Monitor mic volume
   const startAudioMonitor = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -42,7 +51,6 @@ export function JarvisButton() {
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
-      analyserRef.current = analyser;
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       const tick = () => {
@@ -53,7 +61,7 @@ export function JarvisButton() {
       };
       tick();
     } catch {
-      // Mic permission denied — continue without visualizer
+      // Mic permission denied
     }
   }, []);
 
@@ -73,6 +81,12 @@ export function JarvisButton() {
       setError('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.');
       return;
     }
+
+    setIsOpen(true);
+    setTranscript('');
+    setAnswer('');
+    setError('');
+    finalTranscriptRef.current = '';
 
     const recognition = new SR();
     recognition.lang = 'pt-BR';
@@ -101,7 +115,7 @@ export function JarvisButton() {
       if (text.trim()) {
         sendToJarvis(text.trim());
       } else {
-        reset();
+        setState('idle');
       }
     };
 
@@ -110,17 +124,13 @@ export function JarvisButton() {
       if (e.error === 'not-allowed') {
         setError('Permissão de microfone negada.');
       }
-      reset();
+      setState('idle');
     };
 
     recognitionRef.current = recognition;
     recognition.start();
     startAudioMonitor();
     setState('listening');
-    setTranscript('');
-    setAnswer('');
-    setError('');
-    finalTranscriptRef.current = '';
   }, [startAudioMonitor, stopAudioMonitor]);
 
   // Send to backend
@@ -136,9 +146,9 @@ export function JarvisButton() {
       } else {
         setState('idle');
       }
-    } catch (err: any) {
+    } catch {
       setError('Erro ao consultar o Jarvis. Tente novamente.');
-      reset();
+      setState('idle');
     }
   };
 
@@ -155,293 +165,392 @@ export function JarvisButton() {
       URL.revokeObjectURL(url);
       setState('idle');
     };
-    audio.onerror = () => {
-      setState('idle');
-    };
-
+    audio.onerror = () => setState('idle');
     audio.play().catch(() => setState('idle'));
   };
 
-  // Cancel / Reset
-  const cancel = useCallback(() => {
+  // Close overlay
+  const closeOverlay = useCallback(() => {
     recognitionRef.current?.abort();
     audioRef.current?.pause();
     stopAudioMonitor();
-    reset();
-  }, [stopAudioMonitor]);
-
-  const reset = () => {
     setState('idle');
+    setIsOpen(false);
     setTranscript('');
     setAnswer('');
     setError('');
     setAudioLevel(0);
     finalTranscriptRef.current = '';
-  };
+  }, [stopAudioMonitor]);
 
-  const isActive = state !== 'idle';
-  const showCard = isActive || answer || error;
+  const orbSize = state === 'listening' ? 140 + audioLevel * 30 : 140;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-
+    <>
       {/* ============================================================
-          CARD EXPANSÍVEL — transcrição + resposta
+          FLOATING BUTTON — visible when overlay is closed
           ============================================================ */}
       <AnimatePresence>
-        {showCard && (
-          <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: [0.175, 0.885, 0.32, 1.275] }}
+        {!isOpen && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            onClick={startListening}
             className={cn(
-              'w-[340px] max-w-[calc(100vw-48px)] rounded-2xl border border-border',
-              'bg-card/95 backdrop-blur-xl shadow-xl shadow-black/10',
-              'overflow-hidden'
+              'fixed bottom-6 right-6 z-50',
+              'h-14 w-14 rounded-full',
+              'bg-primary text-white',
+              'flex items-center justify-center',
+              'shadow-lg cursor-pointer',
+              'jarvis-btn-idle',
             )}
+            aria-label="Ativar Jarvis"
+            whileTap={{ scale: 0.9 }}
           >
-            {/* Card header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
-                </div>
-                <span className="text-[13px] font-semibold text-foreground">Jarvis</span>
-                <span className="text-[11px] text-muted-foreground">Assistente de voz</span>
-              </div>
-              {isActive && (
-                <button
-                  onClick={cancel}
-                  className="h-6 w-6 rounded-md hover:bg-muted flex items-center justify-center transition-colors"
-                >
-                  <X className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              )}
-            </div>
-
-            {/* Card body */}
-            <div className="px-4 py-3 space-y-3 max-h-[300px] overflow-y-auto">
-
-              {/* Listening — transcrição em tempo real */}
-              {state === 'listening' && (
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center gap-[3px]">
-                      {[...Array(5)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="jarvis-wave-bar"
-                          style={{
-                            '--wave-h': `${8 + audioLevel * 20 + Math.random() * 8}px`,
-                            animationDelay: `${i * 0.1}s`,
-                            height: '4px',
-                          } as React.CSSProperties}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-[12px] text-primary font-medium">Ouvindo...</span>
-                  </div>
-                  {transcript ? (
-                    <p className="text-[14px] text-foreground leading-relaxed jarvis-cursor">
-                      {transcript}
-                    </p>
-                  ) : (
-                    <p className="text-[13px] text-muted-foreground italic">
-                      Fale sua pergunta...
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Processing */}
-              {state === 'processing' && (
-                <div>
-                  <p className="text-[13px] text-muted-foreground mb-2">Você perguntou:</p>
-                  <p className="text-[14px] text-foreground mb-3">{transcript}</p>
-                  <div className="flex items-center gap-2 text-primary">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-[13px] font-medium">Consultando dados...</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Speaking / Answer */}
-              {(state === 'speaking' || (state === 'idle' && answer)) && (
-                <div>
-                  <p className="text-[13px] text-muted-foreground mb-1">Você perguntou:</p>
-                  <p className="text-[14px] text-foreground/70 mb-3">{transcript}</p>
-                  <div className="bg-primary/[0.04] border border-primary/10 rounded-xl px-3.5 py-3">
-                    <div className="flex items-start gap-2">
-                      <div className="h-5 w-5 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Sparkles className="h-3 w-3 text-primary" strokeWidth={1.75} />
-                      </div>
-                      <p className="text-[14px] text-foreground leading-relaxed">
-                        {answer}
-                      </p>
-                    </div>
-                    {state === 'speaking' && (
-                      <div className="flex items-center gap-2 mt-2 ml-7">
-                        <div className="flex items-center gap-[2px]">
-                          {[...Array(12)].map((_, i) => (
-                            <div
-                              key={i}
-                              className="w-[2px] bg-primary/60 rounded-full animate-pulse"
-                              style={{
-                                height: `${4 + Math.random() * 10}px`,
-                                animationDelay: `${i * 0.05}s`,
-                                animationDuration: '0.6s',
-                              }}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-[11px] text-primary/70">Reproduzindo...</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Error */}
-              {error && (
-                <p className="text-[13px] text-destructive">{error}</p>
-              )}
-            </div>
-
-            {/* Card footer — dismiss when idle with answer */}
-            {state === 'idle' && (answer || error) && (
-              <div className="px-4 py-2.5 border-t border-border/50">
-                <button
-                  onClick={reset}
-                  className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Fechar
-                </button>
-              </div>
-            )}
-          </motion.div>
+            <Mic className="h-6 w-6" strokeWidth={1.75} />
+          </motion.button>
         )}
       </AnimatePresence>
 
       {/* ============================================================
-          BOTÃO PRINCIPAL — com rings reativos por estado
+          FULLSCREEN OVERLAY — immersive Jarvis experience
           ============================================================ */}
-      <div className="relative">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-[100] jarvis-overlay flex flex-col items-center justify-center"
+          >
+            {/* Close button */}
+            <motion.button
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              onClick={closeOverlay}
+              className="absolute top-6 right-6 h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            >
+              <X className="h-5 w-5 text-white/80" />
+            </motion.button>
 
-        {/* Ring: IDLE — breathing glow */}
-        {state === 'idle' && (
-          <div className="absolute inset-0 rounded-full jarvis-breathe pointer-events-none" />
-        )}
+            {/* Branding */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="absolute top-6 left-6 flex items-center gap-2.5"
+            >
+              <div className="h-8 w-8 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/20">
+                <Sparkles className="h-4 w-4 text-blue-400" strokeWidth={1.75} />
+              </div>
+              <div>
+                <p className="text-[14px] font-semibold text-white/90">Jarvis</p>
+                <p className="text-[11px] text-white/40">Assistente de voz</p>
+              </div>
+            </motion.div>
 
-        {/* Ring: LISTENING — sonar + volume reactive */}
-        {state === 'listening' && (
-          <>
-            <div className="jarvis-sonar-ring" />
-            <div className="jarvis-sonar-ring" />
-            <div className="jarvis-sonar-ring" />
-            {/* Volume-reactive ring */}
-            <div
-              className="absolute rounded-full border-2 border-primary/50 pointer-events-none transition-transform duration-75"
-              style={{
-                inset: `-${6 + audioLevel * 14}px`,
-                opacity: 0.3 + audioLevel * 0.5,
-              }}
-            />
-          </>
-        )}
+            {/* ============================================================
+                ORB SECTION — central visual
+                ============================================================ */}
+            <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
 
-        {/* Ring: PROCESSING — conic gradient spin */}
-        {state === 'processing' && (
-          <div className="jarvis-processing-ring" />
-        )}
+              {/* Starburst lines behind orb */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="jarvis-starburst" style={{ width: 240, height: 240 }}>
+                  {[...Array(12)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-1/2 left-1/2 bg-blue-400/10"
+                      style={{
+                        width: 1,
+                        height: 120,
+                        transformOrigin: '0 0',
+                        transform: `rotate(${i * 30}deg)`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
 
-        {/* Ring: SPEAKING — pulse */}
-        {state === 'speaking' && (
-          <>
-            <div className="jarvis-speak-ring" />
-            <div className="jarvis-speak-ring" style={{ animationDelay: '0.4s' }} />
-          </>
-        )}
-
-        {/* Button */}
-        <motion.button
-          onClick={state === 'idle' ? startListening : cancel}
-          whileTap={{ scale: 0.92 }}
-          className={cn(
-            'relative z-10 h-14 w-14 rounded-full flex items-center justify-center',
-            'shadow-lg transition-all duration-200',
-            state === 'idle' && 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-primary/25',
-            state === 'listening' && 'bg-primary text-primary-foreground shadow-primary/30',
-            state === 'processing' && 'bg-primary text-primary-foreground shadow-primary/20',
-            state === 'speaking' && 'bg-primary text-primary-foreground shadow-primary/25',
-          )}
-          aria-label={state === 'idle' ? 'Ativar Jarvis' : 'Cancelar'}
-        >
-          <AnimatePresence mode="wait">
-            {state === 'idle' && (
-              <motion.div
-                key="mic"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.15 }}
+              {/* Outer orbit ring 1 */}
+              <div
+                className="jarvis-orbit-ring"
+                style={{ width: 220, height: 220, top: 30, left: 30 }}
               >
-                <Mic className="h-6 w-6" strokeWidth={1.75} />
-              </motion.div>
-            )}
-            {state === 'listening' && (
-              <motion.div
-                key="listening"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex items-center gap-[2px]"
+                <div
+                  className="jarvis-particle"
+                  style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }}
+                />
+                <div
+                  className="jarvis-particle"
+                  style={{ width: 4, height: 4, bottom: -2, right: '20%', animationDelay: '0.7s' }}
+                />
+              </div>
+
+              {/* Outer orbit ring 2 (reverse) */}
+              <div
+                className="jarvis-orbit-ring jarvis-orbit-ring-reverse"
+                style={{ width: 260, height: 260, top: 10, left: 10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.1)' }}
               >
-                {[...Array(4)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-[3px] bg-white rounded-full"
-                    animate={{
-                      height: [4, 8 + audioLevel * 14, 4],
-                    }}
-                    transition={{
-                      duration: 0.5,
-                      repeat: Infinity,
-                      delay: i * 0.1,
-                    }}
-                  />
-                ))}
-              </motion.div>
-            )}
-            {state === 'processing' && (
+                <div
+                  className="jarvis-particle"
+                  style={{ width: 3, height: 3, top: '20%', right: -1.5, animationDelay: '1.2s' }}
+                />
+              </div>
+
+              {/* Sonar ripples — listening */}
+              {state === 'listening' && (
+                <>
+                  <div className="jarvis-ripple" style={{ width: orbSize, height: orbSize, top: `calc(50% - ${orbSize/2}px)`, left: `calc(50% - ${orbSize/2}px)` }} />
+                  <div className="jarvis-ripple" style={{ width: orbSize, height: orbSize, top: `calc(50% - ${orbSize/2}px)`, left: `calc(50% - ${orbSize/2}px)` }} />
+                  <div className="jarvis-ripple" style={{ width: orbSize, height: orbSize, top: `calc(50% - ${orbSize/2}px)`, left: `calc(50% - ${orbSize/2}px)` }} />
+                </>
+              )}
+
+              {/* Processing ring */}
+              {state === 'processing' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute"
+                  style={{ width: 160, height: 160, top: 60, left: 60 }}
+                >
+                  <div className="jarvis-process-ring" />
+                </motion.div>
+              )}
+
+              {/* THE ORB */}
               <motion.div
-                key="processing"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1, rotate: 360 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ 
-                  scale: { duration: 0.15 },
-                  rotate: { duration: 1.5, repeat: Infinity, ease: 'linear' }
+                animate={{
+                  width: orbSize,
+                  height: orbSize,
                 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                className={cn(
+                  'relative rounded-full jarvis-orb cursor-pointer',
+                  state === 'listening' && 'jarvis-orb-listening',
+                )}
+                onClick={state === 'idle' ? startListening : undefined}
               >
-                <Loader2 className="h-6 w-6" strokeWidth={1.75} />
+                {/* Inner highlight */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-300/20 via-transparent to-transparent" />
+
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <AnimatePresence mode="wait">
+                    {state === 'idle' && (
+                      <motion.div
+                        key="idle-icon"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Mic className="h-10 w-10 text-white/90" strokeWidth={1.5} />
+                      </motion.div>
+                    )}
+
+                    {state === 'listening' && (
+                      <motion.div
+                        key="listen-icon"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        className="flex items-center gap-[3px]"
+                      >
+                        {[...Array(5)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="w-[4px] bg-white/90 rounded-full"
+                            animate={{
+                              height: [6, 12 + audioLevel * 28, 6],
+                            }}
+                            transition={{
+                              duration: 0.4,
+                              repeat: Infinity,
+                              delay: i * 0.08,
+                            }}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+
+                    {state === 'processing' && (
+                      <motion.div
+                        key="process-icon"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                      >
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                        >
+                          <Sparkles className="h-10 w-10 text-white/90" strokeWidth={1.5} />
+                        </motion.div>
+                      </motion.div>
+                    )}
+
+                    {state === 'speaking' && (
+                      <motion.div
+                        key="speak-icon"
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        className="flex items-center gap-[2px]"
+                      >
+                        {[...Array(9)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="jarvis-speak-bar"
+                            style={{
+                              '--wave-h': `${6 + Math.abs(4 - i) * 5 + Math.random() * 6}px`,
+                              animationDelay: `${i * 0.06}s`,
+                              height: '4px',
+                            } as React.CSSProperties}
+                          />
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </motion.div>
-            )}
-            {state === 'speaking' && (
-              <motion.div
-                key="speaking"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Volume2 className="h-6 w-6" strokeWidth={1.75} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.button>
-      </div>
-    </div>
+            </div>
+
+            {/* ============================================================
+                TEXT SECTION — below the orb
+                ============================================================ */}
+            <div className="mt-10 w-full max-w-md px-6 text-center min-h-[120px]">
+              <AnimatePresence mode="wait">
+
+                {/* Idle — prompt to speak */}
+                {state === 'idle' && !answer && !error && (
+                  <motion.div
+                    key="idle-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <p className="text-[16px] text-white/70">
+                      Toque no orbe e faça sua pergunta
+                    </p>
+                    <p className="text-[13px] text-white/30 mt-2">
+                      Pergunte sobre leads, faturamento, pipeline e mais
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Listening — real-time transcript */}
+                {state === 'listening' && (
+                  <motion.div
+                    key="listen-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    {transcript ? (
+                      <p className="text-[18px] text-white/90 leading-relaxed jarvis-cursor">
+                        {transcript}
+                      </p>
+                    ) : (
+                      <p className="text-[16px] text-blue-300/70 italic">
+                        Ouvindo...
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* Processing */}
+                {state === 'processing' && (
+                  <motion.div
+                    key="process-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <p className="text-[14px] text-white/40 mb-2">{transcript}</p>
+                    <p className="text-[15px] text-blue-300/80">Consultando dados...</p>
+                  </motion.div>
+                )}
+
+                {/* Speaking / Answer */}
+                {state === 'speaking' && answer && (
+                  <motion.div
+                    key="speak-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <p className="text-[18px] text-white/90 leading-relaxed jarvis-text-reveal">
+                      {answer}
+                    </p>
+                  </motion.div>
+                )}
+
+                {/* Idle with answer (finished) */}
+                {state === 'idle' && answer && (
+                  <motion.div
+                    key="done-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <p className="text-[14px] text-white/30 mb-2">{transcript}</p>
+                    <p className="text-[18px] text-white/90 leading-relaxed">{answer}</p>
+                    <div className="flex items-center justify-center gap-4 mt-6">
+                      <button
+                        onClick={startListening}
+                        className="px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20"
+                      >
+                        Nova pergunta
+                      </button>
+                      <button
+                        onClick={closeOverlay}
+                        className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-[13px] text-white/50 transition-colors"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Error */}
+                {error && (
+                  <motion.div
+                    key="error-text"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                  >
+                    <p className="text-[15px] text-red-400">{error}</p>
+                    <button
+                      onClick={startListening}
+                      className="mt-4 px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20"
+                    >
+                      Tentar novamente
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Bottom hint */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="absolute bottom-6 text-[11px] text-white/20"
+            >
+              Pressione ESC para fechar
+            </motion.p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

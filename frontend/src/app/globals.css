@@ -428,133 +428,237 @@ a, button, input, select, textarea {
 }
 
 /* ============================================================
-   JARVIS — Voice Assistant Animations
+   JARVIS — Voice Assistant Animations v2
+   Futuristic AI assistant — orbital particles, glowing orb
    ============================================================ */
 
-/* Breathing glow — estado idle */
-@keyframes jarvis-breathe {
-  0%, 100% { 
-    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.4), 
-                0 0 20px rgba(29, 78, 216, 0.1);
+/* === OVERLAY BACKDROP === */
+.jarvis-overlay {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(29, 78, 216, 0.08) 0%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
+}
+
+/* === ORB — Central glowing sphere === */
+@keyframes jarvis-orb-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 30px rgba(29, 78, 216, 0.3),
+      0 0 60px rgba(29, 78, 216, 0.15),
+      0 0 100px rgba(29, 78, 216, 0.05),
+      inset 0 0 30px rgba(29, 78, 216, 0.2);
     transform: scale(1);
   }
-  50% { 
-    box-shadow: 0 0 0 8px rgba(29, 78, 216, 0), 
-                0 0 30px rgba(29, 78, 216, 0.15);
-    transform: scale(1.02);
+  50% {
+    box-shadow:
+      0 0 40px rgba(29, 78, 216, 0.5),
+      0 0 80px rgba(29, 78, 216, 0.25),
+      0 0 120px rgba(29, 78, 216, 0.1),
+      inset 0 0 40px rgba(29, 78, 216, 0.3);
+    transform: scale(1.03);
   }
 }
 
-.jarvis-breathe {
-  animation: jarvis-breathe 3s ease-in-out infinite;
+.jarvis-orb {
+  background: radial-gradient(
+    circle at 35% 35%,
+    rgba(96, 165, 250, 0.9) 0%,
+    rgba(29, 78, 216, 0.8) 40%,
+    rgba(30, 58, 138, 0.9) 100%
+  );
+  animation: jarvis-orb-breathe 3s ease-in-out infinite;
 }
 
-/* Sonar rings — estado listening */
-@keyframes jarvis-sonar {
-  0% { 
-    transform: scale(1); 
-    opacity: 0.6; 
+/* === ORB LISTENING — reacts to audio === */
+@keyframes jarvis-orb-listen {
+  0%, 100% {
+    box-shadow:
+      0 0 40px rgba(29, 78, 216, 0.5),
+      0 0 80px rgba(29, 78, 216, 0.3),
+      0 0 120px rgba(29, 78, 216, 0.15);
+    transform: scale(1);
   }
-  100% { 
-    transform: scale(2.2); 
-    opacity: 0; 
+  25% {
+    box-shadow:
+      0 0 50px rgba(59, 130, 246, 0.6),
+      0 0 100px rgba(29, 78, 216, 0.35),
+      0 0 150px rgba(29, 78, 216, 0.2);
+    transform: scale(1.06);
+  }
+  50% {
+    box-shadow:
+      0 0 60px rgba(96, 165, 250, 0.7),
+      0 0 120px rgba(29, 78, 216, 0.4),
+      0 0 180px rgba(29, 78, 216, 0.2);
+    transform: scale(1.1);
+  }
+  75% {
+    box-shadow:
+      0 0 45px rgba(59, 130, 246, 0.55),
+      0 0 90px rgba(29, 78, 216, 0.3),
+      0 0 140px rgba(29, 78, 216, 0.15);
+    transform: scale(1.04);
   }
 }
 
-.jarvis-sonar-ring {
+.jarvis-orb-listening {
+  animation: jarvis-orb-listen 1.5s ease-in-out infinite;
+}
+
+/* === ORBITAL RINGS === */
+@keyframes jarvis-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jarvis-orbit-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.jarvis-orbit-ring {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1px solid rgba(29, 78, 216, 0.15);
+  animation: jarvis-orbit 8s linear infinite;
+}
+
+.jarvis-orbit-ring-reverse {
+  animation: jarvis-orbit-reverse 12s linear infinite;
+}
+
+/* === ORBITAL PARTICLES === */
+@keyframes jarvis-particle-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+
+.jarvis-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: #60a5fa;
+  animation: jarvis-particle-pulse 2s ease-in-out infinite;
+}
+
+/* === PROCESSING — conic gradient spin on orb === */
+@keyframes jarvis-process-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.jarvis-process-ring {
   position: absolute;
   inset: -4px;
   border-radius: 9999px;
-  border: 2px solid var(--primary);
-  animation: jarvis-sonar 2s ease-out infinite;
-  pointer-events: none;
-}
-
-.jarvis-sonar-ring:nth-child(2) {
-  animation-delay: 0.6s;
-}
-
-.jarvis-sonar-ring:nth-child(3) {
-  animation-delay: 1.2s;
-}
-
-/* Processing spinner — conic gradient */
-@keyframes jarvis-spin {
-  from { --border-angle: 0deg; }
-  to { --border-angle: 360deg; }
-}
-
-.jarvis-processing-ring {
-  position: absolute;
-  inset: -3px;
-  border-radius: 9999px;
   background: conic-gradient(
-    from var(--border-angle),
-    transparent 30%,
-    var(--primary) 50%,
-    transparent 70%
+    from 0deg,
+    transparent 0%,
+    rgba(29, 78, 216, 0.6) 25%,
+    rgba(96, 165, 250, 0.8) 50%,
+    rgba(29, 78, 216, 0.6) 75%,
+    transparent 100%
   );
-  animation: jarvis-spin 1.5s linear infinite;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 2px;
+  animation: jarvis-process-spin 2s linear infinite;
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #fff calc(100% - 2px));
 }
 
-/* Speaking pulse — reage ao áudio */
-@keyframes jarvis-speak-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 0.8; }
+/* === SONAR RIPPLES — listening state === */
+@keyframes jarvis-ripple {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
 
-.jarvis-speak-ring {
+.jarvis-ripple {
   position: absolute;
-  inset: -6px;
+  inset: 0;
   border-radius: 9999px;
-  border: 2px solid var(--primary);
-  opacity: 0.5;
-  animation: jarvis-speak-pulse 0.8s ease-in-out infinite;
+  border: 1.5px solid rgba(96, 165, 250, 0.5);
+  animation: jarvis-ripple 2.5s ease-out infinite;
   pointer-events: none;
 }
 
-/* Card expand animation */
-@keyframes jarvis-card-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
+.jarvis-ripple:nth-child(2) { animation-delay: 0.8s; }
+.jarvis-ripple:nth-child(3) { animation-delay: 1.6s; }
 
-.jarvis-card-enter {
-  animation: jarvis-card-enter 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-/* Waveform bars */
-@keyframes jarvis-wave {
+/* === SPEAKING — waveform bars === */
+@keyframes jarvis-wave-bar {
   0%, 100% { height: 4px; }
-  50% { height: var(--wave-h, 16px); }
+  50% { height: var(--wave-h, 20px); }
 }
 
-.jarvis-wave-bar {
+.jarvis-speak-bar {
   width: 3px;
   border-radius: 9999px;
-  background: var(--primary);
-  animation: jarvis-wave 0.6s ease-in-out infinite;
+  background: linear-gradient(to top, rgba(29, 78, 216, 0.6), rgba(96, 165, 250, 0.9));
+  animation: jarvis-wave-bar 0.5s ease-in-out infinite;
 }
 
-/* Typing cursor for transcription */
-@keyframes jarvis-cursor {
+/* === FLOATING BUTTON — idle state === */
+@keyframes jarvis-btn-breathe {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(29, 78, 216, 0.4),
+      0 0 20px rgba(29, 78, 216, 0.15),
+      0 4px 15px rgba(0, 0, 0, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(29, 78, 216, 0),
+      0 0 35px rgba(29, 78, 216, 0.2),
+      0 4px 15px rgba(0, 0, 0, 0.2);
+    transform: scale(1.03);
+  }
+}
+
+.jarvis-btn-idle {
+  animation: jarvis-btn-breathe 3s ease-in-out infinite;
+}
+
+/* === TYPING CURSOR === */
+@keyframes jarvis-cursor-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 
 .jarvis-cursor::after {
   content: '|';
-  color: var(--primary);
+  color: #60a5fa;
   font-weight: 300;
-  animation: jarvis-cursor 0.8s ease-in-out infinite;
-  margin-left: 1px;
+  animation: jarvis-cursor-blink 0.8s ease-in-out infinite;
+  margin-left: 2px;
+}
+
+/* === STARBURST — central decoration behind orb === */
+@keyframes jarvis-starburst-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.jarvis-starburst {
+  animation: jarvis-starburst-rotate 20s linear infinite;
+}
+
+@keyframes jarvis-starburst-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.jarvis-starburst-reverse {
+  animation: jarvis-starburst-reverse 30s linear infinite;
+}
+
+/* === TEXT REVEAL === */
+@keyframes jarvis-text-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.jarvis-text-reveal {
+  animation: jarvis-text-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
