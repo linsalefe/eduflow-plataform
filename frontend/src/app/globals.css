@@ -426,3 +426,135 @@ a, button, input, select, textarea {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
 }
+
+/* ============================================================
+   JARVIS — Voice Assistant Animations
+   ============================================================ */
+
+/* Breathing glow — estado idle */
+@keyframes jarvis-breathe {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.4), 
+                0 0 20px rgba(29, 78, 216, 0.1);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 0 8px rgba(29, 78, 216, 0), 
+                0 0 30px rgba(29, 78, 216, 0.15);
+    transform: scale(1.02);
+  }
+}
+
+.jarvis-breathe {
+  animation: jarvis-breathe 3s ease-in-out infinite;
+}
+
+/* Sonar rings — estado listening */
+@keyframes jarvis-sonar {
+  0% { 
+    transform: scale(1); 
+    opacity: 0.6; 
+  }
+  100% { 
+    transform: scale(2.2); 
+    opacity: 0; 
+  }
+}
+
+.jarvis-sonar-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  border: 2px solid var(--primary);
+  animation: jarvis-sonar 2s ease-out infinite;
+  pointer-events: none;
+}
+
+.jarvis-sonar-ring:nth-child(2) {
+  animation-delay: 0.6s;
+}
+
+.jarvis-sonar-ring:nth-child(3) {
+  animation-delay: 1.2s;
+}
+
+/* Processing spinner — conic gradient */
+@keyframes jarvis-spin {
+  from { --border-angle: 0deg; }
+  to { --border-angle: 360deg; }
+}
+
+.jarvis-processing-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from var(--border-angle),
+    transparent 30%,
+    var(--primary) 50%,
+    transparent 70%
+  );
+  animation: jarvis-spin 1.5s linear infinite;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+}
+
+/* Speaking pulse — reage ao áudio */
+@keyframes jarvis-speak-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+.jarvis-speak-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid var(--primary);
+  opacity: 0.5;
+  animation: jarvis-speak-pulse 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Card expand animation */
+@keyframes jarvis-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.jarvis-card-enter {
+  animation: jarvis-card-enter 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Waveform bars */
+@keyframes jarvis-wave {
+  0%, 100% { height: 4px; }
+  50% { height: var(--wave-h, 16px); }
+}
+
+.jarvis-wave-bar {
+  width: 3px;
+  border-radius: 9999px;
+  background: var(--primary);
+  animation: jarvis-wave 0.6s ease-in-out infinite;
+}
+
+/* Typing cursor for transcription */
+@keyframes jarvis-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.jarvis-cursor::after {
+  content: '|';
+  color: var(--primary);
+  font-weight: 300;
+  animation: jarvis-cursor 0.8s ease-in-out infinite;
+  margin-left: 1px;
+}

@@ -20,6 +20,7 @@ import { TagDistribution } from '@/components/dashboard/tag-distribution';
 import { KPICard } from '@/components/dashboard/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardSkeleton } from '@/components/skeletons/dashboard-skeleton';
+import { JarvisButton } from '@/components/jarvis/jarvis-button';
 
 interface Stats {
   total_contacts: number;
@@ -206,6 +207,9 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+      
+      {/* Jarvis — Voice Assistant */}
+      <JarvisButton />
     </AppShell>
   );
 }
