@@ -56,7 +56,7 @@ export default function MetasPage() {
   if (!user) return null;
 
   return (
-    <AppShell currentPage="configuracoes">
+    <AppShell>
       <div className="max-w-2xl mx-auto py-8 px-4">
 
         {/* Header */}
