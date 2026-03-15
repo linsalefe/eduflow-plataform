@@ -373,7 +373,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadContacts = useCallback(async () => {
+  const loadContacts = async () => {
     try {
       const params = activeChannel ? `?channel_id=${activeChannel.id}` : '';
       const res = await api.get(`/contacts${params}`);
@@ -395,7 +395,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [activeChannel, selectedContact]);
+  };
 
   const loadProfilePic = async (waId: string) => {
     try {
