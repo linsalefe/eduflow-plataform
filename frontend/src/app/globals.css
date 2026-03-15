@@ -662,3 +662,71 @@ a, button, input, select, textarea {
 .jarvis-text-reveal {
   animation: jarvis-text-reveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+/* ============================================================
+   SIDEBAR — Premium icon & item styling
+   ============================================================ */
+
+/* Icon container on hover — subtle bg appears */
+.sidebar-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background-color 150ms ease-out;
+}
+
+/* When parent menu button is hovered, icon gets bg */
+[data-slot="sidebar-menu-button"]:hover .sidebar-icon-wrap {
+  background-color: var(--icon-bg, rgba(0,0,0,0.04));
+}
+
+/* When parent is active, icon gets colored bg */
+[data-slot="sidebar-menu-button"][data-active="true"] .sidebar-icon-wrap {
+  background-color: var(--icon-bg, var(--primary) / 0.1);
+}
+
+/* Active item — icon color transitions */
+[data-slot="sidebar-menu-button"][data-active="true"] .sidebar-icon-colored {
+  color: var(--icon-color, var(--primary));
+}
+
+/* Badge refined — smaller dot style option */
+.sidebar-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+/* Search bar — subtle gradient border on focus */
+.sidebar-search:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.06);
+  background-color: var(--card);
+}
+
+/* Footer user card — subtle hover */
+.sidebar-user-card {
+  transition: background-color 150ms ease-out;
+}
+.sidebar-user-card:hover {
+  background-color: var(--accent);
+}
+
+/* Group label — with subtle line */
+.sidebar-group-label-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-group-label-line::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.5;
+}

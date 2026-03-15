@@ -68,7 +68,7 @@ const featureMap: Record<string, string> = {
   '/users': 'usuarios',
   '/automacoes': 'automacoes',
   '/tarefas': 'tarefas',
-  '/metas': 'dashboard',
+  '/configuracoes/metas': 'dashboard',
   '/ai-config': 'ai_whatsapp',
   '/voice-ai': 'voice_ai',
   '/agenda': 'agenda',
@@ -83,33 +83,50 @@ const menuGroups = [
   {
     label: 'Principal',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
-      { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
-      { href: '/contatos', label: 'Contatos', icon: Users },
-      { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard,
+        color: 'text-blue-600', bg: 'bg-blue-500/10' },
+      { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true,
+        color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
+      { href: '/pipeline', label: 'Pipeline', icon: GitBranch,
+        color: 'text-violet-600', bg: 'bg-violet-500/10' },
+      { href: '/contatos', label: 'Contatos', icon: Users,
+        color: 'text-amber-600', bg: 'bg-amber-500/10' },
+      { href: '/financeiro', label: 'Financeiro', icon: DollarSign,
+        color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
     ],
   },
   {
     label: 'Marketing',
     items: [
-      { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3 },
-      { href: '/landing-pages', label: 'Landing Pages', icon: FileText },
-      { href: '/relatorios', label: 'Relatórios', icon: Download },
+      { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3,
+        color: 'text-rose-600', bg: 'bg-rose-500/10' },
+      { href: '/landing-pages', label: 'Landing Pages', icon: FileText,
+        color: 'text-sky-600', bg: 'bg-sky-500/10' },
+      { href: '/relatorios', label: 'Relatórios', icon: Download,
+        color: 'text-slate-600', bg: 'bg-slate-500/10' },
     ],
   },
   {
     label: 'Configurações',
     items: [
-      { href: '/users', label: 'Usuários', icon: Users },
-      { href: '/automacoes', label: 'Automações', icon: Zap },
-      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true },
-      { href: '/metas', label: 'Metas', icon: Target },
-      { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall },
-      { href: '/agenda', label: 'Agenda', icon: Calendar },
-      { href: '/canais', label: 'Canais', icon: Radio },
-      { href: '/ai-config', label: 'Config. IA', icon: Sparkles },
-      { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot },
+      { href: '/users', label: 'Usuários', icon: Users,
+        color: 'text-gray-600', bg: 'bg-gray-500/10' },
+      { href: '/automacoes', label: 'Automações', icon: Zap,
+        color: 'text-amber-600', bg: 'bg-amber-500/10' },
+      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true,
+        color: 'text-orange-600', bg: 'bg-orange-500/10' },
+      { href: '/configuracoes/metas', label: 'Metas', icon: Target,
+        color: 'text-primary', bg: 'bg-primary/10' },
+      { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall,
+        color: 'text-indigo-600', bg: 'bg-indigo-500/10' },
+      { href: '/agenda', label: 'Agenda', icon: Calendar,
+        color: 'text-teal-600', bg: 'bg-teal-500/10' },
+      { href: '/canais', label: 'Canais', icon: Radio,
+        color: 'text-cyan-600', bg: 'bg-cyan-500/10' },
+      { href: '/ai-config', label: 'Config. IA', icon: Sparkles,
+        color: 'text-purple-600', bg: 'bg-purple-500/10' },
+      { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot,
+        color: 'text-fuchsia-600', bg: 'bg-fuchsia-500/10' },
     ],
   },
 ];
@@ -129,7 +146,7 @@ const pageTitles: Record<string, string> = {
   '/users': 'Usuários',
   '/automacoes': 'Automações',
   '/tarefas': 'Tarefas',
-  '/metas': 'Metas Mensais',
+  '/configuracoes/metas': 'Metas Mensais',
   '/voice-ai': 'Voice AI',
   '/agenda': 'Agenda',
   '/canais': 'Canais',
@@ -195,8 +212,8 @@ function SidebarNavContent({
         {/* Search button */}
         <button
           onClick={openSearch}
-          className="mt-3 w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors
-                     bg-muted/50 hover:bg-muted border border-border/50 text-muted-foreground"
+          className="sidebar-search mt-3 w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-all duration-200
+                     bg-muted/30 hover:bg-muted/60 border border-border/50 text-muted-foreground"
         >
           <Search className="w-4 h-4 flex-shrink-0" />
           <span className="flex-1 text-left text-[13px] group-data-[collapsible=icon]:hidden">
@@ -212,7 +229,7 @@ function SidebarNavContent({
         {/* Superadmin */}
         {user?.role === 'superadmin' && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+            <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground sidebar-group-label-line">
               Superadmin
             </SidebarGroupLabel>
             <SidebarMenu>
@@ -242,7 +259,7 @@ function SidebarNavContent({
 
           return (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
+              <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground sidebar-group-label-line">
                 {group.label}
               </SidebarGroupLabel>
               <SidebarMenu>
@@ -251,6 +268,9 @@ function SidebarNavContent({
                   const Icon = item.icon;
                   const showBadge = (item as any).hasBadge && unreadCount > 0;
                   const showTaskBadge = (item as any).hasTaskBadge && taskCount > 0;
+
+                  const itemColor = (item as any).color || 'text-muted-foreground';
+                  const itemBg = (item as any).bg || 'bg-muted/50';
 
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -261,23 +281,32 @@ function SidebarNavContent({
                         className={isActive ? 'sidebar-item-active' : ''}
                       >
                         <Link href={item.href} onClick={onNavigate}>
-                          <Icon className="w-[18px] h-[18px]" />
-                          <span className="flex-1">{item.label}</span>
+                          <div className={`sidebar-icon-wrap ${isActive ? itemBg : ''}`}>
+                            <Icon
+                              className={`w-[18px] h-[18px] sidebar-icon-colored transition-colors duration-150 ${
+                                isActive ? itemColor : 'text-muted-foreground/70'
+                              }`}
+                              strokeWidth={isActive ? 2 : 1.75}
+                            />
+                          </div>
+                          <span className={`flex-1 ${isActive ? 'font-medium' : ''}`}>
+                            {item.label}
+                          </span>
                           {showBadge && (
-                            <Badge
-                              variant="default"
-                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-emerald-500 hover:bg-emerald-500 text-white border-0 badge-unread"
-                            >
-                              {unreadCount > 99 ? '99+' : unreadCount}
-                            </Badge>
+                            <span className="ml-auto flex items-center gap-1.5">
+                              <span className="sidebar-badge-dot bg-emerald-500 badge-unread" />
+                              <span className="text-[11px] font-semibold text-emerald-600 tabular-nums">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            </span>
                           )}
                           {showTaskBadge && (
-                            <Badge
-                              variant="default"
-                              className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-bold bg-amber-500 hover:bg-amber-500 text-white border-0 badge-unread"
-                            >
-                              {taskCount > 99 ? '99+' : taskCount}
-                            </Badge>
+                            <span className="ml-auto flex items-center gap-1.5">
+                              <span className="sidebar-badge-dot bg-amber-500 badge-unread" />
+                              <span className="text-[11px] font-semibold text-amber-600 tabular-nums">
+                                {taskCount > 99 ? '99+' : taskCount}
+                              </span>
+                            </span>
                           )}
                         </Link>
                       </SidebarMenuButton>
@@ -293,7 +322,7 @@ function SidebarNavContent({
       <SidebarFooter className="p-3 border-t border-sidebar-border">
         {/* User info */}
         {user && (
-          <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/50">
+          <div className="sidebar-user-card flex items-center gap-3 px-2 py-2 rounded-lg bg-muted/30 cursor-default">
             <Avatar className="h-9 w-9 flex-shrink-0">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                 {getInitials(user.name)}
