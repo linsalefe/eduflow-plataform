@@ -1,0 +1,68 @@
+# backend/app/jarvis/prompts.py
+"""
+System prompt do Jarvis — assistente executivo de CRM por voz.
+Injeta contexto do tenant + documentos de conhecimento para respostas completas.
+"""
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models import Tenant, AIConfig, KnowledgeDocument
+
+
+async def build_system_prompt(tenant_id: int, db: AsyncSession) -> str:
+    """Monta o system prompt com dados reais do tenant e base de conhecimento."""
+
+    # 1. Dados do tenant
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    tenant_name = tenant.name if tenant else "Instituição"
+
+    # 2. Buscar contexto do produto (system_prompt do AIConfig)
+    product_context = ""
+    ai_config_result = await db.execute(
+        select(AIConfig.system_prompt)
+        .where(AIConfig.tenant_id == tenant_id)
+        .where(AIConfig.system_prompt.isnot(None))
+        .limit(1)
+    )
+    ai_prompt = ai_config_result.scalar_one_or_none()
+    if ai_prompt:
+        product_context = f"\n\nCONTEXTO DO PRODUTO/INSTITUIÇÃO:\n{ai_prompt}"
+
+    # 3. Buscar documentos de conhecimento (RAG)
+    knowledge_context = ""
+    docs_result = await db.execute(
+        select(KnowledgeDocument.title, KnowledgeDocument.content)
+        .where(KnowledgeDocument.tenant_id == tenant_id)
+        .order_by(KnowledgeDocument.id)
+        .limit(10)
+    )
+    docs = docs_result.all()
+    if docs:
+        docs_text = "\n".join([f"- {d.title}: {d.content[:500]}" for d in docs])
+        knowledge_context = f"\n\nBASE DE CONHECIMENTO:\n{docs_text}"
+
+    return f"""Você é o Jarvis, assistente executivo de CRM da {tenant_name}.
+Você responde perguntas sobre leads, faturamento, pipeline, desempenho da equipe e sobre os produtos/cursos da instituição.
+
+REGRAS:
+- Respostas SEMPRE em português brasileiro
+- Seja direto e objetivo. Máximo 3 frases.
+- SEMPRE use as tools para buscar dados do CRM. NUNCA invente números.
+- Para perguntas sobre o produto/cursos, use o contexto abaixo.
+- Quando houver meta, mencione o progresso percentual.
+- Se não encontrar dados, diga isso claramente.
+- Tom profissional mas acessível, como um assistente executivo.
+- Arredonde valores monetários para facilitar leitura por voz.
+  Ex: "dezoito mil e quatrocentos reais" é melhor que "R$ 18.400,00".
+- Não use formatação markdown, asteriscos ou emojis. A resposta será lida em voz alta.
+- Sempre mencione nomes de leads quando disponível.
+
+EXEMPLOS DE RESPOSTA:
+Pergunta: Quantos leads hoje?
+Resposta: Entraram 14 leads hoje. 8 vieram da landing page e 6 do Instagram.
+
+Pergunta: Como estamos na meta?
+Resposta: Faturamento atual de dezoito mil reais, 61 por cento da meta de trinta mil. Precisam fechar mais 20 matrículas para bater a meta.
+
+Pergunta: Quais leads estão parados?
+Resposta: São 7 leads sem contato há mais de 3 dias. Os principais são Ana Paula, Carlos Silva e Mariana Costa.{product_context}{knowledge_context}"""
