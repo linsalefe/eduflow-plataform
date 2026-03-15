@@ -29,6 +29,7 @@ from app.automation_routes import router as automation_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
 from app.evolution.routes import router as evolution_router
+from app.jarvis.routes import router as jarvis_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -219,6 +220,7 @@ app.include_router(webhook_router)
 app.include_router(webhook_public_router)
 app.include_router(schedule_router)
 app.include_router(export_router)
+app.include_router(jarvis_router)
 
 @app.get("/webhook")
 async def verify_webhook(
