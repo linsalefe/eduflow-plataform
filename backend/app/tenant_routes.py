@@ -484,3 +484,53 @@ async def update_agent_pipeline_moves(
     flag_modified(tenant, "agent_pipeline_moves")
     await db.commit()
     return {"message": "Pipeline moves atualizados", "agent_pipeline_moves": tenant.agent_pipeline_moves}
+# === Metas mensais ===
+
+class GoalsUpdate(BaseModel):
+    monthly_goal: Optional[float] = None
+    monthly_lead_goal: Optional[int] = None
+    monthly_schedule_goal: Optional[int] = None
+
+
+@tenant_router.get("/goals")
+async def get_goals(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return {
+        "monthly_goal": tenant.monthly_goal or 0,
+        "monthly_lead_goal": tenant.monthly_lead_goal or 0,
+        "monthly_schedule_goal": tenant.monthly_schedule_goal or 0,
+    }
+
+
+@tenant_router.put("/goals")
+async def update_goals(
+    data: GoalsUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    if data.monthly_goal is not None:
+        tenant.monthly_goal = data.monthly_goal
+    if data.monthly_lead_goal is not None:
+        tenant.monthly_lead_goal = data.monthly_lead_goal
+    if data.monthly_schedule_goal is not None:
+        tenant.monthly_schedule_goal = data.monthly_schedule_goal
+
+    await db.commit()
+    return {
+        "message": "Metas atualizadas",
+        "monthly_goal": tenant.monthly_goal,
+        "monthly_lead_goal": tenant.monthly_lead_goal,
+        "monthly_schedule_goal": tenant.monthly_schedule_goal,
+    }
