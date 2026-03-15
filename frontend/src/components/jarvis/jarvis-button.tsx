@@ -188,29 +188,60 @@ export function JarvisButton() {
   return (
     <>
       {/* ============================================================
-          FLOATING BUTTON — visible when overlay is closed
+          FLOATING BUTTON — with orbital ring
           ============================================================ */}
       <AnimatePresence>
         {!isOpen && (
-          <motion.button
+          <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            onClick={startListening}
-            className={cn(
-              'fixed bottom-6 right-6 z-50',
-              'h-14 w-14 rounded-full',
-              'bg-primary text-white',
-              'flex items-center justify-center',
-              'shadow-lg cursor-pointer',
-              'jarvis-btn-idle',
-            )}
-            aria-label="Ativar Jarvis"
-            whileTap={{ scale: 0.9 }}
+            className="fixed bottom-6 right-6 z-50"
+            style={{ width: 72, height: 72 }}
           >
-            <Mic className="h-6 w-6" strokeWidth={1.75} />
-          </motion.button>
+            {/* Orbit ring */}
+            <div
+              className="absolute jarvis-orbit-ring"
+              style={{ inset: -4, borderColor: 'rgba(96, 165, 250, 0.3)' }}
+            >
+              <div
+                className="jarvis-particle"
+                style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }}
+              />
+              <div
+                className="jarvis-particle"
+                style={{ width: 4, height: 4, bottom: -2, right: '15%', animationDelay: '1s' }}
+              />
+            </div>
+
+            {/* Second orbit (reverse) */}
+            <div
+              className="absolute jarvis-orbit-ring jarvis-orbit-ring-reverse"
+              style={{ inset: -10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.15)' }}
+            >
+              <div
+                className="jarvis-particle"
+                style={{ width: 3, height: 3, top: '25%', right: -1.5, animationDelay: '0.5s' }}
+              />
+            </div>
+
+            {/* Button */}
+            <motion.button
+              onClick={startListening}
+              whileTap={{ scale: 0.9 }}
+              className={cn(
+                'absolute inset-0 m-auto',
+                'h-14 w-14 rounded-full',
+                'bg-primary text-white',
+                'flex items-center justify-center',
+                'cursor-pointer jarvis-btn-idle',
+              )}
+              aria-label="Ativar Jarvis"
+            >
+              <Mic className="h-6 w-6" strokeWidth={1.75} />
+            </motion.button>
+          </motion.div>
         )}
       </AnimatePresence>
 
