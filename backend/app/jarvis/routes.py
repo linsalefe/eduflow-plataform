@@ -29,8 +29,13 @@ router = APIRouter(prefix="/api/jarvis", tags=["Jarvis"])
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 # ElevenLabs config (mesma voz da Nat)
+from dotenv import load_dotenv
+load_dotenv()
+
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+
+logger.info(f"[Jarvis] ElevenLabs configurado: API_KEY={'sim' if ELEVENLABS_API_KEY else 'NAO'}, VOICE_ID={'sim' if ELEVENLABS_VOICE_ID else 'NAO'}")
 
 
 class JarvisQuery(BaseModel):
