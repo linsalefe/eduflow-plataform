@@ -51,6 +51,15 @@ async def resolve_lead(name: str, tenant_id: int, db: AsyncSession) -> dict | No
         )
         channel = ch_result.scalar_one_or_none()
 
+    # Buscar TODOS os canais WhatsApp ativos do tenant
+    all_channels_result = await db.execute(
+        select(Channel)
+        .where(Channel.tenant_id == tenant_id)
+        .where(Channel.type == "whatsapp")
+        .where(Channel.is_active == True)
+    )
+    all_channels = all_channels_result.scalars().all()
+
     return {
         "contact_id": contact.id,
         "name": contact.name or "Sem nome",
@@ -59,6 +68,10 @@ async def resolve_lead(name: str, tenant_id: int, db: AsyncSession) -> dict | No
         "lead_status": contact.lead_status,
         "channel_id": channel.id if channel else None,
         "instance_name": channel.instance_name if channel else None,
+        "available_channels": [
+            {"id": ch.id, "name": ch.name, "instance_name": ch.instance_name}
+            for ch in all_channels
+        ],
     }
 
 
@@ -90,6 +103,7 @@ async def prepare_action(tool_name: str, args: dict, tenant_id: int, db: AsyncSe
                 "message": message,
                 "channel_id": lead["channel_id"],
                 "instance_name": lead["instance_name"],
+                "available_channels": lead["available_channels"],
             },
         }
 
