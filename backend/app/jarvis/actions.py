@@ -22,10 +22,14 @@ SP_TZ = timezone(timedelta(hours=-3))
 # ============================================================
 async def resolve_lead(name: str, tenant_id: int, db: AsyncSession) -> dict | None:
     """Busca lead pelo nome (case insensitive, parcial)."""
+    from sqlalchemy import text as sa_text
+    clean_name = name.lower().strip()
+
+    # Busca com unaccent (ignora acentos) + parcial
     result = await db.execute(
         select(Contact)
         .where(Contact.tenant_id == tenant_id)
-        .where(func.lower(Contact.name).contains(name.lower().strip()))
+        .where(func.lower(func.unaccent(Contact.name)).contains(func.unaccent(clean_name)))
         .order_by(Contact.updated_at.desc())
         .limit(1)
     )
