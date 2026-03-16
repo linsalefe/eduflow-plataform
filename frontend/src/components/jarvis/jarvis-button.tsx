@@ -172,16 +172,14 @@ export function JarvisButton() {
       const data = res.data;
 
       if (data.type === 'pending_action') {
-        // Action needs confirmation
         setAnswer(data.text);
         setPendingAction(data.pending_action);
         setState('confirming');
-        if (data.audio_b64) playAudio(data.audio_b64);
+        if (data.audio_b64) playAudio(data.audio_b64, true);
       } else {
-        // Normal answer
         setAnswer(data.text);
         if (data.audio_b64) {
-          playAudio(data.audio_b64);
+          playAudio(data.audio_b64, false);
         } else {
           setState('idle');
         }
@@ -210,7 +208,7 @@ export function JarvisButton() {
       setConfirming(false);
 
       if (data.audio_b64) {
-        playAudio(data.audio_b64);
+        playAudio(data.audio_b64, false);
       } else {
         setState('idle');
       }
@@ -231,7 +229,7 @@ export function JarvisButton() {
   };
 
   // Play TTS audio
-  const playAudio = (b64: string) => {
+  const playAudio = (b64: string, keepState: boolean) => {
     const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const blob = new Blob([bytes], { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
@@ -239,17 +237,17 @@ export function JarvisButton() {
     audioRef.current = audio;
 
     audio.onplay = () => {
-      if (state !== 'confirming') setState('speaking');
+      if (!keepState) setState('speaking');
     };
     audio.onended = () => {
       URL.revokeObjectURL(url);
-      if (state !== 'confirming' && !pendingAction) setState('idle');
+      if (!keepState) setState('idle');
     };
     audio.onerror = () => {
-      if (state !== 'confirming') setState('idle');
+      if (!keepState) setState('idle');
     };
     audio.play().catch(() => {
-      if (state !== 'confirming') setState('idle');
+      if (!keepState) setState('idle');
     });
   };
 
@@ -271,7 +269,6 @@ export function JarvisButton() {
 
   const orbSize = state === 'listening' ? 140 + audioLevel * 30 : 140;
 
-  // Action visual helpers
   const actionIcon = pendingAction ? ACTION_ICONS[pendingAction.action] || Sparkles : Sparkles;
   const ActionIcon = actionIcon;
   const actionColor = pendingAction ? ACTION_COLORS[pendingAction.action] || '' : '';
@@ -292,18 +289,11 @@ export function JarvisButton() {
             className="fixed bottom-6 right-6 z-50"
             style={{ width: 72, height: 72 }}
           >
-            {/* Orbit ring */}
-            <div
-              className="absolute jarvis-orbit-ring"
-              style={{ inset: -4, borderColor: 'rgba(96, 165, 250, 0.3)' }}
-            >
+            <div className="absolute jarvis-orbit-ring" style={{ inset: -4, borderColor: 'rgba(96, 165, 250, 0.3)' }}>
               <div className="jarvis-particle" style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }} />
               <div className="jarvis-particle" style={{ width: 4, height: 4, bottom: -2, right: '15%', animationDelay: '1s' }} />
             </div>
-            <div
-              className="absolute jarvis-orbit-ring jarvis-orbit-ring-reverse"
-              style={{ inset: -10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.15)' }}
-            >
+            <div className="absolute jarvis-orbit-ring jarvis-orbit-ring-reverse" style={{ inset: -10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.15)' }}>
               <div className="jarvis-particle" style={{ width: 3, height: 3, top: '25%', right: -1.5, animationDelay: '0.5s' }} />
             </div>
 
@@ -366,7 +356,6 @@ export function JarvisButton() {
                 ORB SECTION
                 ============================================================ */}
             <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
-              {/* Starburst */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="jarvis-starburst" style={{ width: 240, height: 240 }}>
                   {[...Array(12)].map((_, i) => (
@@ -376,7 +365,6 @@ export function JarvisButton() {
                 </div>
               </div>
 
-              {/* Orbit rings */}
               <div className="jarvis-orbit-ring" style={{ width: 220, height: 220, top: 30, left: 30 }}>
                 <div className="jarvis-particle" style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }} />
                 <div className="jarvis-particle" style={{ width: 4, height: 4, bottom: -2, right: '20%', animationDelay: '0.7s' }} />
@@ -386,7 +374,6 @@ export function JarvisButton() {
                 <div className="jarvis-particle" style={{ width: 3, height: 3, top: '20%', right: -1.5, animationDelay: '1.2s' }} />
               </div>
 
-              {/* Ripples — listening */}
               {state === 'listening' && (
                 <>
                   <div className="jarvis-ripple" style={{ width: orbSize, height: orbSize, top: `calc(50% - ${orbSize/2}px)`, left: `calc(50% - ${orbSize/2}px)` }} />
@@ -395,7 +382,6 @@ export function JarvisButton() {
                 </>
               )}
 
-              {/* Processing ring */}
               {state === 'processing' && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   className="absolute" style={{ width: 160, height: 160, top: 60, left: 60 }}>
@@ -403,7 +389,6 @@ export function JarvisButton() {
                 </motion.div>
               )}
 
-              {/* THE ORB */}
               <motion.div
                 animate={{ width: orbSize, height: orbSize }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
@@ -461,7 +446,6 @@ export function JarvisButton() {
             <div className="mt-10 w-full max-w-lg px-6 text-center min-h-[160px]">
               <AnimatePresence mode="wait">
 
-                {/* Idle — no action */}
                 {state === 'idle' && !answer && !error && !pendingAction && (
                   <motion.div key="idle-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[16px] text-white/70">Toque no orbe e faça sua pergunta</p>
@@ -469,7 +453,6 @@ export function JarvisButton() {
                   </motion.div>
                 )}
 
-                {/* Listening */}
                 {state === 'listening' && (
                   <motion.div key="listen-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     {transcript ? (
@@ -480,7 +463,6 @@ export function JarvisButton() {
                   </motion.div>
                 )}
 
-                {/* Processing */}
                 {state === 'processing' && (
                   <motion.div key="process-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[14px] text-white/40 mb-2">{transcript}</p>
@@ -491,16 +473,13 @@ export function JarvisButton() {
                   </motion.div>
                 )}
 
-                {/* Speaking */}
                 {state === 'speaking' && answer && !pendingAction && (
                   <motion.div key="speak-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[18px] text-white/90 leading-relaxed jarvis-text-reveal">{answer}</p>
                   </motion.div>
                 )}
 
-                {/* ============================================================
-                    CONFIRMING — Action confirmation card
-                    ============================================================ */}
+                {/* CONFIRMING — Action confirmation card */}
                 {state === 'confirming' && pendingAction && (
                   <motion.div
                     key="confirm-card"
@@ -509,24 +488,18 @@ export function JarvisButton() {
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                   >
-                    {/* Action card */}
                     <div className={cn(
                       'rounded-2xl border bg-gradient-to-br p-5 mb-6 text-left',
                       actionColor || 'from-blue-500/20 to-blue-500/5 border-blue-500/20'
                     )}>
                       <div className="flex items-start gap-3">
-                        <div className={cn(
-                          'h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                          'bg-white/10'
-                        )}>
+                        <div className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-white/10">
                           <ActionIcon className={cn('h-5 w-5', actionTextColor)} strokeWidth={1.75} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[15px] font-semibold text-white/90 mb-1">
                             {pendingAction.description}
                           </p>
-
-                          {/* Action details */}
                           <div className="space-y-1 mt-2">
                             {pendingAction.details.lead_name && (
                               <p className="text-[13px] text-white/50">
@@ -535,7 +508,7 @@ export function JarvisButton() {
                             )}
                             {pendingAction.details.message && (
                               <p className="text-[12px] text-white/40 mt-1 line-clamp-2">
-                                Mensagem: "{pendingAction.details.message}"
+                                Mensagem: &ldquo;{pendingAction.details.message}&rdquo;
                               </p>
                             )}
                             {pendingAction.details.course && (
@@ -558,7 +531,6 @@ export function JarvisButton() {
                       </div>
                     </div>
 
-                    {/* Confirm / Cancel buttons */}
                     <div className="flex items-center justify-center gap-3">
                       <motion.button
                         whileTap={{ scale: 0.95 }}
@@ -580,7 +552,6 @@ export function JarvisButton() {
                   </motion.div>
                 )}
 
-                {/* Idle with answer (finished — after confirm or query) */}
                 {state === 'idle' && answer && !pendingAction && (
                   <motion.div key="done-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[14px] text-white/30 mb-2">{transcript}</p>
@@ -598,7 +569,6 @@ export function JarvisButton() {
                   </motion.div>
                 )}
 
-                {/* Error */}
                 {error && (
                   <motion.div key="error-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[15px] text-red-400">{error}</p>
@@ -611,7 +581,6 @@ export function JarvisButton() {
               </AnimatePresence>
             </div>
 
-            {/* Bottom hint */}
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
               className="absolute bottom-6 text-[11px] text-white/20">
               Pressione ESC para fechar
