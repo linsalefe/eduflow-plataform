@@ -49,6 +49,7 @@ export function JarvisButton() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const animFrameRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<{id: number, name: string, instance_name: string} | null>(null);
   const finalTranscriptRef = useRef('');
 
   // Cleanup on unmount
@@ -174,6 +175,11 @@ export function JarvisButton() {
       if (data.type === 'pending_action') {
         setAnswer(data.text);
         setPendingAction(data.pending_action);
+        // Auto-select first channel
+        const channels = data.pending_action?.details?.available_channels;
+        if (channels?.length > 0) {
+          setSelectedChannel(channels[0]);
+        }
         setState('confirming');
         if (data.audio_b64) playAudio(data.audio_b64, true);
       } else {
@@ -197,9 +203,14 @@ export function JarvisButton() {
     setState('processing');
 
     try {
+      const details = { ...pendingAction.details };
+      if (selectedChannel) {
+        details.channel_id = selectedChannel.id;
+        details.instance_name = selectedChannel.instance_name;
+      }
       const res = await api.post('/jarvis/confirm', {
         action: pendingAction.action,
-        details: pendingAction.details,
+        details,
         generate_audio: true,
       });
       const data = res.data;
@@ -529,8 +540,29 @@ export function JarvisButton() {
                           </div>
                         </div>
                       </div>
+                      {/* Channel selector */}
+                      {pendingAction.details.available_channels?.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-white/10">
+                          <p className="text-[12px] text-white/40 mb-2">Enviar pelo canal:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {pendingAction.details.available_channels.map((ch: any) => (
+                              <button
+                                key={ch.id}
+                                onClick={() => setSelectedChannel(ch)}
+                                className={cn(
+                                  'px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all',
+                                  selectedChannel?.id === ch.id
+                                    ? 'bg-white/20 text-white border border-white/30'
+                                    : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                                )}
+                              >
+                                {ch.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-
                     <div className="flex items-center justify-center gap-3">
                       <motion.button
                         whileTap={{ scale: 0.95 }}
