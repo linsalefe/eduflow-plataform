@@ -277,7 +277,10 @@ async def get_contact_conversations(args: dict, tenant_id: int, db: AsyncSession
     result = await db.execute(
         select(Contact)
         .where(Contact.tenant_id == tenant_id)
-        .where(func.lower(func.unaccent(Contact.name)).contains(func.unaccent(name.lower().strip())))
+        .where(and_(*[
+            func.lower(func.unaccent(Contact.name)).contains(func.unaccent(w))
+            for w in name.lower().strip().split()
+        ]))
         .order_by(Contact.updated_at.desc())
         .limit(1)
     )
