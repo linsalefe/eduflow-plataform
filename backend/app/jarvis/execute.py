@@ -231,7 +231,7 @@ async def get_contact_details(args: dict, tenant_id: int, db: AsyncSession) -> d
     tags_result = await db.execute(
         select(Tag.name)
         .join(contact_tags)
-        .where(contact_tags.c.contact_id == contact.id)
+        .where(contact_tags.c.contact_wa_id == contact.wa_id)
     )
     tags = [r[0] for r in tags_result.all()]
 
