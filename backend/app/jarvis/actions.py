@@ -233,6 +233,13 @@ async def _exec_call(details: dict) -> dict:
     lead_name = details.get("lead_name", "")
     course = details.get("course", "")
 
+    # Fix BR mobile: wa_id pode estar sem o 9° dígito (55 + DDD + 8 dígitos = 12)
+    # Formato correto: +55 + DDD(2) + 9 + número(8) = 13 dígitos
+    clean = phone.replace("+", "")
+    if clean.startswith("55") and len(clean) == 12:
+        clean = clean[:4] + "9" + clean[4:]
+    phone = f"+{clean}"
+
     result = make_outbound_call(
         to_number=phone,
         lead_name=lead_name,
