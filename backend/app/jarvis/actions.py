@@ -33,15 +33,23 @@ async def resolve_lead(name: str, tenant_id: int, db: AsyncSession) -> dict | No
     if not contact:
         return None
 
-    # Buscar canal WhatsApp do tenant
-    channel_result = await db.execute(
-        select(Channel)
-        .where(Channel.tenant_id == tenant_id)
-        .where(Channel.type == "whatsapp")
-        .where(Channel.is_active == True)
-        .limit(1)
-    )
-    channel = channel_result.scalar_one_or_none()
+    # Buscar canal do lead (ou primeiro WhatsApp ativo como fallback)
+    channel = None
+    if contact.channel_id:
+        ch_result = await db.execute(
+            select(Channel).where(Channel.id == contact.channel_id)
+        )
+        channel = ch_result.scalar_one_or_none()
+
+    if not channel:
+        ch_result = await db.execute(
+            select(Channel)
+            .where(Channel.tenant_id == tenant_id)
+            .where(Channel.type == "whatsapp")
+            .where(Channel.is_active == True)
+            .limit(1)
+        )
+        channel = ch_result.scalar_one_or_none()
 
     return {
         "contact_id": contact.id,
