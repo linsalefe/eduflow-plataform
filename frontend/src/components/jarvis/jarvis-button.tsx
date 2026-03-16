@@ -2,11 +2,38 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, X, Sparkles } from 'lucide-react';
+import { Mic, X, Sparkles, Check, Ban, Loader2, PhoneCall, MessageSquare, GitBranch, CalendarCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 
-type JarvisState = 'idle' | 'listening' | 'processing' | 'speaking';
+type JarvisState = 'idle' | 'listening' | 'processing' | 'speaking' | 'confirming';
+
+interface PendingAction {
+  action: string;
+  description: string;
+  details: Record<string, any>;
+}
+
+const ACTION_ICONS: Record<string, any> = {
+  send_followup: MessageSquare,
+  make_call: PhoneCall,
+  move_pipeline: GitBranch,
+  schedule: CalendarCheck,
+};
+
+const ACTION_COLORS: Record<string, string> = {
+  send_followup: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/20',
+  make_call: 'from-blue-500/20 to-blue-500/5 border-blue-500/20',
+  move_pipeline: 'from-violet-500/20 to-violet-500/5 border-violet-500/20',
+  schedule: 'from-amber-500/20 to-amber-500/5 border-amber-500/20',
+};
+
+const ACTION_TEXT_COLORS: Record<string, string> = {
+  send_followup: 'text-emerald-400',
+  make_call: 'text-blue-400',
+  move_pipeline: 'text-violet-400',
+  schedule: 'text-amber-400',
+};
 
 export function JarvisButton() {
   const [state, setState] = useState<JarvisState>('idle');
@@ -15,6 +42,8 @@ export function JarvisButton() {
   const [error, setError] = useState('');
   const [audioLevel, setAudioLevel] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -86,6 +115,8 @@ export function JarvisButton() {
     setTranscript('');
     setAnswer('');
     setError('');
+    setPendingAction(null);
+    setConfirming(false);
     finalTranscriptRef.current = '';
 
     const recognition = new SR();
@@ -139,7 +170,44 @@ export function JarvisButton() {
     try {
       const res = await api.post('/jarvis/query', { text });
       const data = res.data;
+
+      if (data.type === 'pending_action') {
+        // Action needs confirmation
+        setAnswer(data.text);
+        setPendingAction(data.pending_action);
+        setState('confirming');
+        if (data.audio_b64) playAudio(data.audio_b64);
+      } else {
+        // Normal answer
+        setAnswer(data.text);
+        if (data.audio_b64) {
+          playAudio(data.audio_b64);
+        } else {
+          setState('idle');
+        }
+      }
+    } catch {
+      setError('Erro ao consultar o Jarvis. Tente novamente.');
+      setState('idle');
+    }
+  };
+
+  // Confirm action
+  const handleConfirm = async () => {
+    if (!pendingAction) return;
+    setConfirming(true);
+    setState('processing');
+
+    try {
+      const res = await api.post('/jarvis/confirm', {
+        action: pendingAction.action,
+        details: pendingAction.details,
+        generate_audio: true,
+      });
+      const data = res.data;
       setAnswer(data.text);
+      setPendingAction(null);
+      setConfirming(false);
 
       if (data.audio_b64) {
         playAudio(data.audio_b64);
@@ -147,9 +215,19 @@ export function JarvisButton() {
         setState('idle');
       }
     } catch {
-      setError('Erro ao consultar o Jarvis. Tente novamente.');
+      setError('Erro ao executar a ação.');
+      setPendingAction(null);
+      setConfirming(false);
       setState('idle');
     }
+  };
+
+  // Cancel action
+  const handleCancel = () => {
+    setPendingAction(null);
+    setConfirming(false);
+    setAnswer('Ação cancelada.');
+    setState('idle');
   };
 
   // Play TTS audio
@@ -160,13 +238,19 @@ export function JarvisButton() {
     const audio = new Audio(url);
     audioRef.current = audio;
 
-    audio.onplay = () => setState('speaking');
+    audio.onplay = () => {
+      if (state !== 'confirming') setState('speaking');
+    };
     audio.onended = () => {
       URL.revokeObjectURL(url);
-      setState('idle');
+      if (state !== 'confirming' && !pendingAction) setState('idle');
     };
-    audio.onerror = () => setState('idle');
-    audio.play().catch(() => setState('idle'));
+    audio.onerror = () => {
+      if (state !== 'confirming') setState('idle');
+    };
+    audio.play().catch(() => {
+      if (state !== 'confirming') setState('idle');
+    });
   };
 
   // Close overlay
@@ -180,10 +264,18 @@ export function JarvisButton() {
     setAnswer('');
     setError('');
     setAudioLevel(0);
+    setPendingAction(null);
+    setConfirming(false);
     finalTranscriptRef.current = '';
   }, [stopAudioMonitor]);
 
   const orbSize = state === 'listening' ? 140 + audioLevel * 30 : 140;
+
+  // Action visual helpers
+  const actionIcon = pendingAction ? ACTION_ICONS[pendingAction.action] || Sparkles : Sparkles;
+  const ActionIcon = actionIcon;
+  const actionColor = pendingAction ? ACTION_COLORS[pendingAction.action] || '' : '';
+  const actionTextColor = pendingAction ? ACTION_TEXT_COLORS[pendingAction.action] || 'text-blue-400' : 'text-blue-400';
 
   return (
     <>
@@ -205,36 +297,22 @@ export function JarvisButton() {
               className="absolute jarvis-orbit-ring"
               style={{ inset: -4, borderColor: 'rgba(96, 165, 250, 0.3)' }}
             >
-              <div
-                className="jarvis-particle"
-                style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }}
-              />
-              <div
-                className="jarvis-particle"
-                style={{ width: 4, height: 4, bottom: -2, right: '15%', animationDelay: '1s' }}
-              />
+              <div className="jarvis-particle" style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }} />
+              <div className="jarvis-particle" style={{ width: 4, height: 4, bottom: -2, right: '15%', animationDelay: '1s' }} />
             </div>
-
-            {/* Second orbit (reverse) */}
             <div
               className="absolute jarvis-orbit-ring jarvis-orbit-ring-reverse"
               style={{ inset: -10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.15)' }}
             >
-              <div
-                className="jarvis-particle"
-                style={{ width: 3, height: 3, top: '25%', right: -1.5, animationDelay: '0.5s' }}
-              />
+              <div className="jarvis-particle" style={{ width: 3, height: 3, top: '25%', right: -1.5, animationDelay: '0.5s' }} />
             </div>
 
-            {/* Button */}
             <motion.button
               onClick={startListening}
               whileTap={{ scale: 0.9 }}
               className={cn(
-                'absolute inset-0 m-auto',
-                'h-14 w-14 rounded-full',
-                'bg-primary text-white',
-                'flex items-center justify-center',
+                'absolute inset-0 m-auto h-14 w-14 rounded-full',
+                'bg-primary text-white flex items-center justify-center',
                 'cursor-pointer jarvis-btn-idle',
               )}
               aria-label="Ativar Jarvis"
@@ -246,7 +324,7 @@ export function JarvisButton() {
       </AnimatePresence>
 
       {/* ============================================================
-          FULLSCREEN OVERLAY — immersive Jarvis experience
+          FULLSCREEN OVERLAY
           ============================================================ */}
       <AnimatePresence>
         {isOpen && (
@@ -257,7 +335,7 @@ export function JarvisButton() {
             transition={{ duration: 0.4 }}
             className="fixed inset-0 z-[100] jarvis-overlay flex flex-col items-center justify-center"
           >
-            {/* Close button */}
+            {/* Close */}
             <motion.button
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -285,55 +363,30 @@ export function JarvisButton() {
             </motion.div>
 
             {/* ============================================================
-                ORB SECTION — central visual
+                ORB SECTION
                 ============================================================ */}
             <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
-
-              {/* Starburst lines behind orb */}
+              {/* Starburst */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="jarvis-starburst" style={{ width: 240, height: 240 }}>
                   {[...Array(12)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="absolute top-1/2 left-1/2 bg-blue-400/10"
-                      style={{
-                        width: 1,
-                        height: 120,
-                        transformOrigin: '0 0',
-                        transform: `rotate(${i * 30}deg)`,
-                      }}
-                    />
+                    <div key={i} className="absolute top-1/2 left-1/2 bg-blue-400/10"
+                      style={{ width: 1, height: 120, transformOrigin: '0 0', transform: `rotate(${i * 30}deg)` }} />
                   ))}
                 </div>
               </div>
 
-              {/* Outer orbit ring 1 */}
-              <div
-                className="jarvis-orbit-ring"
-                style={{ width: 220, height: 220, top: 30, left: 30 }}
-              >
-                <div
-                  className="jarvis-particle"
-                  style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }}
-                />
-                <div
-                  className="jarvis-particle"
-                  style={{ width: 4, height: 4, bottom: -2, right: '20%', animationDelay: '0.7s' }}
-                />
+              {/* Orbit rings */}
+              <div className="jarvis-orbit-ring" style={{ width: 220, height: 220, top: 30, left: 30 }}>
+                <div className="jarvis-particle" style={{ width: 5, height: 5, top: -2.5, left: '50%', marginLeft: -2.5 }} />
+                <div className="jarvis-particle" style={{ width: 4, height: 4, bottom: -2, right: '20%', animationDelay: '0.7s' }} />
+              </div>
+              <div className="jarvis-orbit-ring jarvis-orbit-ring-reverse"
+                style={{ width: 260, height: 260, top: 10, left: 10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.1)' }}>
+                <div className="jarvis-particle" style={{ width: 3, height: 3, top: '20%', right: -1.5, animationDelay: '1.2s' }} />
               </div>
 
-              {/* Outer orbit ring 2 (reverse) */}
-              <div
-                className="jarvis-orbit-ring jarvis-orbit-ring-reverse"
-                style={{ width: 260, height: 260, top: 10, left: 10, borderStyle: 'dashed', borderColor: 'rgba(29, 78, 216, 0.1)' }}
-              >
-                <div
-                  className="jarvis-particle"
-                  style={{ width: 3, height: 3, top: '20%', right: -1.5, animationDelay: '1.2s' }}
-                />
-              </div>
-
-              {/* Sonar ripples — listening */}
+              {/* Ripples — listening */}
               {state === 'listening' && (
                 <>
                   <div className="jarvis-ripple" style={{ width: orbSize, height: orbSize, top: `calc(50% - ${orbSize/2}px)`, left: `calc(50% - ${orbSize/2}px)` }} />
@@ -344,107 +397,57 @@ export function JarvisButton() {
 
               {/* Processing ring */}
               {state === 'processing' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="absolute"
-                  style={{ width: 160, height: 160, top: 60, left: 60 }}
-                >
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="absolute" style={{ width: 160, height: 160, top: 60, left: 60 }}>
                   <div className="jarvis-process-ring" />
                 </motion.div>
               )}
 
               {/* THE ORB */}
               <motion.div
-                animate={{
-                  width: orbSize,
-                  height: orbSize,
-                }}
+                animate={{ width: orbSize, height: orbSize }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                 className={cn(
                   'relative rounded-full jarvis-orb cursor-pointer',
                   state === 'listening' && 'jarvis-orb-listening',
                 )}
-                onClick={state === 'idle' ? startListening : undefined}
+                onClick={state === 'idle' && !pendingAction ? startListening : undefined}
               >
-                {/* Inner highlight */}
                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-300/20 via-transparent to-transparent" />
-
-                {/* Center icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <AnimatePresence mode="wait">
-                    {state === 'idle' && (
-                      <motion.div
-                        key="idle-icon"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.5, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
+                    {state === 'idle' && !pendingAction && (
+                      <motion.div key="idle" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
                         <Mic className="h-10 w-10 text-white/90" strokeWidth={1.5} />
                       </motion.div>
                     )}
-
                     {state === 'listening' && (
-                      <motion.div
-                        key="listen-icon"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.5, opacity: 0 }}
-                        className="flex items-center gap-[3px]"
-                      >
+                      <motion.div key="listen" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} className="flex items-center gap-[3px]">
                         {[...Array(5)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            className="w-[4px] bg-white/90 rounded-full"
-                            animate={{
-                              height: [6, 12 + audioLevel * 28, 6],
-                            }}
-                            transition={{
-                              duration: 0.4,
-                              repeat: Infinity,
-                              delay: i * 0.08,
-                            }}
-                          />
+                          <motion.div key={i} className="w-[4px] bg-white/90 rounded-full"
+                            animate={{ height: [6, 12 + audioLevel * 28, 6] }}
+                            transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.08 }} />
                         ))}
                       </motion.div>
                     )}
-
                     {state === 'processing' && (
-                      <motion.div
-                        key="process-icon"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.5, opacity: 0 }}
-                      >
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                        >
+                      <motion.div key="process" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}>
                           <Sparkles className="h-10 w-10 text-white/90" strokeWidth={1.5} />
                         </motion.div>
                       </motion.div>
                     )}
-
                     {state === 'speaking' && (
-                      <motion.div
-                        key="speak-icon"
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.5, opacity: 0 }}
-                        className="flex items-center gap-[2px]"
-                      >
+                      <motion.div key="speak" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} className="flex items-center gap-[2px]">
                         {[...Array(9)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="jarvis-speak-bar"
-                            style={{
-                              '--wave-h': `${6 + Math.abs(4 - i) * 5 + Math.random() * 6}px`,
-                              animationDelay: `${i * 0.06}s`,
-                              height: '4px',
-                            } as React.CSSProperties}
-                          />
+                          <div key={i} className="jarvis-speak-bar"
+                            style={{ '--wave-h': `${6 + Math.abs(4 - i) * 5 + Math.random() * 6}px`, animationDelay: `${i * 0.06}s`, height: '4px' } as React.CSSProperties} />
                         ))}
+                      </motion.div>
+                    )}
+                    {state === 'confirming' && (
+                      <motion.div key="confirm" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                        <ActionIcon className="h-10 w-10 text-white/90" strokeWidth={1.5} />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -453,97 +456,142 @@ export function JarvisButton() {
             </div>
 
             {/* ============================================================
-                TEXT SECTION — below the orb
+                TEXT + CONFIRMATION SECTION
                 ============================================================ */}
-            <div className="mt-10 w-full max-w-md px-6 text-center min-h-[120px]">
+            <div className="mt-10 w-full max-w-lg px-6 text-center min-h-[160px]">
               <AnimatePresence mode="wait">
 
-                {/* Idle — prompt to speak */}
-                {state === 'idle' && !answer && !error && (
-                  <motion.div
-                    key="idle-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <p className="text-[16px] text-white/70">
-                      Toque no orbe e faça sua pergunta
-                    </p>
-                    <p className="text-[13px] text-white/30 mt-2">
-                      Pergunte sobre leads, faturamento, pipeline e mais
-                    </p>
+                {/* Idle — no action */}
+                {state === 'idle' && !answer && !error && !pendingAction && (
+                  <motion.div key="idle-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <p className="text-[16px] text-white/70">Toque no orbe e faça sua pergunta</p>
+                    <p className="text-[13px] text-white/30 mt-2">Pergunte sobre leads, faturamento ou peça ações como follow-ups e ligações</p>
                   </motion.div>
                 )}
 
-                {/* Listening — real-time transcript */}
+                {/* Listening */}
                 {state === 'listening' && (
-                  <motion.div
-                    key="listen-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
+                  <motion.div key="listen-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     {transcript ? (
-                      <p className="text-[18px] text-white/90 leading-relaxed jarvis-cursor">
-                        {transcript}
-                      </p>
+                      <p className="text-[18px] text-white/90 leading-relaxed jarvis-cursor">{transcript}</p>
                     ) : (
-                      <p className="text-[16px] text-blue-300/70 italic">
-                        Ouvindo...
-                      </p>
+                      <p className="text-[16px] text-blue-300/70 italic">Ouvindo...</p>
                     )}
                   </motion.div>
                 )}
 
                 {/* Processing */}
                 {state === 'processing' && (
-                  <motion.div
-                    key="process-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
+                  <motion.div key="process-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[14px] text-white/40 mb-2">{transcript}</p>
-                    <p className="text-[15px] text-blue-300/80">Consultando dados...</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 text-blue-300/80 animate-spin" />
+                      <p className="text-[15px] text-blue-300/80">{confirming ? 'Executando ação...' : 'Consultando dados...'}</p>
+                    </div>
                   </motion.div>
                 )}
 
-                {/* Speaking / Answer */}
-                {state === 'speaking' && answer && (
-                  <motion.div
-                    key="speak-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
-                    <p className="text-[18px] text-white/90 leading-relaxed jarvis-text-reveal">
-                      {answer}
-                    </p>
+                {/* Speaking */}
+                {state === 'speaking' && answer && !pendingAction && (
+                  <motion.div key="speak-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                    <p className="text-[18px] text-white/90 leading-relaxed jarvis-text-reveal">{answer}</p>
                   </motion.div>
                 )}
 
-                {/* Idle with answer (finished) */}
-                {state === 'idle' && answer && (
+                {/* ============================================================
+                    CONFIRMING — Action confirmation card
+                    ============================================================ */}
+                {state === 'confirming' && pendingAction && (
                   <motion.div
-                    key="done-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    key="confirm-card"
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                   >
+                    {/* Action card */}
+                    <div className={cn(
+                      'rounded-2xl border bg-gradient-to-br p-5 mb-6 text-left',
+                      actionColor || 'from-blue-500/20 to-blue-500/5 border-blue-500/20'
+                    )}>
+                      <div className="flex items-start gap-3">
+                        <div className={cn(
+                          'h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0',
+                          'bg-white/10'
+                        )}>
+                          <ActionIcon className={cn('h-5 w-5', actionTextColor)} strokeWidth={1.75} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold text-white/90 mb-1">
+                            {pendingAction.description}
+                          </p>
+
+                          {/* Action details */}
+                          <div className="space-y-1 mt-2">
+                            {pendingAction.details.lead_name && (
+                              <p className="text-[13px] text-white/50">
+                                Lead: <span className="text-white/70">{pendingAction.details.lead_name}</span>
+                              </p>
+                            )}
+                            {pendingAction.details.message && (
+                              <p className="text-[12px] text-white/40 mt-1 line-clamp-2">
+                                Mensagem: "{pendingAction.details.message}"
+                              </p>
+                            )}
+                            {pendingAction.details.course && (
+                              <p className="text-[13px] text-white/50">
+                                Curso: <span className="text-white/70">{pendingAction.details.course}</span>
+                              </p>
+                            )}
+                            {pendingAction.details.target_stage && (
+                              <p className="text-[13px] text-white/50">
+                                Destino: <span className="text-white/70">{pendingAction.details.target_stage}</span>
+                              </p>
+                            )}
+                            {pendingAction.details.date && (
+                              <p className="text-[13px] text-white/50">
+                                Data: <span className="text-white/70">{pendingAction.details.date} às {pendingAction.details.time}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Confirm / Cancel buttons */}
+                    <div className="flex items-center justify-center gap-3">
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleConfirm}
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[14px] font-medium transition-colors border border-emerald-500/20"
+                      >
+                        <Check className="h-4 w-4" strokeWidth={2} />
+                        Confirmar
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleCancel}
+                        className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/50 text-[14px] font-medium transition-colors"
+                      >
+                        <Ban className="h-4 w-4" strokeWidth={2} />
+                        Cancelar
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Idle with answer (finished — after confirm or query) */}
+                {state === 'idle' && answer && !pendingAction && (
+                  <motion.div key="done-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[14px] text-white/30 mb-2">{transcript}</p>
                     <p className="text-[18px] text-white/90 leading-relaxed">{answer}</p>
                     <div className="flex items-center justify-center gap-4 mt-6">
-                      <button
-                        onClick={startListening}
-                        className="px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20"
-                      >
+                      <button onClick={startListening}
+                        className="px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20">
                         Nova pergunta
                       </button>
-                      <button
-                        onClick={closeOverlay}
-                        className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-[13px] text-white/50 transition-colors"
-                      >
+                      <button onClick={closeOverlay}
+                        className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-[13px] text-white/50 transition-colors">
                         Fechar
                       </button>
                     </div>
@@ -552,17 +600,10 @@ export function JarvisButton() {
 
                 {/* Error */}
                 {error && (
-                  <motion.div
-                    key="error-text"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                  >
+                  <motion.div key="error-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     <p className="text-[15px] text-red-400">{error}</p>
-                    <button
-                      onClick={startListening}
-                      className="mt-4 px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20"
-                    >
+                    <button onClick={startListening}
+                      className="mt-4 px-4 py-2 rounded-full bg-primary/20 hover:bg-primary/30 text-[13px] text-blue-300 transition-colors border border-primary/20">
                       Tentar novamente
                     </button>
                   </motion.div>
@@ -571,12 +612,8 @@ export function JarvisButton() {
             </div>
 
             {/* Bottom hint */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="absolute bottom-6 text-[11px] text-white/20"
-            >
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+              className="absolute bottom-6 text-[11px] text-white/20">
               Pressione ESC para fechar
             </motion.p>
           </motion.div>

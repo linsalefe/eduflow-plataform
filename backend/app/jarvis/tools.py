@@ -111,4 +111,105 @@ JARVIS_TOOLS = [
             }
         }
     },
+
+    # ============================================================
+    # ACTION TOOLS — requerem confirmação do usuário
+    # ============================================================
+    {
+        "type": "function",
+        "function": {
+            "name": "action_send_followup",
+            "description": "Envia uma mensagem de follow-up via WhatsApp para um lead específico. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome do lead que receberá o follow-up"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Mensagem personalizada para enviar. Se não informada, usa mensagem padrão de follow-up."
+                    }
+                },
+                "required": ["lead_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "action_make_call",
+            "description": "Dispara uma ligação de IA (ElevenLabs Voice) para um lead sobre um curso/produto específico. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome do lead para ligar"
+                    },
+                    "course": {
+                        "type": "string",
+                        "description": "Nome do curso ou produto sobre o qual ligar"
+                    }
+                },
+                "required": ["lead_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "action_move_pipeline",
+            "description": "Move um lead para uma coluna específica do pipeline/Kanban. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome do lead a ser movido"
+                    },
+                    "target_stage": {
+                        "type": "string",
+                        "description": "Coluna de destino (ex: novo, em_contato, qualificado, em_matricula, matriculado, perdido)"
+                    }
+                },
+                "required": ["lead_name", "target_stage"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "action_schedule",
+            "description": "Agenda uma reunião ou ligação com um lead para uma data e hora específica. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome do lead"
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "Data no formato YYYY-MM-DD (ex: 2026-03-20)"
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "Hora no formato HH:MM (ex: 14:30)"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["voice_ai", "consultant"],
+                        "description": "Tipo: voice_ai (ligação IA) ou consultant (consultora humana)"
+                    },
+                    "course": {
+                        "type": "string",
+                        "description": "Curso/produto relacionado ao agendamento"
+                    }
+                },
+                "required": ["lead_name", "date", "time"]
+            }
+        }
+    },
 ]
