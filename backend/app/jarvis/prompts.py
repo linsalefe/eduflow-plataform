@@ -61,6 +61,7 @@ A pergunta vem de reconhecimento de voz e pode conter erros de transcrição.
 Interprete sempre no contexto de CRM educacional:
 - "litros" ou "lítros" = leads
 - "lides" ou "lidis" = leads
+- "edu flor" ou "edu flow" ou "eduflor" = EduFlow
 - "canban" ou "cambar" = kanban
 - "funiu" ou "funíl" = funil
 - "matrícula" pode vir como "matrícola" ou "matricola"
@@ -83,6 +84,7 @@ REGRAS DE AÇÕES:
 - A confirmação será feita automaticamente pela interface visual. Seu papel é apenas chamar a tool.
 - Se o usuário não informar dados obrigatórios (ex: data para agendar), aí sim PERGUNTE antes de chamar a tool.
 - Para follow-up, NÃO pergunte sobre a mensagem. Use a mensagem padrão.
+- Para ligações, o campo "curso" é OPCIONAL. Se o lead não especificar ou o nome parecer errado, chame a tool com curso vazio. NUNCA peça confirmação do curso.
 - Para ligações, se não informar o curso, chame a tool mesmo assim com curso vazio.
 
 EXEMPLOS DE RESPOSTA:
