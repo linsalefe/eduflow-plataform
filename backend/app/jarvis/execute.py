@@ -36,6 +36,8 @@ async def execute_tool(name: str, args: dict, tenant_id: int, db: AsyncSession) 
         "get_top_leads": get_top_leads,
         "get_agent_performance": get_agent_performance,
         "get_goal_progress": get_goal_progress,
+        "get_contact_details": get_contact_details,
+        "get_contact_conversations": get_contact_conversations,
     }
     handler = handlers.get(name)
     if not handler:
@@ -197,6 +199,116 @@ async def get_top_leads(args: dict, tenant_id: int, db: AsyncSession) -> dict:
     ]
 
     return {"top_leads": leads}
+
+# ============================================================
+# 8. DETALHES DE UM CONTATO ESPECÍFICO
+# ============================================================
+async def get_contact_details(args: dict, tenant_id: int, db: AsyncSession) -> dict:
+    name = args.get("lead_name", "")
+    from app.models import LeadAgentContext, Tag, contact_tags
+
+    # Buscar contato pelo nome
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.tenant_id == tenant_id)
+        .where(func.lower(Contact.name).contains(name.lower().strip()))
+        .order_by(Contact.updated_at.desc())
+        .limit(1)
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        return {"error": f"Contato '{name}' não encontrado"}
+
+    # Buscar contexto do agente (score, formação, etc)
+    ctx_result = await db.execute(
+        select(LeadAgentContext)
+        .where(LeadAgentContext.lead_id == contact.id)
+        .limit(1)
+    )
+    ctx = ctx_result.scalar_one_or_none()
+
+    # Buscar tags
+    tags_result = await db.execute(
+        select(Tag.name)
+        .join(contact_tags)
+        .where(contact_tags.c.contact_id == contact.id)
+    )
+    tags = [r[0] for r in tags_result.all()]
+
+    # Última mensagem
+    last_msg_result = await db.execute(
+        select(Message)
+        .where(Message.contact_wa_id == contact.wa_id)
+        .order_by(Message.timestamp.desc())
+        .limit(1)
+    )
+    last_msg = last_msg_result.scalar_one_or_none()
+
+    return {
+        "name": contact.name or "Sem nome",
+        "phone": contact.wa_id,
+        "status": contact.lead_status,
+        "deal_value": float(contact.deal_value or 0),
+        "notes": contact.notes or "",
+        "created_at": str(contact.created_at) if contact.created_at else "",
+        "tags": tags,
+        "score": ctx.call_score if ctx else None,
+        "call_outcome": ctx.call_outcome if ctx else None,
+        "formacao": ctx.wa_formacao if ctx else None,
+        "atuacao": ctx.wa_atuacao if ctx else None,
+        "motivacao": ctx.wa_motivacao if ctx else None,
+        "last_message": {
+            "direction": last_msg.direction if last_msg else None,
+            "content": last_msg.content[:200] if last_msg and last_msg.content else None,
+            "timestamp": str(last_msg.timestamp) if last_msg else None,
+            "sent_by_ai": last_msg.sent_by_ai if last_msg else None,
+        } if last_msg else None,
+    }
+
+
+# ============================================================
+# 9. CONVERSAS DE UM CONTATO
+# ============================================================
+async def get_contact_conversations(args: dict, tenant_id: int, db: AsyncSession) -> dict:
+    name = args.get("lead_name", "")
+    limit = args.get("limit", 10)
+
+    # Buscar contato
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.tenant_id == tenant_id)
+        .where(func.lower(Contact.name).contains(name.lower().strip()))
+        .order_by(Contact.updated_at.desc())
+        .limit(1)
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        return {"error": f"Contato '{name}' não encontrado"}
+
+    # Buscar mensagens
+    msgs_result = await db.execute(
+        select(Message)
+        .where(Message.contact_wa_id == contact.wa_id)
+        .where(Message.tenant_id == tenant_id)
+        .order_by(Message.timestamp.desc())
+        .limit(limit)
+    )
+    messages = msgs_result.scalars().all()
+
+    return {
+        "lead_name": contact.name,
+        "total_messages": len(messages),
+        "messages": [
+            {
+                "direction": m.direction,
+                "content": m.content[:300] if m.content else "",
+                "timestamp": str(m.timestamp),
+                "type": m.message_type,
+                "sent_by_ai": m.sent_by_ai,
+            }
+            for m in reversed(messages)
+        ],
+    }
 
 
 # ============================================================

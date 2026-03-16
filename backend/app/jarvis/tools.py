@@ -111,7 +111,45 @@ JARVIS_TOOLS = [
             }
         }
     },
-
+    {
+        "type": "function",
+        "function": {
+            "name": "get_contact_details",
+            "description": "Busca informações detalhadas de um contato/lead específico: nome, telefone, status no pipeline, score, formação, atuação, motivação, valor do deal, tags e última mensagem.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome ou parte do nome do contato"
+                    }
+                },
+                "required": ["lead_name"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_contact_conversations",
+            "description": "Retorna as últimas mensagens trocadas com um contato/lead. Mostra quem enviou (lead ou atendente/IA), conteúdo e horário.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lead_name": {
+                        "type": "string",
+                        "description": "Nome ou parte do nome do contato"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Quantidade de mensagens a retornar (default: 10)"
+                    }
+                },
+                "required": ["lead_name"]
+            }
+        }
+    },
+    
     # ============================================================
     # ACTION TOOLS — requerem confirmação do usuário
     # ============================================================
