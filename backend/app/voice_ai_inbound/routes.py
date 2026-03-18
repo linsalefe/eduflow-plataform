@@ -127,27 +127,36 @@ async def inbound_gather(request: Request):
     print(f"📞 [INBOUND] IVR: digit={digit} → agent={agent_slug} → ElevenLabs={elevenlabs_agent_id}")
 
     try:
-        client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+        import httpx
 
-        twiml = client.conversational_ai.twilio.register_call(
-            agent_id=elevenlabs_agent_id,
-            from_number=caller,
-            to_number=called,
-            direction="inbound",
-            conversation_initiation_client_data={
-                "dynamic_variables": {
-                    "caller_number": caller,
-                    "agent_type": agent_slug,
-                }
+        resp = httpx.post(
+            "https://api.elevenlabs.io/v1/convai/twilio/register-call",
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "Content-Type": "application/json",
             },
+            json={
+                "agent_id": elevenlabs_agent_id,
+                "from_number": caller,
+                "to_number": called,
+                "direction": "inbound",
+                "conversation_initiation_client_data": {
+                    "dynamic_variables": {
+                        "caller_number": caller,
+                        "agent_type": agent_slug,
+                    }
+                },
+            },
+            timeout=10.0,
         )
 
-        print(f"✅ [INBOUND] ElevenLabs register_call OK")
-        print(f"📄 [INBOUND] TwiML type: {type(twiml)}")
-        print(f"📄 [INBOUND] TwiML content: {twiml}")
-        
-        twiml_str = str(twiml) if not isinstance(twiml, str) else twiml
-        return Response(content=twiml_str, media_type="application/xml")
+        print(f"📄 [INBOUND] ElevenLabs status={resp.status_code}")
+        print(f"📄 [INBOUND] ElevenLabs response: {resp.text[:500]}")
+
+        if resp.status_code == 200:
+            return Response(content=resp.text, media_type="application/xml")
+        else:
+            raise Exception(f"ElevenLabs retornou {resp.status_code}: {resp.text[:200]}")
 
     except Exception as e:
         print(f"❌ [INBOUND] Erro no register_call: {e}")
