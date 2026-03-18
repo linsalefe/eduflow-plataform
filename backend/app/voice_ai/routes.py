@@ -201,16 +201,24 @@ async def twilio_status_callback(request: Request):
 async def twilio_answer_twiml(request: Request):
     """
     TwiML retornado quando a chamada é atendida.
-    v3: Só conecta o Media Stream. Greeting via Realtime API.
+    Roteia: inbound → IVR (voice_ai_inbound) | outbound → pipeline SDR.
     """
     from twilio.twiml.voice_response import VoiceResponse, Connect, Stream
 
     form = await request.form()
     call_sid = form.get("CallSid", "")
+    direction = form.get("Direction", "")
 
+    # === INBOUND: cliente ligou → redireciona pro IVR ===
+    if direction == "inbound":
+        print(f"📞 Inbound detectado: {form.get('From', '')} → redirecionando pro IVR (CallSid: {call_sid})")
+        response = VoiceResponse()
+        response.redirect(f"{BASE_URL}/api/voice-inbound/answer", method="POST")
+        return Response(content=str(response), media_type="application/xml")
+
+    # === OUTBOUND: pipeline SDR existente ===
     response = VoiceResponse()
 
-    # Conectar Media Stream bidirecional
     connect = Connect()
     stream = Stream(
         url=f"{BASE_URL.replace('https', 'wss')}/api/voice-ai/stream",

@@ -20,6 +20,7 @@ from app.landing_routes import router as landing_router
 from app.financial_routes import router as financial_router
 from app.notification_routes import notify_all_users
 from app.agents.orchestrator.orchestrator import orchestrator
+from app.voice_ai_inbound.routes import router as voice_inbound_router
 from fastapi.staticfiles import StaticFiles
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
@@ -212,6 +213,7 @@ app.include_router(tenant_router)
 app.include_router(tenant_agent_router)
 app.include_router(voice_ai_router)
 app.include_router(automation_router)
+app.include_router(voice_inbound_router)
 app.include_router(financial_router)
 app.include_router(evolution_router)
 app.include_router(notification_router)
