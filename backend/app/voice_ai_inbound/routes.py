@@ -142,8 +142,12 @@ async def inbound_gather(request: Request):
             },
         )
 
-        print(f"✅ [INBOUND] ElevenLabs register_call OK → retornando TwiML")
-        return Response(content=twiml, media_type="application/xml")
+        print(f"✅ [INBOUND] ElevenLabs register_call OK")
+        print(f"📄 [INBOUND] TwiML type: {type(twiml)}")
+        print(f"📄 [INBOUND] TwiML content: {twiml}")
+        
+        twiml_str = str(twiml) if not isinstance(twiml, str) else twiml
+        return Response(content=twiml_str, media_type="application/xml")
 
     except Exception as e:
         print(f"❌ [INBOUND] Erro no register_call: {e}")
