@@ -38,7 +38,8 @@ class VoiceAgent(Base):
     llm_temperature = Column(Integer, default=30)           # 30 = 0.3 (armazena como int x100)
     llm_max_tokens = Column(Integer, default=500)
 
-    # Voz — ElevenLabs
+    # ElevenLabs
+    elevenlabs_agent_id = Column(String(100), nullable=True)  # Agent ID do ElevenLabs
     elevenlabs_voice_id = Column(String(100), nullable=True)
     elevenlabs_model_id = Column(String(100), default="eleven_multilingual_v2")
 
