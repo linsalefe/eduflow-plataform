@@ -36,7 +36,7 @@ IVR_INVALID = os.getenv(
     "VOICE_INBOUND_IVR_INVALID",
     "Opção inválida. Por favor, digite 1 para suporte ou 2 para falar sobre seu plano."
 )
-IVR_TIMEOUT_SEC = int(os.getenv("VOICE_INBOUND_IVR_TIMEOUT", "5"))
+IVR_TIMEOUT_SEC = int(os.getenv("VOICE_INBOUND_IVR_TIMEOUT", "10"))
 IVR_MAX_RETRIES = int(os.getenv("VOICE_INBOUND_IVR_MAX_RETRIES", "2"))
 
 # === Agentes mapeados por tecla do IVR ===
