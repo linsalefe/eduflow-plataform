@@ -127,36 +127,23 @@ async def inbound_gather(request: Request):
     print(f"📞 [INBOUND] IVR: digit={digit} → agent={agent_slug} → ElevenLabs={elevenlabs_agent_id}")
 
     try:
-        import httpx
+        client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-        resp = httpx.post(
-            "https://api.elevenlabs.io/v1/convai/twilio/register-call",
-            headers={
-                "xi-api-key": ELEVENLABS_API_KEY,
-                "Content-Type": "application/json",
+        twiml = client.conversational_ai.twilio.register_call(
+            agent_id=elevenlabs_agent_id,
+            from_number=caller,
+            to_number=called,
+            direction="inbound",
+            conversation_initiation_client_data={
+                "dynamic_variables": {
+                    "caller_number": caller,
+                    "agent_type": agent_slug,
+                }
             },
-            json={
-                "agent_id": elevenlabs_agent_id,
-                "from_number": caller,
-                "to_number": called,
-                "direction": "inbound",
-                "conversation_initiation_client_data": {
-                    "dynamic_variables": {
-                        "caller_number": caller,
-                        "agent_type": agent_slug,
-                    }
-                },
-            },
-            timeout=10.0,
         )
 
-        print(f"📄 [INBOUND] ElevenLabs status={resp.status_code}")
-        print(f"📄 [INBOUND] ElevenLabs response: {resp.text[:500]}")
-
-        if resp.status_code == 200:
-            return Response(content=resp.text, media_type="application/xml")
-        else:
-            raise Exception(f"ElevenLabs retornou {resp.status_code}: {resp.text[:200]}")
+        print(f"✅ [INBOUND] ElevenLabs register_call OK → retornando TwiML")
+        return Response(content=twiml, media_type="application/xml")
 
     except Exception as e:
         print(f"❌ [INBOUND] Erro no register_call: {e}")
@@ -262,3 +249,171 @@ async def inbound_post_call(request: Request):
         print(f"❌ [INBOUND] Erro no post-call webhook: {e}")
         traceback.print_exc()
         return {"status": "error", "detail": str(e)}
+
+
+# ============================================================
+# 4. DASHBOARD — Métricas das chamadas inbound
+# ============================================================
+
+@router.get("/dashboard")
+async def inbound_dashboard(request: Request):
+    """Dashboard com métricas das chamadas inbound."""
+    from sqlalchemy import func, cast, Date
+    from app.voice_ai.models import AICall
+    from app.auth import get_current_user
+
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return {"error": "Não autenticado"}
+
+    days = int(request.query_params.get("days", "30"))
+    cutoff = datetime.now(SP_TZ).replace(tzinfo=None) - timedelta(days=days)
+
+    async with async_session() as db:
+        base_filter = [AICall.direction == "inbound", AICall.created_at >= cutoff]
+
+        # Total
+        total_q = await db.execute(
+            select(func.count(AICall.id)).where(*base_filter)
+        )
+        total = total_q.scalar() or 0
+
+        # Duração média
+        avg_q = await db.execute(
+            select(func.avg(AICall.duration_seconds)).where(*base_filter, AICall.duration_seconds > 0)
+        )
+        avg_duration = round(avg_q.scalar() or 0)
+
+        # Latência média
+        lat_q = await db.execute(
+            select(func.avg(AICall.avg_latency_ms)).where(*base_filter, AICall.avg_latency_ms > 0)
+        )
+        avg_latency = round(lat_q.scalar() or 0)
+
+        # Por outcome
+        outcome_q = await db.execute(
+            select(AICall.outcome, func.count(AICall.id)).where(*base_filter).group_by(AICall.outcome)
+        )
+        outcomes = {row[0] or "unknown": row[1] for row in outcome_q.fetchall()}
+
+        # Por agente
+        agent_q = await db.execute(
+            select(AICall.source, func.count(AICall.id)).where(*base_filter).group_by(AICall.source)
+        )
+        by_agent = {row[0] or "unknown": row[1] for row in agent_q.fetchall()}
+
+        # Diário
+        daily_q = await db.execute(
+            select(
+                cast(AICall.created_at, Date).label("date"),
+                func.count(AICall.id).label("total"),
+            ).where(*base_filter).group_by(cast(AICall.created_at, Date)).order_by(cast(AICall.created_at, Date))
+        )
+        daily = [{"date": str(row.date), "total": row.total} for row in daily_q.fetchall()]
+
+    return {
+        "period_days": days,
+        "total_calls": total,
+        "avg_duration_seconds": avg_duration,
+        "avg_latency_ms": avg_latency,
+        "outcomes": outcomes,
+        "by_agent": by_agent,
+        "daily": daily,
+    }
+
+
+# ============================================================
+# 5. CALLS LIST — Lista de chamadas inbound
+# ============================================================
+
+@router.get("/calls")
+async def inbound_calls(request: Request):
+    """Lista chamadas inbound com paginação."""
+    from sqlalchemy import func
+    from app.voice_ai.models import AICall
+
+    limit = int(request.query_params.get("limit", "50"))
+    offset = int(request.query_params.get("offset", "0"))
+    agent_filter = request.query_params.get("agent", "")
+
+    async with async_session() as db:
+        query = select(AICall).where(AICall.direction == "inbound").order_by(AICall.id.desc())
+
+        if agent_filter:
+            query = query.where(AICall.source == f"inbound_{agent_filter}")
+
+        # Total
+        count_q = select(func.count(AICall.id)).where(AICall.direction == "inbound")
+        if agent_filter:
+            count_q = count_q.where(AICall.source == f"inbound_{agent_filter}")
+        total_result = await db.execute(count_q)
+        total = total_result.scalar() or 0
+
+        # Paginated
+        result = await db.execute(query.limit(limit).offset(offset))
+        calls = result.scalars().all()
+
+    return {
+        "total": total,
+        "calls": [
+            {
+                "id": c.id,
+                "from_number": c.from_number or "",
+                "source": c.source or "",
+                "status": c.status or "",
+                "outcome": c.outcome or "",
+                "summary": c.summary or "",
+                "duration_seconds": c.duration_seconds or 0,
+                "total_turns": c.total_turns or 0,
+                "avg_latency_ms": c.avg_latency_ms or 0,
+                "created_at": str(c.created_at) if c.created_at else "",
+            }
+            for c in calls
+        ],
+    }
+
+
+# ============================================================
+# 6. CALL DETAIL — Detalhes com transcrição
+# ============================================================
+
+@router.get("/calls/{call_id}")
+async def inbound_call_detail(call_id: int):
+    """Detalhes de uma chamada inbound com transcrição."""
+    from app.voice_ai.models import AICall, AICallTurn
+    from fastapi import HTTPException
+
+    async with async_session() as db:
+        result = await db.execute(select(AICall).where(AICall.id == call_id))
+        call = result.scalar_one_or_none()
+        if not call:
+            raise HTTPException(status_code=404, detail="Chamada não encontrada")
+
+        turns_result = await db.execute(
+            select(AICallTurn).where(AICallTurn.call_id == call_id).order_by(AICallTurn.created_at)
+        )
+        turns = turns_result.scalars().all()
+
+    return {
+        "call": {
+            "id": call.id,
+            "from_number": call.from_number or "",
+            "source": call.source or "",
+            "status": call.status or "",
+            "outcome": call.outcome or "",
+            "summary": call.summary or "",
+            "duration_seconds": call.duration_seconds or 0,
+            "total_turns": call.total_turns or 0,
+            "avg_latency_ms": call.avg_latency_ms or 0,
+            "campaign": call.campaign or "",
+            "created_at": str(call.created_at) if call.created_at else "",
+        },
+        "transcript": [
+            {
+                "role": t.role,
+                "text": t.text,
+                "timestamp": str(t.created_at) if t.created_at else "",
+            }
+            for t in turns
+        ],
+    }
