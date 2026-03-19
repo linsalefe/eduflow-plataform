@@ -365,8 +365,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.get('/channels');
       setChannels(res.data);
-      if (res.data.length > 0 && !activeChannel) {
-        setActiveChannel(res.data[0]);
+      const messagingChannels = res.data.filter((ch: ChannelInfo) => ch.type === 'whatsapp' || ch.type === 'instagram');
+      if (messagingChannels.length > 0 && !activeChannel) {
+        setActiveChannel(messagingChannels[0]);
       }
     } catch (err) {
       // silent
