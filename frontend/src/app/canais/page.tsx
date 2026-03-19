@@ -225,12 +225,12 @@ export default function ChannelsPage() {
           <div>
             <h1 className="text-xl lg:text-2xl font-bold text-gray-900">Canais</h1>
             <p className="text-sm text-gray-500 mt-2 max-w-md leading-relaxed">
-              Conecte seu WhatsApp para atendimento e IA. Cada conta tem direito a 2 instâncias.
+              Conecte seus canais para atendimento e IA. Cada conta tem direito a até 4 canais por tipo.
             </p>
           </div>
           <button
             onClick={() => { setShowNewModal(true); setFormName(''); }}
-            disabled={channels.filter(c => c.provider === 'evolution').length >= 2}
+            disabled={channels.filter(c => c.provider === 'evolution').length >= 4}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
@@ -373,7 +373,7 @@ export default function ChannelsPage() {
                 {/* Opção: WhatsApp */}
                 <button
                   onClick={() => { setShowNewModal(false); setShowWhatsAppModal(true); setFormName(''); }}
-                  disabled={channels.filter(c => c.provider === 'evolution').length >= 2}
+                  disabled={channels.filter(c => c.provider === 'evolution').length >= 4 && channels.filter(c => c.type === 'instagram').length >= 4}
                   className="w-full bg-green-50 hover:bg-green-100 border-2 border-transparent hover:border-green-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg viewBox="0 0 32 32" className="w-10 h-10 flex-shrink-0 mt-0.5">
@@ -397,7 +397,8 @@ export default function ChannelsPage() {
                       toast.error('Erro ao conectar Instagram');
                     }
                   }}
-                  className="w-full bg-pink-50 hover:bg-pink-100 border-2 border-transparent hover:border-pink-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left"
+                  disabled={channels.filter(c => c.type === 'instagram').length >= 4}
+                  className="w-full bg-pink-50 hover:bg-pink-100 border-2 border-transparent hover:border-pink-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="w-10 h-10 flex-shrink-0 mt-0.5 rounded-xl bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737] flex items-center justify-center">
                     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="white">
