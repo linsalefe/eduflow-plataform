@@ -532,7 +532,7 @@ function ConversationsContent() {
         </div>
 
         {/* ============================================================ */}
-        {/* CHAT AREA                                                     */}
+        {/* CHAT AREA                                                    */}
         {/* ============================================================ */}
         <div className={`${selectedContact ? 'flex' : 'hidden lg:flex'} flex-1 flex-col min-w-0 overflow-hidden`}>
           {selectedContact ? (
@@ -639,39 +639,43 @@ function ConversationsContent() {
                                     <span className="absolute -left-2 top-0 w-0 h-0 border-t-[8px] border-t-[#202c33] border-l-[8px] border-l-transparent" />
                                   )}
 
-                                  {msg.type === 'image' && msg.content.startsWith('media:') ? (
-                                    <img
-                                      src={`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
-                                      alt={msg.content.split('|')[2] || 'Imagem'}
-                                      className="max-w-[280px] rounded-md cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => window.open(`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`, '_blank')}
-                                    />
-                                  ) : msg.type === 'audio' && msg.content.startsWith('media:') ? (
-                                    <audio controls className="max-w-[280px]">
-                                      <source src={`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`} type={msg.content.split('|')[1] || 'audio/ogg'} />
-                                    </audio>
-                                  ) : msg.type === 'video' && msg.content.startsWith('media:') ? (
-                                    <video controls className="max-w-[280px] rounded-md">
-                                      <source src={`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`} type={msg.content.split('|')[1] || 'video/mp4'} />
-                                    </video>
-                                  ) : msg.type === 'sticker' && msg.content.startsWith('media:') ? (
-                                    <img
-                                      src={`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
-                                      alt="Sticker"
-                                      className="w-32 h-32"
-                                    />
-                                  ) : msg.type === 'document' && msg.content.startsWith('media:') ? (
-                                    <a
-                                      href={`${apiUrl}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-[#8fdfcc]' : 'text-[#53bdeb]'} underline text-sm`}
-                                    >
-                                      📄 {msg.content.split('|')[2] || 'Documento'}
-                                    </a>
-                                  ) : (
-                                    <p className="text-[14.2px] whitespace-pre-wrap break-words leading-[19px]">{msg.content}</p>
-                                  )}
+                                  {(() => {
+                                    const isLocal = msg.content.startsWith('local:');
+                                    const isMedia = msg.content.startsWith('media:');
+                                    if (!isLocal && !isMedia) return <p className="text-[14.2px] whitespace-pre-wrap break-words leading-[19px]">{msg.content}</p>;
+                                    const parts = msg.content.split('|');
+                                    const ref = parts[0].replace('local:', '').replace('media:', '');
+                                    const mime = parts[1] || '';
+                                    const caption = parts[2] || '';
+                                    const src = isLocal
+                                      ? `${apiUrl}/media/local/${ref}`
+                                      : `${apiUrl}/media/${ref}?channel_id=${activeChannel?.id || 1}`;
+                                    if (msg.type === 'image') return (
+                                      <>
+                                        <img src={src} alt={caption || 'Imagem'} className="max-w-[280px] rounded-md cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(src, '_blank')} />
+                                        {caption && <p className="text-[13px] mt-1 whitespace-pre-wrap">{caption}</p>}
+                                      </>
+                                    );
+                                    if (msg.type === 'audio') return (
+                                      <audio controls className="max-w-[280px]">
+                                        <source src={src} type={mime || 'audio/ogg'} />
+                                      </audio>
+                                    );
+                                    if (msg.type === 'video') return (
+                                      <video controls className="max-w-[280px] rounded-md">
+                                        <source src={src} type={mime || 'video/mp4'} />
+                                      </video>
+                                    );
+                                    if (msg.type === 'sticker') return (
+                                      <img src={src} alt="Sticker" className="w-32 h-32" />
+                                    );
+                                    if (msg.type === 'document') return (
+                                      <a href={src} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 ${msg.direction === 'outbound' ? 'text-[#8fdfcc]' : 'text-[#53bdeb]'} underline text-sm`}>
+                                        📄 {caption || 'Documento'}
+                                      </a>
+                                    );
+                                    return <p className="text-[14.2px] whitespace-pre-wrap break-words leading-[19px]">{msg.content}</p>;
+                                  })()}
 
                                   <div className="flex items-center justify-end gap-1 mt-0.5">
                                     {msg.sent_by_ai && <span className={`text-[10px] font-medium ${msg.direction === 'outbound' ? 'text-[#ffffff99]' : 'text-[#8696a0]'}`}>🤖 Nat</span>}

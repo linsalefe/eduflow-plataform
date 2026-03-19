@@ -814,6 +814,27 @@ async def list_templates(channel_id: int, db: AsyncSession = Depends(get_db), te
     return templates
 
 
+@router.get("/media/local/{filename}")
+async def get_local_media(filename: str):
+    """Serve mídia salva localmente (Evolution API)."""
+    import os
+    from fastapi.responses import FileResponse
+
+    filepath = os.path.join("/home/ubuntu/eduflow/backend/media", filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Mídia não encontrada")
+
+    ext_mime = {
+        ".ogg": "audio/ogg", ".mp3": "audio/mpeg",
+        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+        ".png": "image/png", ".webp": "image/webp",
+        ".mp4": "video/mp4", ".pdf": "application/pdf",
+    }
+    ext = os.path.splitext(filename)[1].lower()
+    mime = ext_mime.get(ext, "application/octet-stream")
+
+    return FileResponse(filepath, media_type=mime, headers={"Cache-Control": "public, max-age=86400"})
+
 @router.get("/media/{media_id}")
 async def get_media(media_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     import httpx
