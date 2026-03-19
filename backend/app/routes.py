@@ -119,14 +119,23 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), te
     if not channel:
         raise HTTPException(status_code=404, detail="Canal não encontrado")
 
-    # 1) Buscar wa_ids dos contatos deste canal
+    # 1) Buscar wa_ids e ids dos contatos deste canal
     rows = await db.execute(
-        select(Contact.wa_id).where(Contact.channel_id == channel_id)
+        select(Contact.wa_id, Contact.id).where(Contact.channel_id == channel_id)
     )
-    wa_ids = [r[0] for r in rows.fetchall()]
+    contact_rows = rows.fetchall()
+    wa_ids = [r[0] for r in contact_rows]
+    contact_ids = [r[1] for r in contact_rows]
+
+    # 2) Deletar lead_agent_context (referencia contacts.id)
+    if contact_ids:
+        await db.execute(
+            text("DELETE FROM lead_agent_context WHERE lead_id = ANY(:ids)"),
+            {"ids": contact_ids}
+        )
 
     if wa_ids:
-        # 2) Deletar tabelas que referenciam contacts (via contact_wa_id)
+        # 3) Deletar tabelas que referenciam contacts (via contact_wa_id)
         for tbl in ['activities', 'ai_calls', 'ai_conversation_summaries',
                     'contact_tags', 'financial_entries', 'messages',
                     'schedules', 'tasks']:
@@ -135,7 +144,7 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), te
                 {"ids": wa_ids}
             )
 
-    # 3) Deletar tabelas que referenciam channels (via channel_id)
+    # 4) Deletar tabelas que referenciam channels (via channel_id)
     for tbl in ['ai_configs', 'ai_conversation_summaries', 'call_logs',
                 'form_submissions', 'knowledge_documents', 'landing_pages',
                 'messages', 'schedules', 'voice_scripts']:
@@ -144,7 +153,7 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), te
             {"ch_id": channel_id}
         )
 
-    # 4) Deletar contatos e canal
+    # 5) Deletar contatos e canal
     await db.execute(
         text("DELETE FROM contacts WHERE channel_id = :ch_id"),
         {"ch_id": channel_id}
