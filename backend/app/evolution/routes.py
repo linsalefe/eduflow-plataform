@@ -243,7 +243,20 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Extrair texto
                 message_content = msg.get("message", {})
-                msg_type = msg.get("messageType", "text")
+                raw_msg_type = msg.get("messageType", "text")
+
+                # Normalizar messageType da Evolution (audioMessage → audio, etc)
+                MEDIA_TYPE_MAP = {
+                    "imageMessage": "image",
+                    "audioMessage": "audio",
+                    "pttMessage": "audio",
+                    "videoMessage": "video",
+                    "documentMessage": "document",
+                    "documentWithCaptionMessage": "document",
+                    "stickerMessage": "sticker",
+                }
+                msg_type = MEDIA_TYPE_MAP.get(raw_msg_type, raw_msg_type)
+
                 text = (
                     message_content.get("conversation", "")
                     or message_content.get("extendedTextMessage", {}).get("text", "")
@@ -289,11 +302,56 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Conteúdo baseado no tipo
                 if msg_type in ("image", "audio", "video", "document", "sticker"):
-                    media = message_content.get(msg_type, {})
-                    media_id = media.get("id", "")
+                    # Evolution usa chave completa (audioMessage, imageMessage, etc)
+                    media = message_content.get(raw_msg_type, {})
+                    if raw_msg_type == "documentWithCaptionMessage":
+                        media = media.get("message", {}).get("documentMessage", {})
                     mime = media.get("mimetype", "")
                     caption = media.get("caption", "")
-                    text = f"media:{media_id}|{mime}|{caption}"
+
+                    # Baixar mídia via Evolution API e salvar em disco
+                    local_filename = ""
+                    try:
+                        import httpx, uuid, os
+                        from app.evolution.config import EVOLUTION_API_URL, EVOLUTION_API_KEY
+
+                        media_dir = "/home/ubuntu/eduflow/backend/media"
+                        os.makedirs(media_dir, exist_ok=True)
+
+                        ext_map = {
+                            "audio/ogg; codecs=opus": ".ogg", "audio/ogg": ".ogg",
+                            "audio/mpeg": ".mp3", "image/jpeg": ".jpg",
+                            "image/png": ".png", "image/webp": ".webp",
+                            "video/mp4": ".mp4", "application/pdf": ".pdf",
+                        }
+                        ext = ext_map.get(mime.split(";")[0].strip(), ".bin")
+                        local_filename = f"{uuid.uuid4().hex}{ext}"
+
+                        async with httpx.AsyncClient(timeout=30) as http:
+                            resp = await http.post(
+                                f"{EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/{instance_name}",
+                                json={"message": {"key": key}, "convertToMp4": False},
+                                headers={"apikey": EVOLUTION_API_KEY},
+                            )
+                            if resp.status_code == 200:
+                                b64_data = resp.json().get("base64", "")
+                                if b64_data:
+                                    import base64 as b64module
+                                    file_bytes = b64module.b64decode(b64_data)
+                                    filepath = os.path.join(media_dir, local_filename)
+                                    with open(filepath, "wb") as f:
+                                        f.write(file_bytes)
+                                    print(f"📎 Mídia salva: {filepath} ({len(file_bytes)} bytes)")
+                                else:
+                                    local_filename = ""
+                            else:
+                                print(f"⚠️ Erro ao baixar mídia: {resp.status_code}")
+                                local_filename = ""
+                    except Exception as e:
+                        print(f"⚠️ Erro ao salvar mídia: {e}")
+                        local_filename = ""
+
+                    text = f"local:{local_filename}|{mime}|{caption}" if local_filename else f"[{msg_type}]"
 
                 # Timestamp
                 ts = msg.get("messageTimestamp", 0)
