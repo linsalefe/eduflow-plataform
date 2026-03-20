@@ -654,6 +654,17 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         old_status = contact.lead_status
         contact.lead_status = req.lead_status
         await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id)
+        # Desligar IA automaticamente (configurável por tenant)
+        try:
+            from app.models import Tenant as TenantModel
+            t_result = await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))
+            t_obj = t_result.scalar_one_or_none()
+            off_statuses = (t_obj.ai_off_statuses if t_obj and t_obj.ai_off_statuses else ["qualificado", "desqualificado", "matriculado", "perdido"])
+            if req.lead_status in off_statuses and contact.ai_active:
+                contact.ai_active = False
+                print(f"🤖 IA desligada para {wa_id} (movido para {req.lead_status})")
+        except Exception as e:
+            print(f"⚠️ Erro ao verificar ai_off_statuses: {e}")
         from app.automation_scheduler import trigger_automations_for_contact, cancel_automations_for_contact
         await cancel_automations_for_contact(wa_id, db)
         await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db)

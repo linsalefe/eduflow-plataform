@@ -408,6 +408,7 @@ class Tenant(Base):
     })
 
     qualification_fields = Column(JSON, default=[])
+    ai_off_statuses = Column(JSON, default=["qualificado", "desqualificado", "matriculado", "perdido"])
 
     monthly_goal = Column(Float, default=0)
     monthly_lead_goal = Column(Integer, default=0)
