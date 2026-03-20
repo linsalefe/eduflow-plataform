@@ -407,6 +407,8 @@ class Tenant(Base):
         "on_schedule_call": "qualificado",
     })
 
+    qualification_fields = Column(JSON, default=[])
+
     monthly_goal = Column(Float, default=0)
     monthly_lead_goal = Column(Integer, default=0)
     monthly_schedule_goal = Column(Integer, default=0)

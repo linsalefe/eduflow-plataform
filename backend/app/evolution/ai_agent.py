@@ -10,7 +10,7 @@ import uuid
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import Contact, Message, AIConfig, Channel
+from app.models import Contact, Message, AIConfig, Channel, Tenant
 from app.evolution.client import send_text
 from app.ai_engine import search_knowledge
 from datetime import datetime, timezone, timedelta
@@ -161,7 +161,33 @@ async def process_message(
     # ── Montar mensagens ──────────────────────────────────────────────────────
     lead_info = f"\nDados do lead: Nome={contact_name}, Curso de interesse={course or 'não informado'}"
 
-    FORMAT_RULES = """
+    # ── Buscar campos de qualificação do tenant ──────────────────────────────
+    qualification_fields = []
+    if tenant_id:
+        try:
+            tenant_result = await db.execute(
+                select(Tenant).where(Tenant.id == tenant_id)
+            )
+            tenant = tenant_result.scalar_one_or_none()
+            if tenant and tenant.qualification_fields:
+                qualification_fields = tenant.qualification_fields
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar qualification_fields: {e}")
+
+    # ── Montar collected fields dinâmicos ─────────────────────────────────────
+    if qualification_fields:
+        collected_json = ",\n    ".join(
+            f'"{f["key"]}": "valor ou null"' for f in qualification_fields
+        )
+    else:
+        collected_json = '''"formacao": "valor ou null",
+    "atuacao": "valor ou null",
+    "motivacao": "valor ou null",
+    "aceita_ligacao": "sim/nao/null",
+    "dia_agendamento": "valor ou null",
+    "horario_agendamento": "valor ou null"'''
+
+    FORMAT_RULES = f"""
 
 REGRAS CRÍTICAS DE ACTION (NUNCA IGNORE):
 - "continue": Use enquanto ainda está coletando informações ou conversando
@@ -171,18 +197,13 @@ REGRAS CRÍTICAS DE ACTION (NUNCA IGNORE):
 
 FORMATO DE RESPOSTA OBRIGATÓRIO:
 Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do JSON):
-{
+{{
   "message": "texto da mensagem para o lead",
-  "collected": {
-    "formacao": "valor ou null",
-    "atuacao": "valor ou null",
-    "motivacao": "valor ou null",
-    "aceita_ligacao": "sim/nao/null",
-    "dia_agendamento": "valor ou null",
-    "horario_agendamento": "valor ou null"
-  },
+  "collected": {{
+    {collected_json}
+  }},
   "action": "continue/trigger_call/schedule_call/end"
-}"""
+}}"""
 
     messages = [
         {"role": "system", "content": system_prompt + lead_info + rag_context + FORMAT_RULES},
