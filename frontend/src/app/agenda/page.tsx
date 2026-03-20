@@ -424,12 +424,15 @@ export default function AgendaPage() {
                   <button onClick={() => setFormType('consultant')} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${formType === 'consultant' ? 'border-pink-400 bg-pink-50 text-pink-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
                     <UserCheck className="w-4 h-4" /> Consultora
                   </button>
+                  <button onClick={() => setFormType('followup_reminder')} className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors ${formType === 'followup_reminder' ? 'border-amber-400 bg-amber-50 text-amber-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    <Clock className="w-4 h-4" /> Follow-up
+                  </button>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Notas</label>
-                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={2} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary resize-none" placeholder="Observações..." />
+                <label className="text-xs font-medium text-gray-500 mb-1 block">{formType === 'followup_reminder' ? 'Mensagem do Follow-up *' : 'Notas'}</label>
+                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={formType === 'followup_reminder' ? 3 : 2} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary resize-none" placeholder={formType === 'followup_reminder' ? 'Mensagem que será enviada via WhatsApp...' : 'Observações...'} />
               </div>
             </div>
 
