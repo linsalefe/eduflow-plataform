@@ -65,6 +65,9 @@ export default function PipelinePage() {
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showAddLead, setShowAddLead] = useState(false);
+  const [newLead, setNewLead] = useState({ name: '', phone: '', email: '', notes: '' });
+  const [savingLead, setSavingLead] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -175,6 +178,14 @@ export default function PipelinePage() {
                 <Settings2 className="w-4 h-4" />
               </Button>
               <Button
+                size="sm"
+                className="h-9"
+                onClick={() => setShowAddLead(true)}
+              >
+                <UserPlus className="w-4 h-4 mr-1.5" />
+                Novo Lead
+              </Button>
+              <Button
                 variant="outline"
                 size="icon"
                 className="h-9 w-9"
@@ -259,6 +270,58 @@ export default function PipelinePage() {
           onClose={() => setSelectedLead(null)}
           onMove={moveLead}
         />
+
+        {/* Add Lead Modal */}
+        {showAddLead && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowAddLead(false)}>
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-gray-800">Novo Lead</h3>
+                <button onClick={() => setShowAddLead(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 text-xl leading-none">&times;</button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nome *</label>
+                  <input value={newLead.name} onChange={(e) => setNewLead(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary" placeholder="Nome completo" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">WhatsApp *</label>
+                  <input value={newLead.phone} onChange={(e) => setNewLead(prev => ({ ...prev, phone: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary" placeholder="5583999999999" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">E-mail</label>
+                  <input value={newLead.email} onChange={(e) => setNewLead(prev => ({ ...prev, email: e.target.value }))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary" placeholder="email@exemplo.com" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Observações</label>
+                  <textarea value={newLead.notes} onChange={(e) => setNewLead(prev => ({ ...prev, notes: e.target.value }))} rows={2} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary resize-none" placeholder="Informações adicionais..." />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowAddLead(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                <button
+                  disabled={savingLead || !newLead.name.trim() || !newLead.phone.trim()}
+                  onClick={async () => {
+                    setSavingLead(true);
+                    try {
+                      await api.post('/contacts', { name: newLead.name, phone: newLead.phone, email: newLead.email });
+                      setShowAddLead(false);
+                      setNewLead({ name: '', phone: '', email: '', notes: '' });
+                      loadLeads();
+                    } catch (err: any) {
+                      alert(err.response?.data?.detail || 'Erro ao criar lead');
+                    } finally {
+                      setSavingLead(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {savingLead ? 'Salvando...' : 'Criar Lead'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Settings modal */}
         {showSettings && (
