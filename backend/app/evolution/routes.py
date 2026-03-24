@@ -283,6 +283,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                             name=sender_name,
                             channel_id=channel_id,
                             lead_status="novo",
+                            ai_active=True,
                         )
                         db.add(contact)
                         await db.flush()
