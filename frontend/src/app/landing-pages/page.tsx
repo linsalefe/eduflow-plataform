@@ -440,8 +440,8 @@ export default function LandingPagesPage() {
                     <button onClick={() => window.open(`/lp/${page.slug}`, '_blank')} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-all">
                       <ExternalLink className="w-3.5 h-3.5" /> Ver
                     </button>
-                    <button onClick={() => copyUrl(page.slug)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 rounded-lg transition-all">
-                      <Copy className="w-3.5 h-3.5" /> {copied === page.slug ? 'Copiado!' : 'URL'}
+                    <button onClick={() => window.location.href = `/landing-pages/${page.id}/leads`} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
+                      <Users className="w-3.5 h-3.5" /> Leads
                     </button>
                     <button onClick={() => handleToggleActive(page)} className="flex items-center px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-50 rounded-lg transition-all ml-auto">
                       {page.is_active ? <ToggleRight className="w-4 h-4 text-emerald-500" /> : <ToggleLeft className="w-4 h-4" />}

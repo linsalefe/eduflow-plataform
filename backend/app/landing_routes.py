@@ -128,6 +128,50 @@ async def delete_landing_page(page_id: int, db: AsyncSession = Depends(get_db), 
 
 
 # === Stats ===
+# === Submissions (leads que preencheram) ===
+
+@router.get("/{page_id}/submissions")
+async def list_submissions(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(
+        select(FormSubmission)
+        .where(FormSubmission.landing_page_id == page_id, FormSubmission.tenant_id == tenant_id)
+        .order_by(FormSubmission.created_at.desc())
+    )
+    submissions = result.scalars().all()
+
+    items = []
+    for s in submissions:
+        # Buscar dados do contato (notas, status)
+        contact = None
+        if s.phone:
+            phone_clean = s.phone.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+            if not phone_clean.startswith("55"):
+                phone_clean = "55" + phone_clean
+            contact_result = await db.execute(
+                select(Contact).where(Contact.wa_id == phone_clean)
+            )
+            contact = contact_result.scalar_one_or_none()
+
+        items.append({
+            "id": s.id,
+            "name": s.name,
+            "phone": s.phone,
+            "email": s.email or "",
+            "course": s.course or "",
+            "utm_source": s.utm_source or "",
+            "utm_medium": s.utm_medium or "",
+            "utm_campaign": s.utm_campaign or "",
+            "utm_content": s.utm_content or "",
+            "created_at": str(s.created_at) if s.created_at else "",
+            "contact": {
+                "wa_id": contact.wa_id if contact else "",
+                "lead_status": contact.lead_status if contact else "",
+                "ai_active": contact.ai_active if contact else False,
+                "notes": contact.notes if contact else "",
+            } if contact else None,
+        })
+
+    return items
 
 @router.get("/{page_id}/stats")
 async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
