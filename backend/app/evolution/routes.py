@@ -334,7 +334,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                 json={"message": {"key": key}, "convertToMp4": False},
                                 headers={"apikey": EVOLUTION_API_KEY},
                             )
-                            if resp.status_code == 200:
+                            if resp.status_code in (200, 201):
                                 b64_data = resp.json().get("base64", "")
                                 if b64_data:
                                     import base64 as b64module
