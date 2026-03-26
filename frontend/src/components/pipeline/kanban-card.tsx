@@ -1,8 +1,7 @@
 'use client';
 
-import { Phone, Clock, Sparkles } from 'lucide-react';
+import { Clock, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface Tag {
   id: number;
@@ -41,7 +40,6 @@ function getRelativeTime(d: string): string {
   if (diffMin < 1) return 'agora';
   if (diffMin < 60) return `${diffMin}min`;
   if (diffH < 24) return `${diffH}h`;
-  if (diffD < 7) return `${diffD}d`;
   return `${diffD}d`;
 }
 
@@ -63,32 +61,22 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
       />
 
       <div className="p-2.5 pl-3.5">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-7 w-7 flex-shrink-0">
-            <AvatarFallback
-              className="text-[11px] font-bold text-white"
-              style={{ backgroundColor: color }}
-            >
-              {(lead.name || '?')[0].toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] font-semibold text-foreground truncate">
-              {lead.name || 'Sem nome'}
-            </p>
-            <div className="flex items-center gap-2">
-              {time && (
-                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                  <Clock className="w-2.5 h-2.5" />{time}
-                </span>
-              )}
-            </div>
+        <div className="flex items-center justify-between gap-1.5">
+          <p className="text-[12px] font-semibold text-foreground truncate flex-1" title={lead.name || 'Sem nome'}>
+            {lead.name || 'Sem nome'}
+          </p>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {lead.ai_active && (
+              <div className="h-4 w-4 rounded bg-purple-50 flex items-center justify-center" title="IA ativa">
+                <Sparkles className="w-2.5 h-2.5 text-purple-500" />
+              </div>
+            )}
+            {time && (
+              <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                <Clock className="w-2.5 h-2.5" />{time}
+              </span>
+            )}
           </div>
-          {lead.ai_active && (
-            <div className="flex-shrink-0 h-5 w-5 rounded-md bg-purple-50 flex items-center justify-center" title="IA ativa">
-              <Sparkles className="w-2.5 h-2.5 text-purple-500" />
-            </div>
-          )}
         </div>
       </div>
     </Card>
