@@ -121,7 +121,17 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
         {/* Notes preview */}
         {lead.notes && (
           <p className="text-[11px] text-muted-foreground line-clamp-2 mb-2 leading-relaxed">
-            {lead.notes}
+            {(() => {
+              try {
+                const parsed = JSON.parse(lead.notes);
+                return Object.entries(parsed)
+                  .filter(([_, v]) => v && v !== 'null')
+                  .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+                  .join(' · ') || '';
+              } catch {
+                return lead.notes;
+              }
+            })()}
           </p>
         )}
 
