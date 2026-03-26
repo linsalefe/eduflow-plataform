@@ -407,7 +407,14 @@ async def send_media(
     if type == "audio":
         result = await evo_send_audio(channel.instance_name, wa_id, b64_data)
         message_type = "audio"
-        content = f"🎤 Áudio"
+        import uuid as _uuid, os as _os
+        _media_dir = "/home/ubuntu/eduflow/backend/media"
+        _os.makedirs(_media_dir, exist_ok=True)
+        _audio_filename = f"{_uuid.uuid4().hex}.ogg"
+        _audio_path = f"{_media_dir}/{_audio_filename}"
+        with open(_audio_path, "wb") as _f:
+            _f.write(file_bytes)
+        content = f"local:{_audio_filename}|audio/ogg|"
     elif type == "image":
         media_type = "image"
         if file.content_type and file.content_type.startswith("video"):
