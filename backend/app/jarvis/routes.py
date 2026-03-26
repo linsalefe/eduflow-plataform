@@ -35,7 +35,7 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 # ElevenLabs config
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "ZxhW0J5Q17DnNxZM6VDC")
 
 # Action tool names (requerem confirmação)
 ACTION_TOOLS = {"action_send_followup", "action_make_call", "action_move_pipeline", "action_schedule"}
