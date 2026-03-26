@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from openai import AsyncOpenAI
-from elevenlabs import ElevenLabs
+from backend.app.elevenlabs.client import ElevenLabs
 from sqlalchemy.ext.asyncio import AsyncSession
 from dotenv import load_dotenv
 

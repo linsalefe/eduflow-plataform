@@ -72,7 +72,7 @@ async def inbound_gather(request: Request):
     ElevenLabs retorna TwiML pronto → devolvemos ao Twilio.
     """
     from twilio.twiml.voice_response import VoiceResponse, Gather
-    from elevenlabs import ElevenLabs
+    from backend.app.elevenlabs.client import ElevenLabs
 
     form = await request.form()
     digit = form.get("Digits", "")

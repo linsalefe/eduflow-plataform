@@ -2,7 +2,7 @@
 Pipeline de voz simplificado usando ElevenLabs Agents.
 Diferente do OpenAI Realtime (500+ linhas de relay), aqui o ElevenLabs gerencia tudo.
 """
-from elevenlabs import ElevenLabs
+from backend.app.elevenlabs.client import ElevenLabs
 from app.voice_ai_elevenlabs.config import (
     ELEVENLABS_API_KEY,
     ELEVENLABS_AGENT_ID,
