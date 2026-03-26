@@ -11,7 +11,8 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models import Contact, Message, AIConfig, Channel, Tenant
-from app.evolution.client import send_text
+from app.evolution.client import send_text, send_audio
+from app.elevenlabs.client import text_to_audio_base64
 from app.ai_engine import search_knowledge
 from datetime import datetime, timezone, timedelta
 
@@ -30,7 +31,6 @@ async def get_ai_config(channel_id: int, db: AsyncSession) -> AIConfig | None:
 
 async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSession) -> int | None:
     """Busca channel_id pelo instance_name ou pelo contato."""
-    # Tenta pelo instance_name do canal
     ch_result = await db.execute(
         select(Channel).where(Channel.instance_name == instance_name)
     )
@@ -38,7 +38,6 @@ async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSe
     if channel:
         return channel.id
 
-    # Fallback: pelo contact
     c_result = await db.execute(
         select(Contact).where(Contact.wa_id == wa_id)
     )
@@ -75,6 +74,7 @@ async def process_message(
     channel_id: int,
     db: AsyncSession,
     tenant_id: int = None,
+    input_message_type: str = "text",
 ) -> dict:
     """Processa mensagem do lead e gera resposta da IA."""
 
@@ -122,6 +122,7 @@ async def process_message(
 
     # ── Buscar campos de qualificação do tenant ──────────────────────────────
     qualification_fields = []
+    ai_audio_enabled = False
     if tenant_id:
         try:
             tenant_result = await db.execute(
@@ -130,8 +131,10 @@ async def process_message(
             tenant = tenant_result.scalar_one_or_none()
             if tenant and tenant.qualification_fields:
                 qualification_fields = tenant.qualification_fields
+            ai_audio_enabled = bool((tenant.features or {}).get("ai_audio_response", False)) if tenant else False
         except Exception as e:
             print(f"⚠️ Erro ao buscar qualification_fields: {e}")
+            ai_audio_enabled = False
 
     # ── Montar collected fields dinâmicos ─────────────────────────────────────
     if qualification_fields:
@@ -176,7 +179,6 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
             "messages": messages,
             "max_completion_tokens": max_tokens,
         }
-        # GPT-5 não suporta temperature customizada
         if not model.startswith("gpt-5"):
             api_params["temperature"] = temperature
 
@@ -236,7 +238,15 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
 
         # Enviar resposta via Evolution
         if ai_message:
-            await send_text(instance_name, wa_id, ai_message)
+            lead_sent_audio = input_message_type in ("audioMessage", "pttMessage")
+            if ai_audio_enabled and lead_sent_audio:
+                audio_b64 = await text_to_audio_base64(ai_message)
+                if audio_b64:
+                    await send_audio(instance_name, wa_id, audio_b64)
+                else:
+                    await send_text(instance_name, wa_id, ai_message)
+            else:
+                await send_text(instance_name, wa_id, ai_message)
 
             # Salvar mensagem no banco
             ai_msg = Message(

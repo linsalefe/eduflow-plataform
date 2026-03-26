@@ -12,6 +12,7 @@ import json
 from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission
 from app.evolution import client
 
+
 router = APIRouter(prefix="/api/evolution", tags=["Evolution API"])
 
 
@@ -476,6 +477,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     channel_id=channel_id,
                     db=db,
                     tenant_id=tenant_id,
+                    input_message_type=raw_msg_type,
                 )
 
                 action = result.get("action", "continue")
