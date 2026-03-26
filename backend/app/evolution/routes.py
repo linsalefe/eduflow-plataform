@@ -416,6 +416,15 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 if not ct or not ct.ai_active:
                     continue
 
+                # Verificar se o agente está ativado no canal
+                from app.models import AIConfig
+                ai_cfg_check = await db.execute(
+                    select(AIConfig).where(AIConfig.channel_id == channel_id)
+                )
+                ai_cfg = ai_cfg_check.scalar_one_or_none()
+                if not ai_cfg or not ai_cfg.is_enabled:
+                    continue
+
                 # Processar com agente IA
                 from app.evolution.ai_agent import process_message
                 result = await process_message(
