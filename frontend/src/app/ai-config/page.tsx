@@ -5,7 +5,7 @@ import {
   Bot, Upload, Trash2, Save, FileText, Settings, ToggleLeft, ToggleRight,
   Loader2, CheckCircle, AlertCircle, ChevronDown, Sparkles, Database
 } from 'lucide-react';
-import AppShell from "@/components/app-shell";;
+import AppShell from "@/components/app-shell";
 import api from '@/lib/api';
 
 interface ChannelInfo {
@@ -46,6 +46,9 @@ export default function AIConfigPage() {
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [deletingDoc, setDeletingDoc] = useState('');
+  const [reengConfig, setReengConfig] = useState<any>(null);
+  const [savingReeng, setSavingReeng] = useState(false);
+  const [savedReeng, setSavedReeng] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -58,6 +61,7 @@ export default function AIConfigPage() {
     if (activeChannel) {
       loadConfig();
       loadDocuments();
+      loadReengConfig();
     }
   }, [activeChannel]);
 
@@ -93,6 +97,29 @@ export default function AIConfigPage() {
       setDocuments(res.data);
     } catch (err) {
       console.error('Erro ao carregar docs:', err);
+    }
+  };
+
+  const loadReengConfig = async () => {
+    try {
+      const res = await api.get('/tenant/reengagement-config');
+      setReengConfig(res.data);
+    } catch (err) {
+      console.error('Erro ao carregar reengagement:', err);
+    }
+  };
+
+  const saveReengConfig = async () => {
+    setSavingReeng(true);
+    setSavedReeng(false);
+    try {
+      await api.put('/tenant/reengagement-config', reengConfig);
+      setSavedReeng(true);
+      setTimeout(() => setSavedReeng(false), 3000);
+    } catch (err) {
+      console.error('Erro ao salvar reengagement:', err);
+    } finally {
+      setSavingReeng(false);
     }
   };
 
@@ -447,6 +474,132 @@ export default function AIConfigPage() {
                   </div>
                 )}
               </div>
+
+              {/* ════════════════════════════════ */}
+              {/* REENGAJAMENTO AUTOMÁTICO        */}
+              {/* ════════════════════════════════ */}
+              {reengConfig && (
+                <div className="pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">Reengajamento Automático</h2>
+                        <p className="text-[12px] text-gray-400">
+                          Quando o lead para de responder, a IA tenta retomar o contato automaticamente
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setReengConfig({ ...reengConfig, enabled: !reengConfig.enabled })}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 text-[13px] font-medium transition-all hover:bg-gray-50"
+                    >
+                      {reengConfig.enabled ? (
+                        <><ToggleRight className="w-5 h-5 text-emerald-500" /> Ativado</>
+                      ) : (
+                        <><ToggleLeft className="w-5 h-5 text-gray-400" /> Desativado</>
+                      )}
+                    </button>
+                  </div>
+
+                  {reengConfig.enabled && (
+                    <div className="space-y-4">
+                      {/* Tentativas */}
+                      {(reengConfig.attempts || []).map((attempt: any, index: number) => (
+                        <div key={index} className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[13px] font-semibold text-gray-700">Tentativa {index + 1}</p>
+                            {reengConfig.attempts.length > 1 && (
+                              <button
+                                onClick={() => {
+                                  const newAttempts = reengConfig.attempts.filter((_: any, i: number) => i !== index);
+                                  setReengConfig({ ...reengConfig, attempts: newAttempts, max_attempts: newAttempts.length });
+                                }}
+                                className="text-[11px] text-red-400 hover:text-red-600 transition-colors"
+                              >
+                                Remover
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Tempo de espera (minutos)</label>
+                            <input
+                              type="number"
+                              value={attempt.delay_minutes}
+                              onChange={e => {
+                                const newAttempts = [...reengConfig.attempts];
+                                newAttempts[index] = { ...newAttempts[index], delay_minutes: parseInt(e.target.value) || 0 };
+                                setReengConfig({ ...reengConfig, attempts: newAttempts });
+                              }}
+                              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
+                            />
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {attempt.delay_minutes < 60 ? `${attempt.delay_minutes} minutos` : attempt.delay_minutes < 1440 ? `${Math.round(attempt.delay_minutes / 60)} horas` : `${Math.round(attempt.delay_minutes / 1440)} dias`}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Instrução para a IA</label>
+                            <textarea
+                              value={attempt.instruction}
+                              onChange={e => {
+                                const newAttempts = [...reengConfig.attempts];
+                                newAttempts[index] = { ...newAttempts[index], instruction: e.target.value };
+                                setReengConfig({ ...reengConfig, attempts: newAttempts });
+                              }}
+                              rows={2}
+                              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400 resize-none"
+                              placeholder="Descreva como a IA deve abordar o lead nesta tentativa..."
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Adicionar tentativa */}
+                      <button
+                        onClick={() => {
+                          const newAttempts = [...(reengConfig.attempts || []), { delay_minutes: 1440, instruction: "Envie uma mensagem amigável perguntando se o lead tem interesse." }];
+                          setReengConfig({ ...reengConfig, attempts: newAttempts, max_attempts: newAttempts.length });
+                        }}
+                        className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-[13px] text-gray-400 hover:text-amber-600 hover:border-amber-300 transition-all"
+                      >
+                        + Adicionar tentativa
+                      </button>
+
+                      {/* Coluna destino */}
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+                        <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Mover para qual coluna quando esgotar tentativas?</label>
+                        <input
+                          type="text"
+                          value={reengConfig.move_to_on_give_up || ''}
+                          onChange={e => setReengConfig({ ...reengConfig, move_to_on_give_up: e.target.value })}
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
+                          placeholder="Ex: parou_de_responder"
+                        />
+                      </div>
+
+                      {/* Salvar */}
+                      <div className="flex items-center justify-end gap-3">
+                        {savedReeng && (
+                          <div className="flex items-center gap-1.5 text-emerald-600 text-[13px]">
+                            <CheckCircle className="w-4 h-4" />
+                            Salvo!
+                          </div>
+                        )}
+                        <button
+                          onClick={saveReengConfig}
+                          disabled={savingReeng}
+                          className="flex items-center gap-2 px-6 py-2.5 bg-amber-500 text-white rounded-xl text-[13px] font-medium hover:bg-amber-600 transition-all shadow-sm disabled:opacity-50"
+                        >
+                          {savingReeng ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {savingReeng ? 'Salvando...' : 'Salvar Reengajamento'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

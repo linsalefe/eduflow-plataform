@@ -534,3 +534,42 @@ async def update_goals(
         "monthly_lead_goal": tenant.monthly_lead_goal,
         "monthly_schedule_goal": tenant.monthly_schedule_goal,
     }
+@tenant_router.get("/reengagement-config")
+async def get_reengagement_config(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.reengagement_config or {
+        "enabled": False,
+        "attempts": [
+            {"delay_minutes": 20, "instruction": "Envie uma mensagem gentil perguntando se o lead ainda está aí."},
+            {"delay_minutes": 1440, "instruction": "Reforce o valor do serviço e pergunte se tem dúvidas."},
+            {"delay_minutes": 2880, "instruction": "Última tentativa, diga que está à disposição."},
+        ],
+        "max_attempts": 3,
+        "move_to_on_give_up": "parou_de_responder",
+    }
+
+
+@tenant_router.put("/reengagement-config")
+async def update_reengagement_config(
+    data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.reengagement_config = data
+    flag_modified(tenant, "reengagement_config")
+
+    await db.commit()
+    return {"message": "Configuração de reengajamento atualizada", "reengagement_config": tenant.reengagement_config}
