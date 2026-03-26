@@ -272,7 +272,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 # Criar ou atualizar contato (só pra mensagens recebidas)
                 if not from_me:
                     contact_result = await db.execute(
-                        select(Contact).where(Contact.wa_id == contact_phone)
+                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
                     )
                     contact = contact_result.scalar_one_or_none()
 
@@ -377,7 +377,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 # Atualizar updated_at do contato
                 if not from_me:
                     contact_update = await db.execute(
-                        select(Contact).where(Contact.wa_id == contact_phone)
+                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
                     )
                     ct = contact_update.scalar_one_or_none()
                     if ct:
@@ -410,7 +410,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Verificar se IA está ativa para este contato
                 contact_check = await db.execute(
-                    select(Contact).where(Contact.wa_id == phone)
+                    select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
                 )
                 ct = contact_check.scalar_one_or_none()
                 if not ct or not ct.ai_active:
