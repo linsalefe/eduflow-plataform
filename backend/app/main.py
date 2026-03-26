@@ -169,6 +169,13 @@ async def scheduler_job():
         except Exception as e:
             print(f"❌ Erro scheduler_job: {e}")
 
+        # Reengajamento automático
+        try:
+            from app.reengagement import run_reengagement
+            await run_reengagement()
+        except Exception as e:
+            print(f"❌ Erro reengagement: {e}")
+
         await asyncio.sleep(60)  # Checa a cada 1 minuto
 
 @asynccontextmanager

@@ -277,6 +277,8 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     contact = contact_result.scalar_one_or_none()
 
                     if not contact:
+                        from datetime import datetime, timezone, timedelta
+                        SP_TZ = timezone(timedelta(hours=-3))
                         contact = Contact(
                             tenant_id=tenant_id,
                             wa_id=contact_phone,
@@ -284,15 +286,18 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                             channel_id=channel_id,
                             lead_status="novo",
                             ai_active=True,
+                            last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),
+                            reengagement_count=0,
                         )
                         db.add(contact)
                         await db.flush()
                         print(f"👤 Novo contato: {sender_name} ({contact_phone})")
-                    else:
-                        if sender_name and sender_name != contact_phone:
-                            contact.name = sender_name
-                        if not contact.channel_id and channel_id:
-                            contact.channel_id = channel_id
+                    # Atualizar last_inbound_at para reengajamento
+                    if not from_me:
+                        from datetime import datetime, timezone, timedelta
+                        SP_TZ = timezone(timedelta(hours=-3))
+                        contact.last_inbound_at = datetime.now(SP_TZ).replace(tzinfo=None)
+                        contact.reengagement_count = 0
 
                 # Verificar duplicata
                 existing = await db.execute(

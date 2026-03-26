@@ -46,7 +46,8 @@ class Contact(Base):
     profile_picture_url = Column(String, nullable=True)
     lead_status = Column(String(30), default="novo")
     notes = Column(Text, nullable=True)
-    ai_active = Column(Boolean, default=False)
+    last_inbound_at = Column(DateTime, nullable=True)
+    reengagement_count = Column(Integer, default=0)
     channel_id = Column(Integer, ForeignKey("channels.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     deal_value = Column(Numeric(10, 2), nullable=True, default=0)
@@ -409,7 +410,8 @@ class Tenant(Base):
 
     qualification_fields = Column(JSON, default=[])
     ai_off_statuses = Column(JSON, default=["qualificado", "desqualificado", "matriculado", "perdido"])
-
+    ai_off_statuses = Column(JSON, default=["qualificado", "desqualificado", "matriculado", "perdido"])
+    reengagement_config = Column(JSON, default={})
     monthly_goal = Column(Float, default=0)
     monthly_lead_goal = Column(Integer, default=0)
     monthly_schedule_goal = Column(Integer, default=0)
