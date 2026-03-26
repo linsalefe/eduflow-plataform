@@ -366,6 +366,7 @@ class Tenant(Base):
         "tarefas": True,
         "voice_ai": False,
         "ai_whatsapp": True,
+        "ai_audio_response": False,
         "agenda": True,
     })
 
