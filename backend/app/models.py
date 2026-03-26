@@ -41,7 +41,7 @@ class Contact(Base):
     __tablename__ = "contacts"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    wa_id = Column(String(20), unique=True, nullable=False, index=True)
+    wa_id = Column(String(20), nullable=False, index=True)
     name = Column(String(255), nullable=True)
     profile_picture_url = Column(String, nullable=True)
     lead_status = Column(String(30), default="novo")
