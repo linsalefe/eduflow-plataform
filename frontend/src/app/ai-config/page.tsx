@@ -524,20 +524,42 @@ export default function AIConfigPage() {
                             )}
                           </div>
                           <div>
-                            <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Tempo de espera (minutos)</label>
-                            <input
-                              type="number"
-                              value={attempt.delay_minutes}
-                              onChange={e => {
-                                const newAttempts = [...reengConfig.attempts];
-                                newAttempts[index] = { ...newAttempts[index], delay_minutes: parseInt(e.target.value) || 0 };
-                                setReengConfig({ ...reengConfig, attempts: newAttempts });
-                              }}
-                              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
-                            />
-                            <p className="text-[10px] text-gray-400 mt-1">
-                              {attempt.delay_minutes < 60 ? `${attempt.delay_minutes} minutos` : attempt.delay_minutes < 1440 ? `${Math.round(attempt.delay_minutes / 60)} horas` : `${Math.round(attempt.delay_minutes / 1440)} dias`}
-                            </p>
+                            <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Tempo de espera</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={
+                                  attempt.delay_minutes >= 1440 ? Math.round(attempt.delay_minutes / 1440) :
+                                  attempt.delay_minutes >= 60 ? Math.round(attempt.delay_minutes / 60) :
+                                  attempt.delay_minutes
+                                }
+                                onChange={e => {
+                                  const val = parseInt(e.target.value) || 1;
+                                  const unit = attempt.delay_minutes >= 1440 ? 1440 : attempt.delay_minutes >= 60 ? 60 : 1;
+                                  const newAttempts = [...reengConfig.attempts];
+                                  newAttempts[index] = { ...newAttempts[index], delay_minutes: val * unit };
+                                  setReengConfig({ ...reengConfig, attempts: newAttempts });
+                                }}
+                                className="w-24 px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
+                              />
+                              <select
+                                value={attempt.delay_minutes >= 1440 ? 'dias' : attempt.delay_minutes >= 60 ? 'horas' : 'minutos'}
+                                onChange={e => {
+                                  const currentVal = attempt.delay_minutes >= 1440 ? Math.round(attempt.delay_minutes / 1440) :
+                                    attempt.delay_minutes >= 60 ? Math.round(attempt.delay_minutes / 60) : attempt.delay_minutes;
+                                  const multiplier = e.target.value === 'dias' ? 1440 : e.target.value === 'horas' ? 60 : 1;
+                                  const newAttempts = [...reengConfig.attempts];
+                                  newAttempts[index] = { ...newAttempts[index], delay_minutes: currentVal * multiplier };
+                                  setReengConfig({ ...reengConfig, attempts: newAttempts });
+                                }}
+                                className="px-3 py-2.5 rounded-xl border border-gray-200 text-[13px] bg-gray-50 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-400"
+                              >
+                                <option value="minutos">Minutos</option>
+                                <option value="horas">Horas</option>
+                                <option value="dias">Dias</option>
+                              </select>
+                            </div>
                           </div>
                           <div>
                             <label className="block text-[12px] font-medium text-gray-500 mb-1.5">Instrução para a IA</label>
