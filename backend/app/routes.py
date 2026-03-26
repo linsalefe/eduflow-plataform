@@ -506,7 +506,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
             "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
             "unread": unread,
             "ai_active": c.ai_active or False,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": c.assigned_to,
         })
 
