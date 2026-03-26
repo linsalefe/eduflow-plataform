@@ -51,6 +51,8 @@ const FEATURE_LABELS: Record<string, string> = {
   tarefas: 'Tarefas',
   voice_ai: 'Voice AI',
   ai_whatsapp: 'IA WhatsApp',
+  ai_audio_response: 'Áudio IA (WhatsApp)',
+  voice_inbound: 'Atendimento IA (Voz)',
   agenda: 'Agenda',
   contatos: 'Contatos',
 };

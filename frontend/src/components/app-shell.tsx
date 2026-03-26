@@ -73,6 +73,7 @@ const featureMap: Record<string, string> = {
   '/configuracoes/metas': 'dashboard',
   '/ai-config': 'ai_whatsapp',
   '/voice-ai': 'voice_ai',
+  '/voice-inbound': 'voice_inbound',
   '/agenda': 'agenda',
   '/canais': 'conversas',
   '/configuracoes/agentes': 'dashboard',
