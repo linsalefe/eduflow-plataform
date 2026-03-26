@@ -46,6 +46,7 @@ class Contact(Base):
     profile_picture_url = Column(String, nullable=True)
     lead_status = Column(String(30), default="novo")
     notes = Column(Text, nullable=True)
+    ai_active = Column(Boolean, default=False)
     last_inbound_at = Column(DateTime, nullable=True)
     reengagement_count = Column(Integer, default=0)
     channel_id = Column(Integer, ForeignKey("channels.id"))
