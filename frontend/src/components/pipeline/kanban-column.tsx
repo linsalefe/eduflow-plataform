@@ -26,7 +26,7 @@ export function KanbanColumn({
 }: KanbanColumnProps) {
   return (
     <motion.div
-      className="w-[280px] flex-shrink-0 flex flex-col"
+      className="flex-1 min-w-0 flex flex-col"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
