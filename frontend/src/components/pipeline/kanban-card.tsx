@@ -36,14 +36,12 @@ function getRelativeTime(d: string): string {
   const diffMin = Math.floor(diffMs / 60000);
   const diffH = Math.floor(diffMin / 60);
   const diffD = Math.floor(diffH / 24);
-
   if (diffMin < 1) return 'agora';
   if (diffMin < 60) return `${diffMin}min`;
   if (diffH < 24) return `${diffH}h`;
   return `${diffD}d`;
 }
 
-/** Gera as iniciais a partir do nome completo (máx 2 letras) */
 function getInitials(name: string): string {
   if (!name) return '?';
   const parts = name.trim().split(/\s+/);
@@ -51,7 +49,6 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Cria uma cor de fundo suave derivada do accent color da coluna */
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16);
@@ -59,6 +56,15 @@ function hexToRgba(hex: string, alpha: number): string {
   const b = parseInt(clean.substring(4, 6), 16);
   if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(100,100,100,${alpha})`;
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+/** Retorna null se a nota for JSON cru ou vazia */
+function sanitizeNotes(notes: string | null): string | null {
+  if (!notes) return null;
+  const trimmed = notes.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return null;
+  if (trimmed.length < 3) return null;
+  return trimmed;
 }
 
 export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanCardProps) {
@@ -73,6 +79,7 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
   const avatarBg = hexToRgba(color, 0.15);
   const visibleTags = lead.tags?.slice(0, 2) ?? [];
   const extraTags = (lead.tags?.length ?? 0) - visibleTags.length;
+  const notes = sanitizeNotes(lead.notes);
 
   return (
     <Card
@@ -89,58 +96,47 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
         style={{ backgroundColor: color }}
       />
 
-      <div className="p-3 pl-4 space-y-2.5">
-        {/* Linha 1: Avatar + Nome + IA badge */}
-        <div className="flex items-start gap-2.5">
-          {/* Avatar com iniciais */}
+      <div className="p-2.5 pl-[14px] space-y-2">
+
+        {/* ── Linha 1: Avatar + Nome ── */}
+        <div className="flex items-start gap-2">
+          {/* Avatar compacto */}
           <div
-            className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold leading-none"
+            className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold leading-none mt-[1px]"
             style={{ backgroundColor: avatarBg, color }}
           >
             {initials}
           </div>
 
-          {/* Nome (até 2 linhas) + IA */}
-          <div className="flex-1 min-w-0 pt-0.5">
-            <p
-              className="text-[12.5px] font-semibold text-foreground leading-snug line-clamp-2"
-              title={lead.name || 'Sem nome'}
-            >
-              {lead.name || 'Sem nome'}
-            </p>
-          </div>
-
-          {/* IA badge */}
-          {lead.ai_active && (
-            <div
-              className="flex-shrink-0 mt-0.5 h-5 px-1.5 rounded-full flex items-center gap-1"
-              style={{ backgroundColor: hexToRgba('#9333ea', 0.1) }}
-              title="IA ativa"
-            >
-              <Sparkles className="w-2.5 h-2.5 text-purple-500" />
-              <span className="text-[9px] font-medium text-purple-500 leading-none">IA</span>
-            </div>
-          )}
+          {/* 
+            Nome sem truncate/line-clamp: usa break-words para quebrar
+            naturalmente. A largura total da coluna limita o texto.
+          */}
+          <p
+            className="flex-1 min-w-0 text-[11.5px] font-semibold text-foreground leading-[1.35] break-words"
+            title={lead.name || 'Sem nome'}
+          >
+            {lead.name || 'Sem nome'}
+          </p>
         </div>
 
-        {/* Linha 2: Nota (se houver) */}
-        {lead.notes && (
-          <div className="flex items-start gap-1.5 pl-[2px]">
-            <MessageCircle className="w-3 h-3 text-muted-foreground/60 flex-shrink-0 mt-0.5" />
-            <p className="text-[10.5px] text-muted-foreground leading-snug line-clamp-1">
-              {lead.notes}
+        {/* ── Linha 2: Nota (somente se não for JSON) ── */}
+        {notes && (
+          <div className="flex items-start gap-1 pl-[32px]">
+            <MessageCircle className="w-2.5 h-2.5 text-muted-foreground/50 flex-shrink-0 mt-[1px]" />
+            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
+              {notes}
             </p>
           </div>
         )}
 
-        {/* Linha 3: Tags + Tempo */}
-        <div className="flex items-center justify-between gap-1.5 pl-[2px]">
-          {/* Tags */}
-          <div className="flex items-center gap-1 flex-wrap">
+        {/* ── Linha 3: Tags ── */}
+        {visibleTags.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap pl-[32px]">
             {visibleTags.map((tag) => (
               <span
                 key={tag.id}
-                className="inline-flex items-center h-4 px-1.5 rounded-full text-[9px] font-medium leading-none"
+                className="inline-flex items-center h-[14px] px-1.5 rounded-full text-[9px] font-medium leading-none"
                 style={{
                   backgroundColor: hexToRgba(tag.color, 0.15),
                   color: tag.color,
@@ -153,15 +149,31 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
               <span className="text-[9px] text-muted-foreground">+{extraTags}</span>
             )}
           </div>
+        )}
 
-          {/* Tempo */}
+        {/* ── Linha 4 (rodapé): IA badge + Tempo ── */}
+        <div className="flex items-center justify-between pl-[32px]">
+          {lead.ai_active ? (
+            <div
+              className="flex items-center gap-1 h-4 px-1.5 rounded-full"
+              style={{ backgroundColor: hexToRgba('#9333ea', 0.1) }}
+              title="IA ativa"
+            >
+              <Sparkles className="w-2.5 h-2.5 text-purple-500" />
+              <span className="text-[9px] font-medium text-purple-500 leading-none">IA</span>
+            </div>
+          ) : (
+            <span />
+          )}
+
           {time && (
-            <span className="flex-shrink-0 flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
               <Clock className="w-2.5 h-2.5" />
               {time}
             </span>
           )}
         </div>
+
       </div>
     </Card>
   );
