@@ -405,6 +405,42 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     message_content.get("conversation", "")
                     or message_content.get("extendedTextMessage", {}).get("text", "")
                 )
+
+                # Se for áudio, transcrever com Whisper
+                raw_msg_type = msg.get("messageType", "")
+                if not text and raw_msg_type in ("audioMessage", "pttMessage"):
+                    try:
+                        import httpx, os, tempfile
+                        from app.evolution.config import EVOLUTION_API_URL, EVOLUTION_API_KEY
+                        from openai import AsyncOpenAI
+
+                        async with httpx.AsyncClient(timeout=30) as http:
+                            resp = await http.post(
+                                f"{EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/{instance_name}",
+                                json={"message": {"key": key}, "convertToMp4": False},
+                                headers={"apikey": EVOLUTION_API_KEY},
+                            )
+                            if resp.status_code in (200, 201):
+                                import base64 as b64module
+                                b64_data = resp.json().get("base64", "")
+                                if b64_data:
+                                    audio_bytes = b64module.b64decode(b64_data)
+                                    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
+                                        tmp.write(audio_bytes)
+                                        tmp_path = tmp.name
+                                    whisper_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                                    with open(tmp_path, "rb") as audio_file:
+                                        transcription = await whisper_client.audio.transcriptions.create(
+                                            model="whisper-1",
+                                            file=audio_file,
+                                            language="pt",
+                                        )
+                                    text = transcription.text
+                                    os.unlink(tmp_path)
+                                    print(f"🎙️ Áudio transcrito: {text[:80]}")
+                    except Exception as e:
+                        print(f"⚠️ Erro ao transcrever áudio: {e}")
+
                 if not text:
                     continue
 
