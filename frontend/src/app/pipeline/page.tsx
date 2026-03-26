@@ -242,7 +242,7 @@ export default function PipelinePage() {
             <KanbanSkeleton columns={columns.length} />
           ) : (
             <DragDropContext onDragEnd={onDragEnd}>
-              <div className="flex gap-4 h-full min-w-max">
+              <div className="flex gap-3 h-full w-full">
                 {columns.map((col, i) => {
                   const Icon = ICON_MAP[col.key] || Users;
                   return (
