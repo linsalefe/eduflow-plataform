@@ -112,6 +112,7 @@ export default function AutomacoesPage() {
 
   // Form webhook
   const [wName, setWName] = useState('');
+  const [wMessage, setWMessage] = useState('')
   const [wChannelId, setWChannelId] = useState<number>(0);
   const [channels, setChannels] = useState<any[]>([]);
 
