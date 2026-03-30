@@ -113,7 +113,7 @@ export default function AutomacoesPage() {
   // Form webhook
   const [wName, setWName] = useState('');
   const [wChannelId, setWChannelId] = useState<number>(0);
-  const [wMessage, setWMessage] = useState('');
+  const [channels, setChannels] = useState<any[]>([]);
 
   const [mounted, setMounted] = useState(false);
   const { user, loading: authLoading } = useAuth();
