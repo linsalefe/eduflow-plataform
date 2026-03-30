@@ -358,15 +358,15 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             tag_obj = Tag(tenant_id=page.tenant_id, name=page.tag, color="blue")
             db.add(tag_obj)
             await db.flush()
+        from sqlalchemy import text
         existing_tag = await db.execute(
-            select(contact_tags).where(
-                contact_tags.c.contact_id == contact.id,
-                contact_tags.c.tag_id == tag_obj.id
-            )
+            text("SELECT 1 FROM contact_tags WHERE contact_id = :cid AND tag_id = :tid"),
+            {"cid": contact.id, "tid": tag_obj.id}
         )
         if not existing_tag.first():
             await db.execute(
-                contact_tags.insert().values(contact_id=contact.id, tag_id=tag_obj.id)
+                text("INSERT INTO contact_tags (contact_id, tag_id) VALUES (:cid, :tid)"),
+                {"cid": contact.id, "tid": tag_obj.id}
             )
 
     await db.commit()
