@@ -6,7 +6,7 @@ import {
   ArrowUp, ArrowDown, ToggleLeft, ToggleRight, X,
   BarChart3, Info, List, Users, Award, MessageSquareQuote,
   HelpCircle, Megaphone, Palette, FormInput,
-  ExternalLink, Save, ArrowLeft, Play, Upload, ImageIcon, Trash2 as TrashIcon
+  ExternalLink, Save, ArrowLeft, Play, Upload, ImageIcon, Trash2 as TrashIcon, Tags
 } from 'lucide-react';
 import { toast } from 'sonner';
 import AppShell from "@/components/app-shell";;
@@ -25,6 +25,9 @@ interface LandingPage {
   template: string;
   config: any;
   is_active: boolean;
+  tag?: string;
+  pipeline_stage?: string;
+  whatsapp_message?: string;
   created_at: string;
 }
 
@@ -226,12 +229,15 @@ export default function LandingPagesPage() {
   const [editorMode, setEditorMode] = useState<'list' | 'editor'>('list');
   const [editingPage, setEditingPage] = useState<LandingPage | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual'>('sections');
+const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm'>('sections');
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [channelId, setChannelId] = useState<number>(0);
+  const [lpTag, setLpTag] = useState('');
+  const [pipelineStage, setPipelineStage] = useState('');
+  const [whatsappMessage, setWhatsappMessage] = useState('');
   const [config, setConfig] = useState<LPConfig>(getDefaultConfig());
 
   const fetchPages = async () => {
@@ -269,7 +275,9 @@ export default function LandingPagesPage() {
   const openCreate = () => {
     setEditingPage(null);
     setTitle('');
-    setSlug('');
+    setLpTag('');
+    setPipelineStage('');
+    setWhatsappMessage('');
     if (channels.length > 0) setChannelId(channels[0].id);
     setConfig(getDefaultConfig());
     setActiveTab('sections');
@@ -280,7 +288,9 @@ export default function LandingPagesPage() {
   const openEdit = (page: LandingPage) => {
     setEditingPage(page);
     setTitle(page.title);
-    setSlug(page.slug);
+    setLpTag(page.tag || '');
+    setPipelineStage(page.pipeline_stage || '');
+    setWhatsappMessage(page.whatsapp_message || '');
     setChannelId(page.channel_id);
 
     const saved = page.config || {};
@@ -318,7 +328,7 @@ export default function LandingPagesPage() {
       return;
     }
     setSaving(true);
-    const payload = { title, slug, template: 'custom', channel_id: channelId, config };
+    const payload = { title, slug, template: 'custom', channel_id: channelId, config, tag: lpTag || null, pipeline_stage: pipelineStage || null, whatsapp_message: whatsappMessage || null };
     try {
       if (editingPage) {
         await api.put(`/landing-pages/${editingPage.id}`, payload);
@@ -504,6 +514,7 @@ export default function LandingPagesPage() {
             { id: 'sections' as const, label: 'Seções', icon: List },
             { id: 'form' as const, label: 'Formulário', icon: FormInput },
             { id: 'visual' as const, label: 'Visual', icon: Palette },
+            { id: 'crm' as const, label: 'CRM', icon: Tags },
           ]).map(tab => {
             const Icon = tab.icon;
             return (
@@ -605,6 +616,53 @@ export default function LandingPagesPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* TAB: CRM */}
+            {activeTab === 'crm' && (
+              <div className="space-y-5">
+                <p className="text-xs text-gray-400 mb-4">Configure a automação de CRM ao receber um lead por esta landing page.</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Tag aplicada ao lead</label>
+                  <input
+                    value={lpTag}
+                    onChange={(e) => setLpTag(e.target.value)}
+                    placeholder="Ex: lp-gv-sports"
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Tag criada automaticamente se não existir.</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Mover lead para estágio</label>
+                  <select
+                    value={pipelineStage}
+                    onChange={(e) => setPipelineStage(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary bg-white"
+                  >
+                    <option value="">Padrão (novo)</option>
+                    <option value="novo">Novo Lead</option>
+                    <option value="em_contato">Em Contato</option>
+                    <option value="qualificado">Qualificado</option>
+                    <option value="negociando">Em Matrícula</option>
+                    <option value="convertido">Matriculado</option>
+                    <option value="perdido">Perdido</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Mensagem WhatsApp ao lead</label>
+                  <textarea
+                    value={whatsappMessage}
+                    onChange={(e) => setWhatsappMessage(e.target.value)}
+                    placeholder="Ex: Olá {nome}, recebemos sua inscrição! Em breve entraremos em contato 🎯"
+                    rows={4}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary resize-none"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Use <strong>{'{nome}'}</strong> para personalizar com o nome do lead.</p>
+                </div>
               </div>
             )}
 

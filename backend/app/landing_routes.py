@@ -47,6 +47,9 @@ async def list_landing_pages(channel_id: int = None, db: AsyncSession = Depends(
             "template": p.template,
             "config": json.loads(p.config) if p.config else {},
             "is_active": p.is_active,
+            "tag": p.tag,
+            "pipeline_stage": p.pipeline_stage,
+            "whatsapp_message": p.whatsapp_message,
             "created_at": str(p.created_at),
         }
         for p in pages
@@ -89,6 +92,9 @@ async def get_landing_page(page_id: int, db: AsyncSession = Depends(get_db), use
         "template": page.template,
         "config": json.loads(page.config) if page.config else {},
         "is_active": page.is_active,
+        "tag": page.tag,
+        "pipeline_stage": page.pipeline_stage,
+        "whatsapp_message": page.whatsapp_message,
         "created_at": str(page.created_at),
     }
 
@@ -110,6 +116,12 @@ async def update_landing_page(page_id: int, data: dict, db: AsyncSession = Depen
         page.config = json.dumps(data["config"])
     if "is_active" in data:
         page.is_active = data["is_active"]
+    if "tag" in data:
+        page.tag = data["tag"]
+    if "pipeline_stage" in data:
+        page.pipeline_stage = data["pipeline_stage"]
+    if "whatsapp_message" in data:
+        page.whatsapp_message = data["whatsapp_message"]
 
     await db.commit()
     return {"message": "Landing page atualizada"}
@@ -364,7 +376,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
                 await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
         except Exception as e:
             print(f"⚠️ Erro ao enviar mensagem WhatsApp: {e}")
-            
+
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
         from app.voice_ai.routes import receive_new_lead, NewLeadRequest
