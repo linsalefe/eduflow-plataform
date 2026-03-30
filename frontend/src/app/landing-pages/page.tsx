@@ -238,6 +238,7 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
   const [lpTag, setLpTag] = useState('');
   const [pipelineStage, setPipelineStage] = useState('');
   const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [kanbanColumns, setKanbanColumns] = useState<{key: string; label: string}[]>([]);
   const [config, setConfig] = useState<LPConfig>(getDefaultConfig());
 
   const fetchPages = async () => {
@@ -261,7 +262,16 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
     }
   };
 
-  useEffect(() => { fetchPages(); fetchChannels(); }, []);
+  useEffect(() => { fetchPages(); fetchChannels(); fetchKanbanColumns(); }, []);
+
+  const fetchKanbanColumns = async () => {
+    try {
+      const res = await api.get('/tenant/kanban-columns');
+      setKanbanColumns(res.data);
+    } catch {
+      console.error('Erro ao carregar estágios');
+    }
+  };
 
   const generateSlug = (text: string) =>
     text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -643,12 +653,9 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary bg-white"
                   >
                     <option value="">Padrão (novo)</option>
-                    <option value="novo">Novo Lead</option>
-                    <option value="em_contato">Em Contato</option>
-                    <option value="qualificado">Qualificado</option>
-                    <option value="negociando">Em Matrícula</option>
-                    <option value="convertido">Matriculado</option>
-                    <option value="perdido">Perdido</option>
+                    {kanbanColumns.map(col => (
+                      <option key={col.key} value={col.key}>{col.label}</option>
+                    ))}
                   </select>
                 </div>
 
