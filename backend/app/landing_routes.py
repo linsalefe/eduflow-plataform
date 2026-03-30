@@ -308,21 +308,23 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     )
     contact = existing_contact.scalar_one_or_none()
 
+    import json as json_lib
+
     if not contact:
-        import json as json_lib
         contact = Contact(
             tenant_id=page.tenant_id,
             wa_id=phone_clean,
             name=data.get("name", ""),
-            lead_status="novo",
+            lead_status=page.pipeline_stage or "novo",
             channel_id=page.channel_id,
             ai_active=True,
             notes=json_lib.dumps({"course": data.get("course", ""), "source": "landing_page"}, ensure_ascii=False),
         )
         db.add(contact)
     else:
-        import json as json_lib
         contact.ai_active = True
+        if page.pipeline_stage:
+            contact.lead_status = page.pipeline_stage
         try:
             existing_notes = json_lib.loads(contact.notes or "{}")
         except (json_lib.JSONDecodeError, TypeError):
@@ -330,8 +332,39 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         existing_notes["course"] = data.get("course", "")
         existing_notes["source"] = "landing_page"
         contact.notes = json_lib.dumps(existing_notes, ensure_ascii=False)
+
+    await db.flush()
+
+    # === Aplicar tag da LP ===
+    if page.tag:
+        from app.models import Tag, contact_tags
+        tag_result = await db.execute(
+            select(Tag).where(Tag.tenant_id == page.tenant_id, Tag.name == page.tag)
+        )
+        tag_obj = tag_result.scalar_one_or_none()
+        if not tag_obj:
+            tag_obj = Tag(tenant_id=page.tenant_id, name=page.tag, color="blue")
+            db.add(tag_obj)
+            await db.flush()
+        if tag_obj not in contact.tags:
+            contact.tags.append(tag_obj)
+
     await db.commit()
-    
+
+    # === Enviar mensagem WhatsApp ===
+    if page.whatsapp_message and phone_clean:
+        try:
+            from app.evolution import client as evo_client
+            channel_result = await db.execute(
+                select(Channel).where(Channel.id == page.channel_id)
+            )
+            channel_obj = channel_result.scalar_one_or_none()
+            if channel_obj and channel_obj.instance_name:
+                message_text = page.whatsapp_message.replace("{nome}", data.get("name", ""))
+                await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
+        except Exception as e:
+            print(f"⚠️ Erro ao enviar mensagem WhatsApp: {e}")
+            
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
         from app.voice_ai.routes import receive_new_lead, NewLeadRequest
