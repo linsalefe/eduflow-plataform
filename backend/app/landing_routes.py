@@ -358,8 +358,16 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             tag_obj = Tag(tenant_id=page.tenant_id, name=page.tag, color="blue")
             db.add(tag_obj)
             await db.flush()
-        if tag_obj not in contact.tags:
-            contact.tags.append(tag_obj)
+        existing_tag = await db.execute(
+            select(contact_tags).where(
+                contact_tags.c.contact_id == contact.id,
+                contact_tags.c.tag_id == tag_obj.id
+            )
+        )
+        if not existing_tag.first():
+            await db.execute(
+                contact_tags.insert().values(contact_id=contact.id, tag_id=tag_obj.id)
+            )
 
     await db.commit()
 
