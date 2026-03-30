@@ -138,7 +138,7 @@ export default function FinanceiroPage() {
         ...form,
         value: parseFloat(form.value),
       });
-      toast.success(form.type === 'matricula' ? 'Matrícula registrada!' : 'Entrada registrada!');
+      toast.success(form.type === 'matricula' ? 'Venda registrada!' : 'Entrada registrada!');
       setShowModal(false);
       setForm({ contact_wa_id: '', type: 'matricula', value: '', description: '', course: '' });
       setContactSearch('');
@@ -170,7 +170,7 @@ export default function FinanceiroPage() {
       <div className="max-w-7xl mx-auto space-y-6 pb-10" data-density="medium">
         <PageHeader
           title="Financeiro"
-          description="Controle de matrículas e receita"
+          description="Controle de vendas e receita"
           actions={
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2">
@@ -196,7 +196,7 @@ export default function FinanceiroPage() {
               </div>
               <Button onClick={() => setShowModal(true)} className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="w-4 h-4 mr-2" />
-                Registrar Matrícula
+                Registrar Venda
               </Button>
             </div>
           }
@@ -225,7 +225,7 @@ export default function FinanceiroPage() {
               icon={TrendingUp}
             />
             <KPICard
-              label="Matrículas"
+              label="Vendas"
               value={summary.total_enrollments}
               icon={Users}
             />
@@ -239,7 +239,7 @@ export default function FinanceiroPage() {
 
         {/* Revenue by Course */}
         {summary && summary.by_course.length > 0 && (
-          <ChartCard title="Receita por Curso">
+          <ChartCard title="Receita por Serviço">
             <div className="space-y-2">
               {summary.by_course.map((item, i) => {
                 const maxRevenue = Math.max(...summary.by_course.map(c => c.revenue));
@@ -278,8 +278,8 @@ export default function FinanceiroPage() {
             <EmptyState
               icon={DollarSign}
               title="Nenhuma entrada neste mês"
-              description="Registre uma matrícula ou pagamento para começar."
-              actionLabel="Registrar Matrícula"
+              description="Registre uma venda ou pagamento para começar."
+              actionLabel="Registrar Venda"
               onAction={() => setShowModal(true)}
             />
           ) : (
@@ -288,7 +288,7 @@ export default function FinanceiroPage() {
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-[var(--font-size-caption)] font-semibold">Contato</TableHead>
                   <TableHead className="text-[var(--font-size-caption)] font-semibold">Tipo</TableHead>
-                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Curso</TableHead>
+                  <TableHead className="text-[var(--font-size-caption)] font-semibold">Serviço</TableHead>
                   <TableHead className="text-[var(--font-size-caption)] font-semibold">Valor</TableHead>
                   <TableHead className="text-[var(--font-size-caption)] font-semibold">Responsável</TableHead>
                   <TableHead className="text-[var(--font-size-caption)] font-semibold">Data</TableHead>
@@ -312,7 +312,7 @@ export default function FinanceiroPage() {
                             : 'bg-blue-50 text-blue-700 border-blue-200'
                         }`}
                       >
-                        {entry.type === 'matricula' ? 'Matrícula' : entry.type === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
+                        {entry.type === 'matricula' ? 'Venda' : entry.type === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-[var(--font-size-body)] text-muted-foreground">
@@ -367,7 +367,7 @@ export default function FinanceiroPage() {
                       : 'bg-muted border-border text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {t === 'matricula' ? 'Matrícula' : t === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
+                  {t === 'matricula' ? 'Venda' : t === 'cancelamento' ? 'Cancelamento' : 'Pagamento'}
                 </button>
               ))}
             </div>
@@ -416,7 +416,7 @@ export default function FinanceiroPage() {
 
             {/* Course */}
             <div className="space-y-1.5">
-              <Label>Curso</Label>
+              <Label>Serviço</Label>
               <Input
                 placeholder="Ex: Pós-graduação em Psicologia"
                 value={form.course}

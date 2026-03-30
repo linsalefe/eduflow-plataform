@@ -286,7 +286,7 @@ export default function LeadsPosPage() {
               <select
                 value={stageFilter}
                 onChange={(e) => setStageFilter(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/10 focus:border-primary transition-all appearance-none serviçor-pointer"
               >
                 <option value="">Todos os estágios</option>
                 {stages.map((s) => (
@@ -296,9 +296,9 @@ export default function LeadsPosPage() {
               <select
                 value={subSourceFilter}
                 onChange={(e) => setSubSourceFilter(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/10 focus:border-primary transition-all appearance-none cursor-pointer"
+                className="px-3 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1D4ED8]/10 focus:border-primary transition-all appearance-none serviçor-pointer"
               >
-                <option value="">Todos os cursos</option>
+                <option value="">Todos os serviços</option>
                 {subSources.map((s) => (
                   <option key={s} value={s}>{s} ({stats?.by_sub_source[s]})</option>
                 ))}
@@ -323,7 +323,7 @@ export default function LeadsPosPage() {
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Nome</th>
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Telefone</th>
-                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Curso</th>
+                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Serviço</th>
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Estágio</th>
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">SDR</th>
                   <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Data</th>
@@ -331,7 +331,7 @@ export default function LeadsPosPage() {
               </thead>
               <tbody>
                 {filteredLeads.map((lead) => (
-                  <tr key={lead.id} onClick={() => openLeadPopup(lead)} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors cursor-pointer group">
+                  <tr key={lead.id} onClick={() => openLeadPopup(lead)} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors serviçor-pointer group">
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${getAvatarColor(lead.name)} flex items-center justify-center text-white text-[10px] font-semibold flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity`}>
@@ -464,7 +464,7 @@ export default function LeadsPosPage() {
                           <p className="text-[13px] font-medium text-gray-700">{selectedLead.source || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] text-gray-400 mb-0.5">Curso</p>
+                          <p className="text-[11px] text-gray-400 mb-0.5">Serviço</p>
                           <p className="text-[13px] font-medium text-gray-700">{selectedLead.sub_source || '-'}</p>
                         </div>
                         <div>

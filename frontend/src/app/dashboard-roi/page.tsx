@@ -25,7 +25,7 @@ const sourceIcons: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   novo: 'Novos', em_contato: 'Em contato', qualificado: 'Qualificados',
-  negociando: 'Negociando', convertido: 'Matriculados', perdido: 'Perdidos',
+  negociando: 'Negociando', convertido: 'Convertidos', perdido: 'Perdidos',
 };
 
 const statusColors: Record<string, string> = {
@@ -123,7 +123,7 @@ export default function DashboardROIPage() {
                   const date = new Date(day.day + 'T12:00:00');
                   const label = `${date.getDate()}/${date.getMonth() + 1}`;
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group cursor-default">
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group serviçor-default">
                       <span className="text-[10px] font-semibold text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
                         {day.total}
                       </span>

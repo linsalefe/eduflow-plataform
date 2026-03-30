@@ -109,7 +109,7 @@ const defaultSections: Section[] = [
     enabled: true,
     data: {
       items: [
-        { value: '500', suffix: '+', label: 'Alunos' },
+        { value: '500', suffix: '+', label: 'Clientes' },
         { value: '98', suffix: '%', label: 'Satisfação' },
         { value: '10', suffix: '+', label: 'Anos de experiência' },
         { value: '15', suffix: '+', label: 'Programas' },
@@ -616,14 +616,14 @@ export default function LandingPagesPage() {
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor Principal</label>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
+                      <input type="color" value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 serviçor-pointer" />
                       <input value={config.primaryColor} onChange={(e) => setConfig(prev => ({ ...prev, primaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">Cor Secundária</label>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer" />
+                      <input type="color" value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="w-10 h-10 rounded-lg border border-gray-200 serviçor-pointer" />
                       <input value={config.secondaryColor} onChange={(e) => setConfig(prev => ({ ...prev, secondaryColor: e.target.value }))} className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary" />
                     </div>
                   </div>
@@ -719,7 +719,7 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
             <div key={i} className="flex items-center gap-2">
               <input value={item.value} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], value: e.target.value }; onUpdate({ items }); }} placeholder="500" className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary text-center" />
               <input value={item.suffix} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], suffix: e.target.value }; onUpdate({ items }); }} placeholder="+" className="w-12 px-2 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary text-center" />
-              <input value={item.label} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], label: e.target.value }; onUpdate({ items }); }} placeholder="Alunos ativos" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary" />
+              <input value={item.label} onChange={(e) => { const items = [...d.items]; items[i] = { ...items[i], label: e.target.value }; onUpdate({ items }); }} placeholder="Clientes ativos" className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary" />
               {d.items.length > 1 && (
                 <button onClick={() => onUpdate({ items: d.items.filter((_: any, idx: number) => idx !== i) })} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg"><X className="w-3.5 h-3.5" /></button>
               )}
@@ -735,7 +735,7 @@ function SectionEditor({ section, onUpdate }: { section: Section; onUpdate: (dat
       return (
         <div className="space-y-3">
           <InputField label="Título da seção" value={d.sectionTitle} onChange={(v) => onUpdate({ sectionTitle: v })} placeholder="Sobre o Programa" />
-          <TextareaField label="Descrição" value={d.description} onChange={(v) => onUpdate({ description: v })} placeholder="Descreva seu programa, serviço ou curso..." rows={4} />
+          <TextareaField label="Descrição" value={d.description} onChange={(v) => onUpdate({ description: v })} placeholder="Descreva seu programa, serviço ou serviço..." rows={4} />
           <p className="text-xs font-medium text-gray-500 mt-2">Destaques</p>
           {d.highlights.map((h: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
@@ -984,7 +984,7 @@ function ImageUploader({ value, onChange, label, hint, previewHeight = 'h-16', p
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
       onClick={() => !uploading && inputRef.current?.click()}
-      className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+      className={`border-2 border-dashed rounded-xl p-6 text-center serviçor-pointer transition-all ${
         dragOver ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >

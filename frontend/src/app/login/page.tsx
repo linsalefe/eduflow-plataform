@@ -79,12 +79,12 @@ export default function LoginPage() {
 
           {/* Headline */}
           <h1 className="text-4xl font-bold text-white leading-tight mb-3">
-            Captação de Alunos
+            Captação de Clientes
             <br />
             <span className="text-[#60a5fa]">Inteligente</span>
           </h1>
           <p className="text-base text-gray-400 leading-relaxed max-w-md">
-            Gerencie leads, qualifique com IA e converta mais alunos com
+            Gerencie leads, qualifique com IA e converta mais clientes com
             atendimento automatizado via WhatsApp.
           </p>
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
             {[
               { icon: MessageCircle, label: 'WhatsApp IA' },
               { icon: Users, label: 'Qualificação automática' },
-              { icon: BarChart3, label: 'Funil de matrículas' },
+              { icon: BarChart3, label: 'Funil de vendas' },
             ].map((feat, i) => (
               <div
                 key={feat.label}
@@ -118,7 +118,7 @@ export default function LoginPage() {
               ))}
             </div>
             <p className="text-[13px] text-gray-500">
-              Usado por <span className="text-gray-400 font-medium">instituições de ensino</span> em todo Brasil
+              Usado por <span className="text-gray-400 font-medium">empresas</span> em todo Brasil
             </p>
           </div>
         </div>

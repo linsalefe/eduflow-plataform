@@ -299,7 +299,7 @@ export default function KanbanPage() {
                               setSummaryText(card.summary || '');
                               setEditingSummary(false);
                             }}
-                            className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
+                            className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 serviçor-pointer hover:border-gray-300 hover:shadow-sm transition-all"
                           >
                             {/* Card Header */}
                             <div className="flex items-start justify-between">
@@ -326,7 +326,7 @@ export default function KanbanPage() {
                               )}
                             </div>
 
-                            {/* Curso */}
+                            {/* Serviço */}
                             {card.lead_course && (
                               <div className="flex items-center gap-1.5">
                                 <GraduationCap className="w-3.5 h-3.5 text-purple-400" />

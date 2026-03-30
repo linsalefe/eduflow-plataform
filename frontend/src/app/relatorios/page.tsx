@@ -24,13 +24,13 @@ const reports = [
   {
     id: 'pipeline',
     title: 'Relatório do Pipeline',
-    description: 'Funil de matrículas com uma aba para cada etapa e resumo com percentuais.',
+    description: 'Funil de vendas com uma aba para cada etapa e resumo com percentuais.',
     icon: GitBranch,
     color: 'text-purple-600',
     bg: 'bg-purple-50',
     endpoint: '/export/pipeline',
     filters: [],
-    sheets: ['Resumo do Funil', 'Novo Lead', 'Em Contato', 'Qualificado', 'Em Matrícula', 'Matriculado', 'Perdido'],
+    sheets: ['Resumo do Funil', 'Novo Lead', 'Em Contato', 'Qualificado', 'Em Negociação', 'Convertido', 'Perdido'],
   },
   {
     id: 'messages',
@@ -50,8 +50,8 @@ const statusOptions = [
   { value: 'novo', label: 'Novo Lead' },
   { value: 'em_contato', label: 'Em Contato' },
   { value: 'qualificado', label: 'Qualificado' },
-  { value: 'negociando', label: 'Em Matrícula' },
-  { value: 'convertido', label: 'Matriculado' },
+  { value: 'negociando', label: 'Em Negociação' },
+  { value: 'convertido', label: 'Convertido' },
   { value: 'perdido', label: 'Perdido' },
 ];
 
@@ -196,7 +196,7 @@ export default function RelatoriosPage() {
                     disabled={isDownloading}
                     className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-medium transition-all flex-shrink-0 ${
                       isDownloading
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        ? 'bg-gray-100 text-gray-400 serviçor-not-allowed'
                         : isDownloaded
                           ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
                           : 'bg-primary text-white hover:bg-primary/90'

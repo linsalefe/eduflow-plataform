@@ -402,7 +402,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
         <Card className="p-6 shadow-[var(--shadow-xs)]">
           <h3 className="text-[var(--font-size-body)] font-semibold text-foreground mb-4 flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-500" />
-            Performance por Curso
+            Performance por Serviço
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {dashboard.by_course.map((c) => (
@@ -461,7 +461,7 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="text-[var(--font-size-caption)] font-semibold">Lead</TableHead>
-              <TableHead className="text-[var(--font-size-caption)] font-semibold">Curso</TableHead>
+              <TableHead className="text-[var(--font-size-caption)] font-semibold">Serviço</TableHead>
               <TableHead className="text-[var(--font-size-caption)] font-semibold">Resultado</TableHead>
               <TableHead className="text-[var(--font-size-caption)] font-semibold">Score</TableHead>
               <TableHead className="text-[var(--font-size-caption)] font-semibold">Duração</TableHead>
@@ -474,7 +474,7 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
               <TableRow
                 key={call.id}
                 onClick={() => onSelectCall(call.id)}
-                className="cursor-pointer"
+                className="serviçor-pointer"
               >
                 <TableCell>
                   <div>

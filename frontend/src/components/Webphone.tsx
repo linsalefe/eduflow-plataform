@@ -358,7 +358,7 @@ export default function Webphone() {
             <button
               onClick={makeCall}
               disabled={!phoneNumber.trim() || !deviceReady}
-              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-30 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+              className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-30 disabled:serviçor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
             >
               <Phone className="w-4 h-4" /> Ligar
             </button>

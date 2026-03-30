@@ -150,7 +150,7 @@ export default function NotificationBell() {
                   <div
                     key={notif.id}
                     onClick={() => handleClick(notif)}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-white/[0.04] ${
+                    className={`flex items-start gap-3 px-4 py-3 serviçor-pointer transition-colors border-b border-white/[0.04] ${
                       notif.is_read
                         ? 'hover:bg-white/[0.02]'
                         : 'bg-white/[0.03] hover:bg-white/[0.06]'

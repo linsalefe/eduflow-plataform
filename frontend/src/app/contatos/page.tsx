@@ -40,8 +40,8 @@ const STAGES = [
   { key: 'novo', label: 'Novos Leads' },
   { key: 'em_contato', label: 'Em Contato' },
   { key: 'qualificado', label: 'Qualificados' },
-  { key: 'negociando', label: 'Em Matrícula' },
-  { key: 'convertido', label: 'Matriculados' },
+  { key: 'negociando', label: 'Em Negociação' },
+  { key: 'convertido', label: 'Convertidos' },
   { key: 'perdido', label: 'Perdidos' },
 ];
 
@@ -242,7 +242,7 @@ export default function ContatosPage() {
     },
     {
       id: 'course',
-      header: 'Curso',
+      header: 'Serviço',
       cell: ({ row }) => (
         <span className="text-[13px] text-muted-foreground">
           {getCourse(row.original.notes) || '—'}
@@ -321,7 +321,7 @@ export default function ContatosPage() {
           description={`${contacts.length} contatos no CRM`}
           actions={
             <div className="flex items-center gap-2">
-              <Button variant="outline" asChild className="cursor-pointer">
+              <Button variant="outline" asChild className="serviçor-pointer">
                 <label>
                   <Upload className="h-4 w-4 mr-2" />
                   Importar
@@ -393,7 +393,7 @@ export default function ContatosPage() {
             )}
 
             <div className="space-y-1.5">
-              <Label>Curso de interesse</Label>
+              <Label>Serviço de interesse</Label>
               <Input
                 value={formCourse}
                 onChange={(e) => setFormCourse(e.target.value)}

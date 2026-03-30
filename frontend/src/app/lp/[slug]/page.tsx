@@ -463,7 +463,7 @@ function CtaFinalSection({ data, color, slug, apiUrl, title, formFields, ctaText
                     </div>
                   ))}
                 </div>
-                <p className="text-sm text-white/60">Junte-se a centenas de alunos</p>
+                <p className="text-sm text-white/60">Junte-se a centenas de clientes</p>
               </div>
             </div>
           </RevealSection>

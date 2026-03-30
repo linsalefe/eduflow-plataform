@@ -40,7 +40,6 @@ const ICON_MAP: Record<string, any> = {
   qualificado: Sparkles,
   em_matricula: FileText,
   negociando: FileText,
-  matriculado: CheckCircle,
   convertido: CheckCircle,
   perdido: XCircle,
 };
@@ -49,8 +48,8 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: 'novo', label: 'Novos Leads', color: '#1D4ED8', order: 0 },
   { key: 'em_contato', label: 'Em Contato', color: '#f59e0b', order: 1 },
   { key: 'qualificado', label: 'Qualificados', color: '#8b5cf6', order: 2 },
-  { key: 'em_matricula', label: 'Em Matrícula', color: '#06b6d4', order: 3 },
-  { key: 'matriculado', label: 'Matriculados', color: '#10b981', order: 4 },
+  { key: 'em_matricula', label: 'Em Negociação', color: '#06b6d4', order: 3 },
+  { key: 'convertido', label: 'Convertidos', color: '#10b981', order: 4 },
   { key: 'perdido', label: 'Perdidos', color: '#ef4444', order: 5 },
 ];
 
@@ -146,7 +145,7 @@ export default function PipelinePage() {
           <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
             <PageHeader
               title="Pipeline"
-              description="Funil de matrículas"
+              description="Funil de vendas"
               badge={`${totalFiltered} leads`}
               className="mb-0"
             />
@@ -446,13 +445,13 @@ function KanbanSettingsModal({
                   dragIdx === idx ? 'opacity-50 scale-[0.98]' : 'hover:border-border'
                 }`}
               >
-                <GripVertical className="w-4 h-4 text-muted-foreground/50 cursor-grab flex-shrink-0" />
+                <GripVertical className="w-4 h-4 text-muted-foreground/50 serviçor-grab flex-shrink-0" />
                 <div className="relative flex-shrink-0">
                   <input
                     type="color"
                     value={col.color}
                     onChange={(e) => handleColorChange(col.key, e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    className="absolute inset-0 opacity-0 serviçor-pointer w-full h-full"
                   />
                   <div
                     className="w-7 h-7 rounded-lg border-2 border-background shadow-sm"
@@ -492,10 +491,10 @@ function KanbanSettingsModal({
                   type="color"
                   value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                  className="absolute inset-0 opacity-0 serviçor-pointer w-full h-full"
                 />
                 <div
-                  className="w-8 h-8 rounded-lg border-2 border-background shadow-sm cursor-pointer"
+                  className="w-8 h-8 rounded-lg border-2 border-background shadow-sm serviçor-pointer"
                   style={{ backgroundColor: newColor }}
                 />
               </div>

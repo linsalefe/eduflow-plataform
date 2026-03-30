@@ -154,7 +154,7 @@ export default function AITestPage() {
               <input type="text" value={leadName} onChange={e => setLeadName(e.target.value)} placeholder="Ex: Maria Silva" className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
             </div>
             <div className="flex items-center gap-2 flex-1">
-              <label className="text-[12px] text-gray-400 font-medium whitespace-nowrap">Curso:</label>
+              <label className="text-[12px] text-gray-400 font-medium whitespace-nowrap">Serviço:</label>
               <input type="text" value={leadCourse} onChange={e => setLeadCourse(e.target.value)} placeholder="Ex: Saúde Mental Infantojuvenil" className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-emerald-200" />
             </div>
           </div>
@@ -179,9 +179,9 @@ export default function AITestPage() {
                 <div className="flex flex-wrap justify-center gap-2 pt-2">
                   {[
                     'Olá, tenho interesse na pós',
-                    'Quais os cursos disponíveis?',
+                    'Quais os serviços disponíveis?',
                     'Quanto custa?',
-                    'Como funciona a matrícula?',
+                    'Como funciona a venda?',
                   ].map(suggestion => (
                     <button
                       key={suggestion}

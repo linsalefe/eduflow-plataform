@@ -652,7 +652,7 @@ function ConversationsContent() {
                                       : `${apiUrl}/media/${ref}?channel_id=${activeChannel?.id || 1}`;
                                     if (msg.type === 'image') return (
                                       <>
-                                        <img src={src} alt={caption || 'Imagem'} className="max-w-[280px] rounded-md cursor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(src, '_blank')} />
+                                        <img src={src} alt={caption || 'Imagem'} className="max-w-[280px] rounded-md serviçor-pointer hover:opacity-90 transition-opacity" onClick={() => window.open(src, '_blank')} />
                                         {caption && <p className="text-[13px] mt-1 whitespace-pre-wrap">{caption}</p>}
                                       </>
                                     );

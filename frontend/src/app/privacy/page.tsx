@@ -13,7 +13,7 @@ export default function PrivacyPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Política de Privacidade</h1>
-              <p className="text-sm text-gray-400">EduFlow — Plataforma de Atendimento Educacional</p>
+              <p className="text-sm text-gray-400">EduFlow — Plataforma de Atendimento</p>
             </div>
           </div>
           <p className="text-sm text-gray-400">Última atualização: 21 de fevereiro de 2026</p>
@@ -57,10 +57,10 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-3">3. Como Usamos as Informações</h2>
             <p>As informações coletadas são utilizadas para:</p>
             <p className="mt-3">
-              — Gerenciar o atendimento e comunicação com leads e alunos via WhatsApp, Instagram e Messenger.
+              — Gerenciar o atendimento e comunicação com leads e clientes via WhatsApp, Instagram e Messenger.
             </p>
             <p className="mt-1">
-              — Qualificar leads e acompanhar o funil de matrículas da instituição educacional.
+              — Qualificar leads e acompanhar o funil de vendas da instituição empresarial.
             </p>
             <p className="mt-1">
               — Enviar mensagens relevantes, incluindo templates aprovados pelo WhatsApp Business API.
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
             </p>
             <p className="mt-3">
               <strong className="text-gray-800">Com a instituição contratante:</strong> os dados dos leads são 
-              acessíveis pela instituição educacional que utiliza a plataforma EduFlow para gerenciar seu atendimento.
+              acessíveis pela instituição empresarial que utiliza a plataforma EduFlow para gerenciar seu atendimento.
             </p>
             <p className="mt-2">
               <strong className="text-gray-800">Provedores de serviço:</strong> utilizamos serviços de terceiros 

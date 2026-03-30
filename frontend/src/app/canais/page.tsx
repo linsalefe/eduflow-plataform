@@ -231,7 +231,7 @@ export default function ChannelsPage() {
           <button
             onClick={() => { setShowNewModal(true); setFormName(''); }}
             disabled={channels.filter(c => c.provider === 'evolution').length >= 4}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-[13px] font-semibold hover:bg-[#5558e6] transition-all shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50 disabled:serviçor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             Novo Canal
@@ -374,7 +374,7 @@ export default function ChannelsPage() {
                 <button
                   onClick={() => { setShowNewModal(false); setShowWhatsAppModal(true); setFormName(''); }}
                   disabled={channels.filter(c => c.provider === 'evolution').length >= 4 && channels.filter(c => c.type === 'instagram').length >= 4}
-                  className="w-full bg-green-50 hover:bg-green-100 border-2 border-transparent hover:border-green-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-green-50 hover:bg-green-100 border-2 border-transparent hover:border-green-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:serviçor-not-allowed"
                 >
                   <svg viewBox="0 0 32 32" className="w-10 h-10 flex-shrink-0 mt-0.5">
                     <circle cx="16" cy="16" r="16" fill="#25D366"/>
@@ -398,7 +398,7 @@ export default function ChannelsPage() {
                     }
                   }}
                   disabled={channels.filter(c => c.type === 'instagram').length >= 4}
-                  className="w-full bg-pink-50 hover:bg-pink-100 border-2 border-transparent hover:border-pink-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-pink-50 hover:bg-pink-100 border-2 border-transparent hover:border-pink-300 rounded-xl p-4 flex items-start gap-3 transition-all text-left disabled:opacity-50 disabled:serviçor-not-allowed"
                 >
                   <div className="w-10 h-10 flex-shrink-0 mt-0.5 rounded-xl bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#F77737] flex items-center justify-center">
                     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="white">

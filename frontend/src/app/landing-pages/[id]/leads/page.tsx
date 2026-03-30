@@ -31,7 +31,7 @@ const STATUS_COLORS: Record<string, string> = {
   reuniao_realizada: 'bg-emerald-50 text-emerald-700',
   desqualificado: 'bg-red-50 text-red-700',
   em_contato: 'bg-amber-50 text-amber-700',
-  matriculado: 'bg-emerald-50 text-emerald-700',
+  convertido: 'bg-emerald-50 text-emerald-700',
   perdido: 'bg-red-50 text-red-700',
 };
 
@@ -43,7 +43,7 @@ const STATUS_LABELS: Record<string, string> = {
   reuniao_realizada: 'Reunião Realizada',
   desqualificado: 'Desqualificado',
   em_contato: 'Em Contato',
-  matriculado: 'Matriculado',
+  convertido: 'Convertido',
   perdido: 'Perdido',
 };
 
@@ -155,7 +155,7 @@ export default function LeadsPage() {
                 <div
                   key={s.id}
                   onClick={() => setSelectedLead(s)}
-                  className="grid grid-cols-[1fr_140px_140px_120px_100px] gap-4 px-5 py-3.5 hover:bg-gray-50 cursor-pointer transition-colors items-center"
+                  className="grid grid-cols-[1fr_140px_140px_120px_100px] gap-4 px-5 py-3.5 hover:bg-gray-50 serviçor-pointer transition-colors items-center"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{s.name}</p>

@@ -1319,7 +1319,7 @@ export default function ConversationsPage() {
                                 <img
                                   src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`}
                                   alt={msg.content.split('|')[2] || 'Imagem'}
-                                  className="max-w-[280px] rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                                  className="max-w-[280px] rounded-md serviçor-pointer hover:opacity-90 transition-opacity"
                                   onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api'}/media/${msg.content.split('|')[0].replace('media:', '')}?channel_id=${activeChannel?.id || 1}`, '_blank')}
                                 />
                               ) : msg.type === 'audio' && msg.content.startsWith('media:') ? (

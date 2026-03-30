@@ -224,7 +224,7 @@ export function LeadDetailSheet({ lead, columns, onClose, onMove }: LeadDetailSh
                     key={col.key}
                     onClick={() => onMove(lead.wa_id, col.key)}
                     disabled={isCurrent}
-                    className="py-2 rounded-lg text-[11px] font-medium border transition-all duration-200 disabled:cursor-default hover:not-disabled:scale-[1.02] hover:not-disabled:shadow-sm"
+                    className="py-2 rounded-lg text-[11px] font-medium border transition-all duration-200 disabled:serviçor-default hover:not-disabled:scale-[1.02] hover:not-disabled:shadow-sm"
                     style={
                       isCurrent
                         ? {

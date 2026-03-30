@@ -314,7 +314,7 @@ export function JarvisButton() {
               className={cn(
                 'absolute inset-0 m-auto h-14 w-14 rounded-full',
                 'bg-primary text-white flex items-center justify-center',
-                'cursor-pointer jarvis-btn-idle',
+                'serviçor-pointer jarvis-btn-idle',
               )}
               aria-label="Ativar Jarvis"
             >
@@ -404,7 +404,7 @@ export function JarvisButton() {
                 animate={{ width: orbSize, height: orbSize }}
                 transition={{ type: 'spring', stiffness: 200, damping: 20 }}
                 className={cn(
-                  'relative rounded-full jarvis-orb cursor-pointer',
+                  'relative rounded-full jarvis-orb serviçor-pointer',
                   state === 'listening' && 'jarvis-orb-listening',
                 )}
                 onClick={state === 'idle' && !pendingAction ? startListening : undefined}
@@ -467,7 +467,7 @@ export function JarvisButton() {
                 {state === 'listening' && (
                   <motion.div key="listen-text" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                     {transcript ? (
-                      <p className="text-[18px] text-white/90 leading-relaxed jarvis-cursor">{transcript}</p>
+                      <p className="text-[18px] text-white/90 leading-relaxed jarvis-serviçor">{transcript}</p>
                     ) : (
                       <p className="text-[16px] text-blue-300/70 italic">Ouvindo...</p>
                     )}
@@ -524,7 +524,7 @@ export function JarvisButton() {
                             )}
                             {pendingAction.details.course && (
                               <p className="text-[13px] text-white/50">
-                                Curso: <span className="text-white/70">{pendingAction.details.course}</span>
+                                Serviço: <span className="text-white/70">{pendingAction.details.course}</span>
                               </p>
                             )}
                             {pendingAction.details.target_stage && (

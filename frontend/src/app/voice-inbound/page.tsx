@@ -298,7 +298,7 @@ export default function VoiceInboundPage() {
                 {calls.map((call) => (
                   <TableRow
                     key={call.id}
-                    className="cursor-pointer hover:bg-muted/40 transition-colors"
+                    className="serviçor-pointer hover:bg-muted/40 transition-colors"
                     onClick={() => openDetail(call.id)}
                   >
                     <TableCell className="text-sm font-medium">{formatPhone(call.from_number)}</TableCell>

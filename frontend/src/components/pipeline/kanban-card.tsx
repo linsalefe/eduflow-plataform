@@ -84,7 +84,7 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
   return (
     <Card
       onClick={onClick}
-      className={`relative overflow-hidden cursor-grab active:cursor-grabbing border border-border/60 bg-card transition-all duration-200 select-none group ${
+      className={`relative overflow-hidden serviçor-grab active:serviçor-grabbing border border-border/60 bg-card transition-all duration-200 select-none group ${
         isDragging
           ? 'opacity-80 scale-[0.97] shadow-lg shadow-black/10 rotate-[1.5deg]'
           : 'hover:shadow-md hover:border-border hover:-translate-y-0.5'

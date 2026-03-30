@@ -33,7 +33,7 @@ export function EmptyPipeline({ onAction }: { onAction?: () => void }) {
     <EmptyState
       icon={GitBranch}
       title="Pipeline vazio"
-      description="Adicione leads ao pipeline para acompanhar o funil de matrículas da sua instituição."
+      description="Adicione leads ao pipeline para acompanhar o funil de vendas da sua instituição."
       actionLabel="Adicionar lead"
       onAction={onAction}
     />
@@ -81,8 +81,8 @@ export function EmptyFinanceiro({ onAction }: { onAction?: () => void }) {
     <EmptyState
       icon={DollarSign}
       title="Nenhuma entrada neste mês"
-      description="Registre matrículas e pagamentos para acompanhar a receita da sua instituição."
-      actionLabel="Registrar matrícula"
+      description="Registre vendas e pagamentos para acompanhar a receita da sua instituição."
+      actionLabel="Registrar venda"
       onAction={onAction}
     />
   );

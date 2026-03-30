@@ -242,7 +242,7 @@ export default function AgentesPage() {
                     disabled={!available}
                     className={`relative w-11 h-6 rounded-full transition-colors duration-200
                       ${active && available ? 'bg-primary' : 'bg-gray-200'}
-                      ${!available ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      ${!available ? 'serviçor-not-allowed' : 'serviçor-pointer'}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200
                       ${active && available ? 'translate-x-5' : 'translate-x-0'}`}
@@ -289,7 +289,7 @@ export default function AgentesPage() {
                         onChange={e => handleTriggerChange(col.key, 'agent', e.target.value)}
                         disabled={!isActive}
                         className={`appearance-none text-xs font-medium px-3 py-1.5 pr-7 rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-indigo-200
-                          ${isActive ? 'bg-white border-gray-200 text-gray-700 cursor-pointer' : 'bg-gray-100 border-transparent text-gray-400 cursor-not-allowed'}`}
+                          ${isActive ? 'bg-white border-gray-200 text-gray-700 serviçor-pointer' : 'bg-gray-100 border-transparent text-gray-400 serviçor-not-allowed'}`}
                       >
                         <option value="">Nenhum agente</option>
                         {TRIGGER_AGENTS.map(a => (
@@ -346,7 +346,7 @@ export default function AgentesPage() {
                 <select
                   value={pipelineMoves.on_first_contact || ''}
                   onChange={e => setPipelineMoves(prev => ({ ...prev, on_first_contact: e.target.value }))}
-                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 serviçor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   <option value="">Não mover</option>
                   {kanbanColumns.map(col => (
@@ -365,7 +365,7 @@ export default function AgentesPage() {
                 <select
                   value={pipelineMoves.on_schedule_call || ''}
                   onChange={e => setPipelineMoves(prev => ({ ...prev, on_schedule_call: e.target.value }))}
-                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  className="w-full appearance-none text-sm font-medium px-3 py-2 pr-8 rounded-xl border border-gray-200 bg-white text-gray-700 serviçor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 >
                   <option value="">Não mover</option>
                   {kanbanColumns.map(col => (

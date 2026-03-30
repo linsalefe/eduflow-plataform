@@ -213,7 +213,7 @@ export default function AdminPage() {
               <div key={tenant.id} className="bg-[#0f1b2d] border border-white/[0.06] rounded-2xl overflow-hidden">
                 {/* Tenant Row */}
                 <div
-                  className="flex items-center justify-between p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center justify-between p-5 serviçor-pointer hover:bg-white/[0.02] transition-colors"
                   onClick={() => setExpandedId(expandedId === tenant.id ? null : tenant.id)}
                 >
                   <div className="flex items-center gap-4">

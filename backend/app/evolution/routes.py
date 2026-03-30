@@ -234,13 +234,17 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 remote_jid = key.get("remoteJid", "")
                 msg_id = key.get("id", "")
 
-                # Ignorar grupos
-                if "@g.us" in remote_jid:
-                    continue
+                # Verificar se é grupo
+                is_group = "@g.us" in remote_jid
 
                 # Extrair número limpo
-                phone = remote_jid.replace("@s.whatsapp.net", "")
-                sender_name = msg.get("pushName", phone)
+                if is_group:
+                    phone = remote_jid  # ex: 120363XXX@g.us
+                    participant = key.get("participant", "") or msg.get("participant", "")
+                    sender_name = msg.get("pushName", participant.replace("@s.whatsapp.net", ""))
+                else:
+                    phone = remote_jid.replace("@s.whatsapp.net", "")
+                    sender_name = msg.get("pushName", phone)
 
                 # Extrair texto
                 message_content = msg.get("message", {})
@@ -289,6 +293,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                             ai_active=True,
                             last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),
                             reengagement_count=0,
+                            is_group=is_group,
                         )
                         db.add(contact)
                         await db.flush()
@@ -377,6 +382,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     content=text,
                     timestamp=msg_time,
                     status="received" if not from_me else "sent",
+                    sender_name=sender_name if is_group and not from_me else None,
                 )
                 db.add(new_msg)
 

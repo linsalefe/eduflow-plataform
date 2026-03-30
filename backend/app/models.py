@@ -41,7 +41,7 @@ class Contact(Base):
     __tablename__ = "contacts"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    wa_id = Column(String(20), nullable=False, index=True)
+    wa_id = Column(String(100), nullable=False, index=True)
     name = Column(String(255), nullable=True)
     profile_picture_url = Column(String, nullable=True)
     lead_status = Column(String(30), default="novo")
@@ -49,6 +49,7 @@ class Contact(Base):
     ai_active = Column(Boolean, default=False)
     last_inbound_at = Column(DateTime, nullable=True)
     reengagement_count = Column(Integer, default=0)
+    is_group = Column(Boolean, default=False)
     channel_id = Column(Integer, ForeignKey("channels.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     deal_value = Column(Numeric(10, 2), nullable=True, default=0)
@@ -73,6 +74,7 @@ class Message(Base):
     timestamp = Column(DateTime, nullable=False)
     status = Column(String(20), default="received")
     sent_by_ai = Column(Boolean, default=False)
+    sender_name = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     contact = relationship("Contact", back_populates="messages")

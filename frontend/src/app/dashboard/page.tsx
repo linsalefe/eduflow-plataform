@@ -184,13 +184,13 @@ export default function DashboardPage() {
                     index={0}
                   />
                   <KPICard
-                    label="Matriculados"
+                    label="Convertidos"
                     value={stats.status_counts['convertido'] || 0}
                     icon={Users}
                     index={1}
                   />
                   <KPICard
-                    label="Em Matrícula"
+                    label="Em Negociação"
                     value={stats.status_counts['negociando'] || 0}
                     icon={TrendingUp}
                     index={2}

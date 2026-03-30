@@ -470,7 +470,7 @@ export default function AIConfigPage() {
                   <div className="text-center py-10 text-gray-400">
                     <Database className="w-10 h-10 mx-auto mb-3 opacity-30" />
                     <p className="text-[13px]">Nenhum documento na base de conhecimento</p>
-                    <p className="text-[11px] mt-1">Envie documentos sobre cursos, preços e FAQ para a Nat usar nas respostas</p>
+                    <p className="text-[11px] mt-1">Envie documentos sobre serviços, preços e FAQ para a Nat usar nas respostas</p>
                   </div>
                 )}
               </div>
