@@ -361,7 +361,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         from sqlalchemy import text
         existing_tag = await db.execute(
             text("SELECT 1 FROM contact_tags WHERE contact_wa_id = :wid AND tag_id = :tid"),
-            {"wid": contact.wa_id, "tid": tag_obj.id}
+            {"wid": contact.wa_id, "tid": tag_obj.id}fv
         )
         if not existing_tag.first():
             await db.execute(
@@ -380,7 +380,9 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             )
             channel_obj = channel_result.scalar_one_or_none()
             if channel_obj and channel_obj.instance_name:
-                message_text = page.whatsapp_message.replace("{nome}", data.get("name", ""))
+                full_name = data.get("name", "")
+        first_name = full_name.strip().split()[0] if full_name.strip() else full_name
+        message_text = page.whatsapp_message.replace("{nome}", first_name)
                 await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
         except Exception as e:
             print(f"⚠️ Erro ao enviar mensagem WhatsApp: {e}")
