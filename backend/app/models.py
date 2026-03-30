@@ -52,6 +52,7 @@ class Contact(Base):
     channel_id = Column(Integer, ForeignKey("channels.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     deal_value = Column(Numeric(10, 2), nullable=True, default=0)
+    is_group = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -73,6 +74,7 @@ class Message(Base):
     timestamp = Column(DateTime, nullable=False)
     status = Column(String(20), default="received")
     sent_by_ai = Column(Boolean, default=False)
+    sender_name = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     contact = relationship("Contact", back_populates="messages")
