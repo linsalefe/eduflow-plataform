@@ -108,7 +108,7 @@ export default function AutomacoesPage() {
   const [editWebhook, setEditWebhook] = useState<Webhook | null>(null);
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [channels, setChannels] = useState<any[]>([]);
+  const [kanbanColumns, setKanbanColumns] = useState<{key: string; label: string}[]>([]);
 
   // Form webhook
   const [wName, setWName] = useState('');
@@ -126,6 +126,7 @@ export default function AutomacoesPage() {
       loadFlows();
       loadWebhooks();
       loadChannels();
+      loadKanbanColumns();
     }
   }, [user]);
 
@@ -161,6 +162,13 @@ export default function AutomacoesPage() {
       const res = await api.get('/channels');
       setChannels(res.data);
       if (res.data.length > 0) setWChannelId(res.data[0].id);
+    } catch {}
+  };
+
+  const loadKanbanColumns = async () => {
+    try {
+      const res = await api.get('/tenant/kanban-columns');
+      setKanbanColumns(res.data);
     } catch {}
   };
 
@@ -619,7 +627,7 @@ export default function AutomacoesPage() {
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Quando o lead entrar em</label>
                 <select value={formStage} onChange={e => setFormStage(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all serviçor-pointer">
-                  {STAGES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                  {(kanbanColumns.length > 0 ? kanbanColumns : STAGES).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                 </select>
               </div>
               {channels.length > 1 && (
