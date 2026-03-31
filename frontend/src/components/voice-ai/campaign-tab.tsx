@@ -14,7 +14,6 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -137,6 +136,30 @@ function StatusBadge({ status }: { status: string }) {
       <Icon className={`w-3 h-3 ${status === 'running' ? 'animate-spin' : ''}`} />
       {config.label}
     </Badge>
+  );
+}
+
+function CustomCheckbox({ checked }: { checked: boolean }) {
+  return (
+    <div
+      className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+        checked ? 'bg-primary border-primary' : 'border-muted-foreground/30'
+      }`}
+    >
+      {checked && (
+        <svg
+          className="h-3 w-3 text-primary-foreground"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      )}
+    </div>
   );
 }
 
@@ -296,17 +319,15 @@ export default function CampaignTab() {
                         Pausar
                       </Button>
                     )}
-                    {(
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="gap-1.5 h-8 text-destructive hover:text-destructive"
-                        onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'cancel'); }}
-                      >
-                        <Square className="w-3.5 h-3.5" />
-                        Cancelar
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="gap-1.5 h-8 text-destructive hover:text-destructive"
+                      onClick={(e) => { e.stopPropagation(); handleAction(c.id, 'cancel'); }}
+                    >
+                      <Square className="w-3.5 h-3.5" />
+                      Cancelar
+                    </Button>
                   </div>
                 )}
               </Card>
@@ -386,7 +407,11 @@ function CreateCampaignDialog({
   const toggleContact = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -490,13 +515,10 @@ function CreateCampaignDialog({
                 filtered.map((contact) => (
                   <div
                     key={contact.id}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer"
+                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer select-none"
                     onClick={() => toggleContact(contact.id)}
                   >
-                    <Checkbox
-                      checked={selectedIds.has(contact.id)}
-                      className="pointer-events-none"
-                    />
+                    <CustomCheckbox checked={selectedIds.has(contact.id)} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
                         {contact.name || 'Sem nome'}
@@ -733,17 +755,15 @@ function CampaignDetailView({
                 Pausar
               </Button>
             )}
-            {(
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-1.5 text-destructive hover:text-destructive"
-                onClick={() => onAction('cancel')}
-              >
-                <Square className="w-3.5 h-3.5" />
-                Cancelar
-              </Button>
-            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 text-destructive hover:text-destructive"
+              onClick={() => onAction('cancel')}
+            >
+              <Square className="w-3.5 h-3.5" />
+              Cancelar
+            </Button>
           </div>
         )}
 
