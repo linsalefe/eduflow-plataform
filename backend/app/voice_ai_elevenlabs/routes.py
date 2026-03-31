@@ -114,7 +114,7 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         if to_number:
             phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:]))
+                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:])).limit(1)
             )
             contact = contact_result.scalar_one_or_none()
             if contact:
@@ -169,7 +169,7 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
 
             phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:]))
+                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:])).limit(1)
             )
             contact = contact_result.scalar_one_or_none()
 
