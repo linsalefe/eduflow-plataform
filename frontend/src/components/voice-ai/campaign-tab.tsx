@@ -384,7 +384,7 @@ function CreateCampaignDialog({
     if (open) {
       setStep('contacts');
       setName('');
-      setSelectedIds(new Set());
+      setSelectedIds([]);
       setSearchTerm('');
       setDynVars([{ name: 'nome', source: 'contact_name', value: '' }]);
       fetchContacts();
