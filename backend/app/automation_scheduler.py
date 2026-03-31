@@ -4,13 +4,14 @@ Verifica execuções pendentes e dispara mensagens via Evolution API.
 """
 import asyncio
 import logging
+import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import async_session
 from app.models import (
     AutomationFlow, AutomationStep, AutomationExecution,
-    Contact, Channel
+    Contact, Channel, Message
 )
 from app.evolution.client import send_text
 
@@ -193,7 +194,25 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
         text=message,
     )
     logger.info(f"📨 Mensagem enviada para {execution.contact_wa_id} (step {execution.current_step})")
+    # NOVO:
     print(f"✅ Automação [{flow.name}] → {contact.name or execution.contact_wa_id}: '{message[:50]}'")
+
+    # Salvar mensagem no banco para aparecer na conversa
+    SP_TZ = timezone(timedelta(hours=-3))
+    auto_msg = Message(
+        tenant_id=flow.tenant_id,
+        wa_message_id=f"auto_{uuid.uuid4().hex[:16]}",
+        contact_wa_id=execution.contact_wa_id,
+        channel_id=channel.id,
+        direction="outbound",
+        message_type="text",
+        content=message,
+        timestamp=datetime.now(SP_TZ).replace(tzinfo=None),
+        status="sent",
+        sent_by_ai=False,
+    )
+    db.add(auto_msg)
+
     # Verificar próximo step
     next_step_result = await db.execute(
         select(AutomationStep).where(
