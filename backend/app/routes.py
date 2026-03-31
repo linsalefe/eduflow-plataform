@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, text
 from pydantic import BaseModel
 from app.notification_routes import notify_all_users
 from datetime import datetime, timedelta, timezone
