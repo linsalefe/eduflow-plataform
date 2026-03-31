@@ -433,7 +433,7 @@ function CreateCampaignDialog({
 
   const handleCreate = async () => {
     if (!name.trim()) return toast.error('Digite o nome da campanha');
-    if (selectedIds.size === 0) return toast.error('Selecione pelo menos um contato');
+    if (selectedIds.length === 0) return toast.error('Selecione pelo menos um contato');
 
     const dynamicVariables: Record<string, any> = {};
     for (const v of dynVars) {
