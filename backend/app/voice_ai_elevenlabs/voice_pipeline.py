@@ -11,21 +11,29 @@ from app.voice_ai_elevenlabs.config import (
 
 client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-def make_outbound_call(to_number: str, lead_name: str, course: str) -> dict:
+
+def make_outbound_call(to_number: str, dynamic_variables: dict = None, lead_name: str = "", course: str = "") -> dict:
     """
     Dispara ligação outbound via ElevenLabs Agents + Twilio.
     O ElevenLabs gerencia toda a conversa (STT → LLM → TTS).
+    
+    Aceita dynamic_variables genérico OU lead_name/course para retrocompatibilidade.
     """
     try:
+        # Se não passou dynamic_variables, monta a partir dos campos legados
+        if not dynamic_variables:
+            dynamic_variables = {}
+            if lead_name:
+                dynamic_variables["nome"] = lead_name
+            if course:
+                dynamic_variables["curso"] = course
+
         result = client.conversational_ai.twilio.outbound_call(
             agent_id=ELEVENLABS_AGENT_ID,
             agent_phone_number_id=ELEVENLABS_PHONE_NUMBER_ID,
             to_number=to_number,
             conversation_initiation_client_data={
-                "dynamic_variables": {
-                    "nome": lead_name,
-                    "curso": course,
-                }
+                "dynamic_variables": dynamic_variables
             },
         )
         return {
