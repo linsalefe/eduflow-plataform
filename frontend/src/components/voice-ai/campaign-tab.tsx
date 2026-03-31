@@ -732,7 +732,7 @@ function CampaignDetailView({
                 Pausar
               </Button>
             )}
-            {campaign.status !== 'completed' && campaign.status !== 'cancelled' && (
+            {(
               <Button
                 size="sm"
                 variant="ghost"
