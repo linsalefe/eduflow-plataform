@@ -10,6 +10,7 @@ from app.automation_scheduler import start_automation_scheduler
 import httpx
 from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
+from app.voice_ai_elevenlabs.campaign_routes import router as campaign_router
 from app.kanban_routes import router as kanban_router
 from app.schedule_routes import router as schedule_router
 from app.tenant_routes import router as tenant_router, tenant_router as tenant_agent_router
@@ -29,6 +30,7 @@ from app.task_routes import router as task_router
 from app.automation_routes import router as automation_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
+from app.voice_ai_elevenlabs.campaign_worker import campaign_worker
 from app.evolution.routes import router as evolution_router
 from app.jarvis.routes import router as jarvis_router
 from contextlib import asynccontextmanager
@@ -185,7 +187,8 @@ async def lifespan(app: FastAPI):
     print("✅ Sync Exact Spotter agendado (a cada 10 min)")
     scheduler_task = asyncio.create_task(scheduler_job())
     print("📅 Scheduler de ligações agendado (a cada 1 min)")
-    automation_task = asyncio.create_task(start_automation_scheduler())  # 👈 ADICIONAR
+    automation_task = asyncio.create_task(start_automation_scheduler())
+    campaign_task = asyncio.create_task(campaign_worker())  # 👈 ADICIONAR
     print("🤖 Automation scheduler iniciado (a cada 15 min)")             # 👈 ADICIONAR
     yield
     task.cancel()
@@ -227,6 +230,7 @@ app.include_router(notification_router)
 app.include_router(task_router)
 app.include_router(webhook_router)
 app.include_router(webhook_public_router)
+app.include_router(campaign_router)
 app.include_router(schedule_router)
 app.include_router(export_router)
 app.include_router(jarvis_router)
