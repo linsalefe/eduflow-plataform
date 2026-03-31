@@ -488,13 +488,13 @@ function CreateCampaignDialog({
                 </div>
               ) : (
                 filtered.map((contact) => (
-                  <label
+                  <div
                     key={contact.id}
                     className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer"
+                    onClick={() => toggleContact(contact.id)}
                   >
                     <Checkbox
                       checked={selectedIds.has(contact.id)}
-                      onCheckedChange={() => toggleContact(contact.id)}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
@@ -511,7 +511,7 @@ function CreateCampaignDialog({
                         ))}
                       </div>
                     )}
-                  </label>
+                  </div>
                 ))
               )}
             </div>
