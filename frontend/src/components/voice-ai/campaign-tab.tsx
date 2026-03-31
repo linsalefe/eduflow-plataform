@@ -448,7 +448,7 @@ function CreateCampaignDialog({
     try {
       await api.post('/voice-ai-el/campaigns', {
         name: name.trim(),
-        contact_ids: Array.from(selectedIds),
+        contact_ids: selectedIds,
         dynamic_variables: dynamicVariables,
       }, { headers });
       toast.success('Campanha criada!');
@@ -488,10 +488,10 @@ function CreateCampaignDialog({
                 onClick={toggleAll}
                 className="text-xs text-primary hover:underline"
               >
-                {selectedIds.size === filtered.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                {selectedIds.length === filtered.length ? 'Desmarcar todos' : 'Selecionar todos'}
               </button>
               <span className="text-xs text-muted-foreground">
-                {selectedIds.size} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                {selectedIds.length} selecionado{selectedIds.length !== 1 ? 's' : ''}
               </span>
             </div>
 
@@ -512,7 +512,7 @@ function CreateCampaignDialog({
                     className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer select-none"
                     onClick={() => toggleContact(contact.id)}
                   >
-                    <CustomCheckbox checked={selectedIds.has(contact.id)} />
+                    <CustomCheckbox checked={selectedIds.includes(contact.id)} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
                         {contact.name || 'Sem nome'}
@@ -622,7 +622,7 @@ function CreateCampaignDialog({
             <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg">
               <Users className="w-4 h-4 text-primary" />
               <span className="text-sm text-foreground">
-                <strong>{selectedIds.size}</strong> contato{selectedIds.size !== 1 ? 's' : ''} selecionado{selectedIds.size !== 1 ? 's' : ''}
+                <strong>{selectedIds.length}</strong> contato{selectedIds.length !== 1 ? 's' : ''} selecionado{selectedIds.length !== 1 ? 's' : ''}
               </span>
             </div>
           </div>
@@ -634,7 +634,7 @@ function CreateCampaignDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button
                 onClick={() => setStep('config')}
-                disabled={selectedIds.size === 0}
+                disabled={selectedIds.length === 0}
                 className="gap-1.5"
               >
                 Próximo
