@@ -502,6 +502,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
         unread = unread_result.scalar()
 
         contacts_list.append({
+            "id": c.id,
             "wa_id": c.wa_id,
             "name": c.name or c.wa_id,
             "lead_status": c.lead_status or "novo",
