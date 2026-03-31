@@ -296,7 +296,7 @@ export default function CampaignTab() {
                         Pausar
                       </Button>
                     )}
-                    {c.status !== 'cancelled' && c.status !== 'completed' && (
+                    {(
                       <Button
                         size="sm"
                         variant="ghost"
