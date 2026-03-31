@@ -374,7 +374,7 @@ function CreateCampaignDialog({
   const [step, setStep] = useState<'contacts' | 'config'>('contacts');
   const [name, setName] = useState('');
   const [contacts, setContacts] = useState<ContactItem[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dynVars, setDynVars] = useState<DynVar[]>([{ name: 'nome', source: 'contact_name', value: '' }]);
   const [creating, setCreating] = useState(false);
@@ -405,22 +405,16 @@ function CreateCampaignDialog({
   };
 
   const toggleContact = (id: number) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
 
   const toggleAll = () => {
-    if (selectedIds.size === filtered.length) {
-      setSelectedIds(new Set());
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
     } else {
-      setSelectedIds(new Set(filtered.map(c => c.id)));
+      setSelectedIds(filtered.map(c => c.id));
     }
   };
 
