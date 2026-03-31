@@ -21,15 +21,10 @@ SP_TZ = timezone(timedelta(hours=-3))
 # SCHEMAS
 # ============================================================
 
-class DynamicVarConfig(BaseModel):
-    """Configuração de uma variável dinâmica."""
-    source: str  # "contact_name", "contact_wa_id", "fixed", "tag"
-    value: Optional[str] = None  # Valor fixo (quando source="fixed")
-
 class CreateCampaignRequest(BaseModel):
     name: str
     contact_ids: List[int]
-    dynamic_variables: Dict[str, DynamicVarConfig]
+    dynamic_variables: Dict[str, dict] = {}
 
 class CampaignActionRequest(BaseModel):
     action: str  # "start", "pause", "cancel"
@@ -101,7 +96,7 @@ async def create_campaign(
         tenant_id=current_user.tenant_id,
         created_by=current_user.id,
         name=req.name.strip(),
-        dynamic_variables={k: v.dict() for k, v in req.dynamic_variables.items()},
+        dynamic_variables=req.dynamic_variables,
         status="pending",
         total_items=len(contacts),
     )
@@ -109,7 +104,7 @@ async def create_campaign(
     await db.flush()
 
     # Criar itens da fila
-    var_config = {k: v.dict() for k, v in req.dynamic_variables.items()}
+    var_config = req.dynamic_variables
     for contact in contacts:
         resolved = resolve_variables(contact, var_config)
         item = CallCampaignItem(
