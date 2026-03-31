@@ -5,7 +5,7 @@ Verifica execuções pendentes e dispara mensagens via Evolution API.
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import async_session
