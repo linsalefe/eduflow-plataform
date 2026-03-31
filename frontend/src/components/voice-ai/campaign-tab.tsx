@@ -495,6 +495,7 @@ function CreateCampaignDialog({
                   >
                     <Checkbox
                       checked={selectedIds.has(contact.id)}
+                      className="pointer-events-none"
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
