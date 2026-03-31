@@ -298,6 +298,7 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
   const openEdit = (page: LandingPage) => {
     setEditingPage(page);
     setTitle(page.title);
+    setSlug(page.slug);
     setLpTag(page.tag || '');
     setPipelineStage(page.pipeline_stage || '');
     setWhatsappMessage(page.whatsapp_message || '');
