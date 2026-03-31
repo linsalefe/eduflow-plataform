@@ -55,6 +55,7 @@ const FEATURE_LABELS: Record<string, string> = {
   voice_inbound: 'Atendimento IA (Voz)',
   agenda: 'Agenda',
   contatos: 'Contatos',
+  agentes_ia: 'Agentes IA',
 };
 
 const PLAN_COLORS: Record<string, string> = {
