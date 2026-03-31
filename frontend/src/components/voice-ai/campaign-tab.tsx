@@ -438,10 +438,9 @@ function CreateCampaignDialog({
     const dynamicVariables: Record<string, any> = {};
     for (const v of dynVars) {
       if (!v.name.trim()) continue;
-      dynamicVariables[v.name.trim()] = {
-        source: v.source,
-        value: v.source === 'fixed' ? v.value : undefined,
-      };
+      const entry: any = { source: v.source };
+      if (v.source === 'fixed' && v.value) entry.value = v.value;
+      dynamicVariables[v.name.trim()] = entry;
     }
 
     setCreating(true);
@@ -454,7 +453,9 @@ function CreateCampaignDialog({
       toast.success('Campanha criada!');
       onCreated();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Erro ao criar campanha');
+      const detail = err.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 'Erro ao criar campanha';
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
