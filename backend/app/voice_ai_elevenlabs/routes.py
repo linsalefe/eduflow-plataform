@@ -192,6 +192,36 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         except Exception as e:
             print(f"⚠️ Erro ao acionar orquestrador: {e}")
 
+        # Atualizar item da campanha (se veio de uma campanha)
+        try:
+            from app.voice_ai_elevenlabs.models import CallCampaignItem, CallCampaign
+            item_result = await db.execute(
+                select(CallCampaignItem).where(
+                    CallCampaignItem.phone_number == to_number,
+                    CallCampaignItem.status == "calling",
+                )
+            )
+            item = item_result.scalar_one_or_none()
+            if item:
+                item.status = "completed"
+                item.call_id = ai_call.id
+                item.outcome = outcome
+                item.duration_seconds = int(duration)
+                item.summary = summary_text or transcript_text[:500]
+                item.completed_at = now
+
+                # Atualizar contadores da campanha
+                camp_result = await db.execute(
+                    select(CallCampaign).where(CallCampaign.id == item.campaign_id)
+                )
+                camp = camp_result.scalar_one_or_none()
+                if camp:
+                    camp.completed_items = (camp.completed_items or 0) + 1
+                await db.commit()
+                print(f"📋 Item da campanha atualizado: {item.id} → {outcome}")
+        except Exception as e:
+            print(f"⚠️ Erro ao atualizar campanha: {e}")
+
         return {"status": "ok", "call_id": ai_call.id}
 
     except Exception as e:
