@@ -9,9 +9,10 @@ import api from '@/lib/api';
 import {
   PhoneCall, PhoneOff, PhoneForwarded, Calendar, Clock, TrendingUp,
   BarChart3, Activity, Target, RefreshCw, Filter,
-  MessageSquare, Zap, Award, X,
+  MessageSquare, Zap, Award, X, Users,
 } from 'lucide-react';
 import { KPICard } from '@/components/dashboard/kpi-card';
+import CampaignTab from '@/components/voice-ai/campaign-tab';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -252,6 +253,10 @@ export default function VoiceAIPage() {
                   <PhoneCall className="w-4 h-4" />
                   Chamadas
                 </TabsTrigger>
+                <TabsTrigger value="campaigns" className="gap-1.5">
+                  <Users className="w-4 h-4" />
+                  Campanhas
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             <Button
@@ -271,7 +276,7 @@ export default function VoiceAIPage() {
           <VoiceAISkeleton />
         ) : tab === 'dashboard' ? (
           <DashboardView dashboard={dashboard} />
-        ) : (
+        ) : tab === 'calls' ? (
           <CallsListView
             calls={calls}
             total={totalCalls}
@@ -279,6 +284,8 @@ export default function VoiceAIPage() {
             setFilterOutcome={setFilterOutcome}
             onSelectCall={fetchCallDetail}
           />
+        ) : (
+          <CampaignTab />
         )}
 
         {/* Call Detail Sheet */}
@@ -474,7 +481,7 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
               <TableRow
                 key={call.id}
                 onClick={() => onSelectCall(call.id)}
-                className="serviçor-pointer"
+                className="cursor-pointer"
               >
                 <TableCell>
                   <div>
