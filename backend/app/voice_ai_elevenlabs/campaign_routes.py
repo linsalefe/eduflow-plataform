@@ -57,10 +57,12 @@ def resolve_variables(contact: Contact, var_config: dict) -> dict:
 
 def format_phone(wa_id: str) -> str:
     """Formata wa_id para número E.164 para ligação."""
-    phone = wa_id.replace("+", "").replace("-", "").replace(" ", "")
-    if not phone.startswith("+"):
-        phone = f"+{phone}"
-    return phone
+    clean = wa_id.replace("+", "").replace("-", "").replace(" ", "")
+    # Fix BR mobile: wa_id pode estar sem o 9° dígito (55 + DDD + 8 dígitos = 12)
+    # Formato correto: +55 + DDD(2) + 9 + número(8) = 13 dígitos
+    if clean.startswith("55") and len(clean) == 12:
+        clean = clean[:4] + "9" + clean[4:]
+    return f"+{clean}"
 
 
 # ============================================================
