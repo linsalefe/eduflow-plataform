@@ -28,6 +28,7 @@ from app.landing_routes import public_router as landing_public_router
 from app.export_routes import router as export_router
 from app.task_routes import router as task_router
 from app.automation_routes import router as automation_router
+from app.voice_ai_elevenlabs.agent_tools_routes import router as agent_tools_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
 from app.voice_ai_elevenlabs.campaign_worker import campaign_worker
@@ -188,13 +189,15 @@ async def lifespan(app: FastAPI):
     scheduler_task = asyncio.create_task(scheduler_job())
     print("📅 Scheduler de ligações agendado (a cada 1 min)")
     automation_task = asyncio.create_task(start_automation_scheduler())
-    campaign_task = asyncio.create_task(campaign_worker())  # 👈 ADICIONAR
-    print("🤖 Automation scheduler iniciado (a cada 15 min)")             # 👈 ADICIONAR
+    print("🤖 Automation scheduler iniciado (a cada 15 min)")
+    campaign_task = asyncio.create_task(campaign_worker())
+    print("📞 Campaign worker iniciado")
     yield
     task.cancel()
     cleanup_task.cancel()
     scheduler_task.cancel()
-    automation_task.cancel()  # 👈 ADICIONAR
+    automation_task.cancel()
+    campaign_task.cancel()
 
 
 app = FastAPI(title="EduFlow API", lifespan=lifespan)
@@ -219,6 +222,7 @@ app.include_router(landing_router)
 app.include_router(landing_public_router)
 app.include_router(oauth_router)
 app.include_router(voice_ai_el_router)
+app.include_router(agent_tools_router)
 app.include_router(tenant_router)
 app.include_router(tenant_agent_router)
 app.include_router(voice_ai_router)
