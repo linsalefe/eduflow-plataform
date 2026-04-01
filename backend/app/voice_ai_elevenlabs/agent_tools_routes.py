@@ -40,6 +40,7 @@ class ToolUpdate(BaseModel):
     webhook_url: Optional[str] = None
     parameters: Optional[list] = None
     is_active: Optional[bool] = None
+    post_action_stage: Optional[str] = None
 
 
 # ============================================================
@@ -199,6 +200,10 @@ async def update_tool(
     if data.is_active is not None:
         fields.append("is_active = :is_active")
         params["is_active"] = data.is_active
+
+     if data.post_action_stage is not None:
+        fields.append("post_action_stage = :post_action_stage")
+        params["post_action_stage"] = data.post_action_stage    
 
     # Tools de sistema só permitem toggle de is_active
     if not row["is_system"]:
