@@ -660,10 +660,10 @@ function AgentTab() {
   const [savingId, setSavingId] = useState<number | null>(null);
 
   const [personality, setPersonality] = useState({
-    agent_name: 'Sofia',
-    voice: 'rachel',
+    agent_name: '',
+    voice: '',
     system_prompt: '',
-    agent_id: 'agent_8201khxrydbcfxqtav8ffy0enqft', // Rafael SDR por padrão
+    agent_id: '',
   });
   const [loadingPersonality, setLoadingPersonality] = useState(true);
   const [savingPersonality, setSavingPersonality] = useState(false);
@@ -683,24 +683,12 @@ function AgentTab() {
     }
   };
 
-  const fetchPersonality = async () => {
-    try {
-      const res = await api.get('/voice-ai/agent-tools/personality', { headers });
-      setPersonality(prev => ({ ...prev, ...res.data }));
-    } catch {
-      toast.error('Erro ao buscar personalidade');
-    } finally {
-      setLoadingPersonality(false);
-    }
-  };
-
   useEffect(() => {
     fetchTools();
-    fetchPersonality();
-    // Buscar agentes ElevenLabs
     api.get('/voice-ai/agent-tools/elevenlabs-agents', { headers })
       .then(res => setElevenlabsAgents(res.data))
       .catch(() => toast.error('Erro ao buscar agentes ElevenLabs'));
+    setLoadingPersonality(false);
   }, []);
 
   const toggleTool = async (tool: AgentTool) => {
