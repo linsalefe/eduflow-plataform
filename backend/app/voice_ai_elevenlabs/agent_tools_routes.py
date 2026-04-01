@@ -386,7 +386,7 @@ async def list_elevenlabs_agents(
         res = await client.get(
             f"{ELEVENLABS_BASE}/convai/agents",
             headers={"xi-api-key": ELEVENLABS_API_KEY},
-            timeout=10,
+            timeout=30,
         )
     if res.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao buscar agentes do ElevenLabs")
@@ -405,7 +405,7 @@ async def get_elevenlabs_agent(
         res = await client.get(
             f"{ELEVENLABS_BASE}/convai/agents/{agent_id}",
             headers={"xi-api-key": ELEVENLABS_API_KEY},
-            timeout=10,
+            timeout=30,
         )
     if res.status_code != 200:
         raise HTTPException(status_code=502, detail="Erro ao buscar agente do ElevenLabs")
@@ -447,7 +447,7 @@ async def update_elevenlabs_agent(
                 "Content-Type": "application/json",
             },
             json=payload,
-            timeout=15,
+            timeout=30,
         )
 
     if res.status_code not in (200, 204):
