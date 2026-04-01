@@ -9,7 +9,8 @@ import api from '@/lib/api';
 import {
   PhoneCall, PhoneOff, PhoneForwarded, Calendar, Clock, TrendingUp,
   BarChart3, Activity, Target, RefreshCw, Filter,
-  MessageSquare, Zap, Award, X, Users,
+  MessageSquare, Zap, Award, Users,
+  Settings, Bot, Wrench, Plus, ChevronDown, ChevronUp, Trash2, Save, Loader2,
 } from 'lucide-react';
 import { KPICard } from '@/components/dashboard/kpi-card';
 import CampaignTab from '@/components/voice-ai/campaign-tab';
@@ -18,6 +19,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -31,6 +36,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -104,6 +116,19 @@ interface CallDetail {
   } | null;
 }
 
+interface AgentTool {
+  id: number;
+  name: string;
+  display_name: string;
+  description: string;
+  when_to_use: string;
+  is_active: boolean;
+  is_system: boolean;
+  method: string | null;
+  webhook_url: string | null;
+  parameters: any[];
+}
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -145,7 +170,7 @@ function ScoreBar({ score, light = false }: { score: number; light?: boolean }) 
       <div className={`flex-1 h-2 ${light ? 'bg-muted' : 'bg-muted/50'} rounded-full overflow-hidden`}>
         <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${score}%` }} />
       </div>
-      <span className={`text-xs font-bold w-8 text-right tabular-nums ${light ? 'text-foreground' : 'text-foreground'}`}>{score}</span>
+      <span className="text-xs font-bold w-8 text-right tabular-nums">{score}</span>
     </div>
   );
 }
@@ -257,6 +282,10 @@ export default function VoiceAIPage() {
                   <Users className="w-4 h-4" />
                   Campanhas
                 </TabsTrigger>
+                <TabsTrigger value="agent" className="gap-1.5">
+                  <Bot className="w-4 h-4" />
+                  Agente
+                </TabsTrigger>
               </TabsList>
             </Tabs>
             <Button
@@ -284,8 +313,10 @@ export default function VoiceAIPage() {
             setFilterOutcome={setFilterOutcome}
             onSelectCall={fetchCallDetail}
           />
-        ) : (
+        ) : tab === 'campaigns' ? (
           <CampaignTab />
+        ) : (
+          <AgentTab />
         )}
 
         {/* Call Detail Sheet */}
@@ -335,7 +366,6 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KPICard label="Total" value={dashboard.total_calls} icon={PhoneCall} />
         <KPICard label="Atendidas" value={`${dashboard.answer_rate}%`} icon={PhoneForwarded} previousValue={`${dashboard.answered_calls} chamadas`} />
@@ -345,9 +375,7 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
         <KPICard label="Duração" value={`${Math.round(dashboard.avg_duration_seconds / 60)}min`} icon={Activity} />
       </div>
 
-      {/* Outcomes & Daily */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Outcomes */}
         <Card className="p-6 shadow-[var(--shadow-xs)]">
           <h3 className="text-[var(--font-size-body)] font-semibold text-foreground mb-4 flex items-center gap-2">
             <Award className="w-4 h-4 text-primary" />
@@ -368,7 +396,6 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
           </div>
         </Card>
 
-        {/* Daily Activity */}
         <Card className="p-6 shadow-[var(--shadow-xs)]">
           <h3 className="text-[var(--font-size-body)] font-semibold text-foreground mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-500" />
@@ -404,7 +431,6 @@ function DashboardView({ dashboard }: { dashboard: DashboardData | null }) {
         </Card>
       </div>
 
-      {/* By Course */}
       {dashboard.by_course.length > 0 && (
         <Card className="p-6 shadow-[var(--shadow-xs)]">
           <h3 className="text-[var(--font-size-body)] font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -442,7 +468,6 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
 }) {
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <div className="flex items-center gap-3">
         <Select value={filterOutcome} onValueChange={setFilterOutcome}>
           <SelectTrigger className="w-[200px] h-9">
@@ -462,7 +487,6 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
         <span className="text-[var(--font-size-caption)] text-muted-foreground">{total} chamadas</span>
       </div>
 
-      {/* Table */}
       <Card className="overflow-hidden shadow-[var(--shadow-xs)]">
         <Table>
           <TableHeader>
@@ -478,11 +502,7 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
           </TableHeader>
           <TableBody>
             {calls.map((call) => (
-              <TableRow
-                key={call.id}
-                onClick={() => onSelectCall(call.id)}
-                className="cursor-pointer"
-              >
+              <TableRow key={call.id} onClick={() => onSelectCall(call.id)} className="cursor-pointer">
                 <TableCell>
                   <div>
                     <p className="text-[var(--font-size-body)] font-medium text-foreground">{call.lead_name || 'N/A'}</p>
@@ -501,7 +521,6 @@ function CallsListView({ calls, total, filterOutcome, setFilterOutcome, onSelect
             ))}
           </TableBody>
         </Table>
-
         {calls.length === 0 && (
           <EmptyState icon={PhoneOff} title="Nenhuma chamada encontrada" description="Ajuste os filtros ou aguarde novas chamadas." />
         )}
@@ -535,7 +554,6 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
       <Separator />
 
       <div className="space-y-5 py-5">
-        {/* Stats */}
         <div className="grid grid-cols-4 gap-3">
           {[
             { label: 'Score', value: call.score },
@@ -550,19 +568,15 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
           ))}
         </div>
 
-        {/* Audio */}
         {call.campaign && (
           <div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Gravação
-            </p>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Gravação</p>
             <audio controls className="w-full" preload="none">
               <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/voice-ai-el/calls/${call.id}/audio`} type="audio/mpeg" />
             </audio>
           </div>
         )}
 
-        {/* Summary */}
         {call.summary && (
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Resumo</p>
@@ -570,7 +584,6 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
           </div>
         )}
 
-        {/* Collected Fields */}
         {call.collected_fields && Object.keys(call.collected_fields).length > 0 && (
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Dados Coletados</p>
@@ -585,7 +598,6 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
           </div>
         )}
 
-        {/* Transcript */}
         {transcript && transcript.length > 0 && (
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -608,7 +620,6 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
           </div>
         )}
 
-        {/* QA Score */}
         {qa && (
           <div>
             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">QA Automático</p>
@@ -632,5 +643,387 @@ function CallDetailContent({ detail }: { detail: CallDetail }) {
         )}
       </div>
     </>
+  );
+}
+
+// ============================================================
+// AGENT TAB
+// ============================================================
+
+function AgentTab() {
+  const [subTab, setSubTab] = useState<'tools' | 'personality' | 'variables'>('tools');
+  const [tools, setTools] = useState<AgentTool[]>([]);
+  const [loadingTools, setLoadingTools] = useState(true);
+  const [showNewTool, setShowNewTool] = useState(false);
+  const [expandedTool, setExpandedTool] = useState<number | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const fetchTools = async () => {
+    try {
+      const res = await api.get('/voice-ai/agent-tools', { headers });
+      setTools(res.data);
+    } catch {
+      toast.error('Erro ao buscar ferramentas');
+    } finally {
+      setLoadingTools(false);
+    }
+  };
+
+  useEffect(() => { fetchTools(); }, []);
+
+  const toggleTool = async (tool: AgentTool) => {
+    setSavingId(tool.id);
+    try {
+      await api.patch(`/voice-ai/agent-tools/${tool.id}`, { is_active: !tool.is_active }, { headers });
+      setTools(prev => prev.map(t => t.id === tool.id ? { ...t, is_active: !t.is_active } : t));
+      toast.success(tool.is_active ? 'Ferramenta desativada' : 'Ferramenta ativada');
+    } catch {
+      toast.error('Erro ao atualizar ferramenta');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const deleteTool = async (tool: AgentTool) => {
+    if (!confirm(`Remover a ferramenta "${tool.display_name}"?`)) return;
+    try {
+      await api.delete(`/voice-ai/agent-tools/${tool.id}`, { headers });
+      setTools(prev => prev.filter(t => t.id !== tool.id));
+      toast.success('Ferramenta removida');
+    } catch {
+      toast.error('Erro ao remover ferramenta');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Sub-tabs */}
+      <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
+        {[
+          { key: 'tools', label: 'Ferramentas', icon: Wrench },
+          { key: 'personality', label: 'Personalidade', icon: Bot },
+          { key: 'variables', label: 'Variáveis', icon: Settings },
+        ].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setSubTab(key as any)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              subTab === key
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* FERRAMENTAS */}
+      {subTab === 'tools' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Ferramentas do Agente</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Controle o que o agente pode fazer durante as ligações</p>
+            </div>
+            <Button size="sm" onClick={() => setShowNewTool(true)} className="gap-1.5">
+              <Plus className="w-4 h-4" />
+              Nova Ferramenta
+            </Button>
+          </div>
+
+          {loadingTools ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="p-5">
+                  <Skeleton className="h-5 w-40 mb-2" />
+                  <Skeleton className="h-4 w-full" />
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tools.map(tool => (
+                <Card key={tool.id} className={`overflow-hidden transition-all ${tool.is_active ? '' : 'opacity-60'}`}>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-foreground">{tool.display_name}</span>
+                          {tool.is_system && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                              padrão
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{tool.description}</p>
+                        {tool.when_to_use && (
+                          <p className="text-xs text-primary/70 mt-1.5 flex items-start gap-1">
+                            <span className="font-medium flex-shrink-0">Quando usar:</span>
+                            <span className="ml-1">{tool.when_to_use}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {!tool.is_system && (
+                          <>
+                            <button
+                              onClick={() => setExpandedTool(expandedTool === tool.id ? null : tool.id)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+                            >
+                              {expandedTool === tool.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => deleteTool(tool)}
+                              className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                        <div className="flex items-center gap-2">
+                          {savingId === tool.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Switch
+                              checked={tool.is_active}
+                              onCheckedChange={() => toggleTool(tool)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {!tool.is_system && expandedTool === tool.id && (
+                      <div className="mt-4 pt-4 border-t border-border space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Configurações Avançadas</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Método HTTP</Label>
+                            <p className="text-sm font-mono text-foreground mt-1">{tool.method || '-'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Webhook URL</Label>
+                            <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{tool.webhook_url || 'Não configurado'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PERSONALIDADE */}
+      {subTab === 'personality' && (
+        <Card className="p-6">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-medium text-foreground mb-1">Nome do Agente</p>
+              <p className="text-xs text-muted-foreground mb-2">Como o agente se apresenta para os leads</p>
+              <Input placeholder="Ex: Sofia, Carlos, Ana..." defaultValue="Sofia" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground mb-1">Voz</p>
+              <p className="text-xs text-muted-foreground mb-2">Voz utilizada nas ligações (ElevenLabs)</p>
+              <Input placeholder="Ex: rachel, adam..." defaultValue="rachel" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground mb-1">Instruções do Agente</p>
+              <p className="text-xs text-muted-foreground mb-2">Como o agente deve se comportar durante as ligações</p>
+              <Textarea
+                rows={8}
+                placeholder="Você é Sofia, uma consultora de vendas da empresa. Seu objetivo é qualificar leads de forma natural e empática..."
+                className="font-mono text-xs resize-none"
+              />
+            </div>
+            <Button className="w-full gap-1.5">
+              <Save className="w-4 h-4" />
+              Salvar Configurações
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* VARIÁVEIS */}
+      {subTab === 'variables' && (
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-foreground">Variáveis Dinâmicas</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Informações que o agente recebe automaticamente ao iniciar cada ligação</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { name: '{{lead_name}}', description: 'Nome do lead capturado no CRM', source: 'CRM automático' },
+              { name: '{{lead_phone}}', description: 'Número de telefone do lead', source: 'CRM automático' },
+              { name: '{{product_interest}}', description: 'Produto ou serviço de interesse', source: 'CRM automático' },
+              { name: '{{caller_id}}', description: 'Número de telefone detectado automaticamente', source: 'Sistema' },
+            ].map(variable => (
+              <Card key={variable.name} className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-primary">{variable.name}</code>
+                    <p className="text-xs text-foreground mt-1.5">{variable.description}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">Origem: {variable.source}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                    ativo
+                  </Badge>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            Mais variáveis serão adicionadas conforme novas integrações forem ativadas.
+          </p>
+        </div>
+      )}
+
+      {/* MODAL: Nova Ferramenta */}
+      <NewToolDialog
+        open={showNewTool}
+        onClose={() => setShowNewTool(false)}
+        onCreated={(tool) => {
+          setTools(prev => [...prev, tool]);
+          setShowNewTool(false);
+          toast.success('Ferramenta criada com sucesso!');
+        }}
+        headers={headers}
+      />
+    </div>
+  );
+}
+
+// ============================================================
+// NEW TOOL DIALOG
+// ============================================================
+
+function NewToolDialog({ open, onClose, onCreated, headers }: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (tool: AgentTool) => void;
+  headers: any;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [form, setForm] = useState({
+    display_name: '',
+    description: '',
+    when_to_use: '',
+    method: 'POST',
+    webhook_url: '',
+  });
+
+  const handleSave = async () => {
+    if (!form.display_name || !form.description) {
+      toast.error('Nome e descrição são obrigatórios');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.post('/voice-ai/agent-tools', form, { headers });
+      onCreated(res.data);
+      setForm({ display_name: '', description: '', when_to_use: '', method: 'POST', webhook_url: '' });
+    } catch {
+      toast.error('Erro ao criar ferramenta');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-primary" />
+            Nova Ferramenta
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div>
+            <Label className="text-xs font-medium">Nome da Ferramenta *</Label>
+            <Input
+              className="mt-1.5"
+              placeholder="Ex: Consultar Plano do Cliente"
+              value={form.display_name}
+              onChange={e => setForm(p => ({ ...p, display_name: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium">O que essa ferramenta faz? *</Label>
+            <Textarea
+              className="mt-1.5 resize-none"
+              rows={3}
+              placeholder="Descreva o que o agente fará ao usar essa ferramenta..."
+              value={form.description}
+              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium">Quando usar?</Label>
+            <Input
+              className="mt-1.5"
+              placeholder="Ex: Quando o lead perguntar sobre o plano atual..."
+              value={form.when_to_use}
+              onChange={e => setForm(p => ({ ...p, when_to_use: e.target.value }))}
+            />
+          </div>
+
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            Configurações avançadas
+            {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div>
+                <Label className="text-xs font-medium">Método HTTP</Label>
+                <select
+                  className="mt-1.5 w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  value={form.method}
+                  onChange={e => setForm(p => ({ ...p, method: e.target.value }))}
+                >
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                  <option value="PUT">PUT</option>
+                  <option value="PATCH">PATCH</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Webhook URL</Label>
+                <Input
+                  className="mt-1.5 font-mono text-xs"
+                  placeholder="https://api.exemplo.com/v1/..."
+                  value={form.webhook_url}
+                  onChange={e => setForm(p => ({ ...p, webhook_url: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Criar Ferramenta
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
