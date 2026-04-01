@@ -454,3 +454,26 @@ async def update_elevenlabs_agent(
         raise HTTPException(status_code=502, detail=f"Erro ao atualizar agente: {res.text}")
 
     return {"ok": True}
+
+    # ============================================================
+# ESTÁGIOS DO PIPELINE
+# ============================================================
+
+@router.get("/pipeline-stages")
+async def get_pipeline_stages(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna os estágios do pipeline do tenant logado."""
+    result = await db.execute(
+        text("""
+            SELECT DISTINCT lead_status
+            FROM contacts
+            WHERE tenant_id = :tenant_id
+            AND lead_status IS NOT NULL
+            ORDER BY lead_status
+        """),
+        {"tenant_id": current_user.tenant_id}
+    )
+    rows = result.fetchall()
+    return [{"slug": r[0], "name": r[0].replace("_", " ").title()} for r in rows]
