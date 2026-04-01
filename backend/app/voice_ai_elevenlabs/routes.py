@@ -105,6 +105,25 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         
        # Summary
         summary_text = analysis.get("transcript_summary", "")
+
+# Traduzir resumo para PT-BR se estiver em inglês
+if summary_text:
+    try:
+        from openai import AsyncOpenAI
+        import os
+        openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        translation = await openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Traduza o texto para português brasileiro de forma natural. Retorne apenas o texto traduzido, sem explicações."},
+                {"role": "user", "content": summary_text}
+            ],
+            max_tokens=500,
+            temperature=0.3,
+        )
+        summary_text = translation.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"⚠️ Erro ao traduzir resumo: {e}")
         now = datetime.now(SP_TZ).replace(tzinfo=None)
 
         # Buscar contato pelo telefone para obter tenant_id
