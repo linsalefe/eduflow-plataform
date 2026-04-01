@@ -658,9 +658,10 @@ function AgentTab() {
   const [expandedTool, setExpandedTool] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
 
-  const [personality, setPersonality] = useState({ agent_name: 'Sofia', voice: 'rachel', system_prompt: '' });
+  const [personality, setPersonality] = useState({ agent_id: '', agent_name: 'Sofia', voice: 'rachel', system_prompt: '' });
   const [loadingPersonality, setLoadingPersonality] = useState(true);
   const [savingPersonality, setSavingPersonality] = useState(false);
+  const [elevenlabsAgents, setElevenlabsAgents] = useState<{ agent_id: string; name: string }[]>([]);
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = { Authorization: `Bearer ${token}` };
@@ -676,32 +677,20 @@ function AgentTab() {
     }
   };
 
-  const fetchPersonality = async () => {
+  const fetchElevenlabsAgents = async () => {
     try {
-      const res = await api.get('/voice-ai/agent-tools/personality', { headers });
-      setPersonality(res.data);
+      const res = await api.get('/voice-ai/agent-tools/elevenlabs-agents', { headers });
+      setElevenlabsAgents(res.data);
     } catch {
-      toast.error('Erro ao buscar personalidade');
+      toast.error('Erro ao buscar agentes do ElevenLabs');
     } finally {
       setLoadingPersonality(false);
     }
   };
 
-  const savePersonality = async () => {
-    setSavingPersonality(true);
-    try {
-      await api.put('/voice-ai/agent-tools/personality', personality, { headers });
-      toast.success('Configurações salvas!');
-    } catch {
-      toast.error('Erro ao salvar configurações');
-    } finally {
-      setSavingPersonality(false);
-    }
-  };
-
   useEffect(() => {
     fetchTools();
-    fetchPersonality();
+    fetchElevenlabsAgents();
   }, []);
 
   const toggleTool = async (tool: AgentTool) => {
@@ -866,37 +855,78 @@ function AgentTab() {
           ) : (
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-foreground mb-1">Nome do Agente</p>
-                <p className="text-xs text-muted-foreground mb-2">Como o agente se apresenta para os leads</p>
-                <Input
-                  placeholder="Ex: Sofia, Carlos, Ana..."
-                  value={personality.agent_name}
-                  onChange={e => setPersonality(p => ({ ...p, agent_name: e.target.value }))}
-                />
+                <p className="text-sm font-medium text-foreground mb-1">Agente</p>
+                <p className="text-xs text-muted-foreground mb-2">Selecione qual agente do ElevenLabs deseja configurar</p>
+                <select
+                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                  value={personality.agent_id || ''}
+                  onChange={async e => {
+                    const agentId = e.target.value;
+                    if (!agentId) return;
+                    try {
+                      const res = await api.get(`/voice-ai/agent-tools/elevenlabs-agents/${agentId}`, { headers });
+                      setPersonality(p => ({
+                        ...p,
+                        agent_id: agentId,
+                        agent_name: res.data.name,
+                        voice: res.data.voice_id,
+                        system_prompt: res.data.system_prompt,
+                      }));
+                    } catch {
+                      toast.error('Erro ao carregar agente');
+                    }
+                  }}
+                >
+                  <option value="">Selecionar agente...</option>
+                  {elevenlabsAgents.map(a => (
+                    <option key={a.agent_id} value={a.agent_id}>{a.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground mb-1">Voz</p>
-                <p className="text-xs text-muted-foreground mb-2">Voz utilizada nas ligações (ElevenLabs)</p>
+                <p className="text-sm font-medium text-foreground mb-1">Voz (Voice ID)</p>
+                <p className="text-xs text-muted-foreground mb-2">ID da voz no ElevenLabs</p>
                 <Input
-                  placeholder="Ex: rachel, adam..."
+                  placeholder="Ex: gAzaYtjDCyG4vCelULMb"
                   value={personality.voice}
                   onChange={e => setPersonality(p => ({ ...p, voice: e.target.value }))}
                 />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground mb-1">Instruções do Agente</p>
+                <p className="text-sm font-medium text-foreground mb-1">Instruções do Agente (System Prompt)</p>
                 <p className="text-xs text-muted-foreground mb-2">Como o agente deve se comportar durante as ligações</p>
                 <Textarea
-                  rows={8}
-                  placeholder="Você é Sofia, uma consultora de vendas da empresa. Seu objetivo é qualificar leads de forma natural e empática..."
+                  rows={12}
                   className="font-mono text-xs resize-none"
                   value={personality.system_prompt}
                   onChange={e => setPersonality(p => ({ ...p, system_prompt: e.target.value }))}
                 />
               </div>
-              <Button onClick={savePersonality} disabled={savingPersonality} className="w-full gap-1.5">
+              <Button
+                onClick={async () => {
+                  if (!personality.agent_id) {
+                    toast.error('Selecione um agente primeiro');
+                    return;
+                  }
+                  setSavingPersonality(true);
+                  try {
+                    await api.put(
+                      `/voice-ai/agent-tools/elevenlabs-agents/${personality.agent_id}`,
+                      { agent_name: personality.agent_name, voice: personality.voice, system_prompt: personality.system_prompt },
+                      { headers }
+                    );
+                    toast.success('Agente atualizado no ElevenLabs!');
+                  } catch {
+                    toast.error('Erro ao salvar no ElevenLabs');
+                  } finally {
+                    setSavingPersonality(false);
+                  }
+                }}
+                disabled={savingPersonality}
+                className="w-full gap-1.5"
+              >
                 {savingPersonality ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Salvar Configurações
+                Salvar no ElevenLabs
               </Button>
             </div>
           )}
