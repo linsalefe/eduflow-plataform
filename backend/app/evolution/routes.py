@@ -308,7 +308,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                             name=group_name,
                             channel_id=channel_id,
                             lead_status="novo",
-                            ai_active=True,
+                            ai_active=False if is_group else True,
                             last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),
                             reengagement_count=0,
                             is_group=is_group,
