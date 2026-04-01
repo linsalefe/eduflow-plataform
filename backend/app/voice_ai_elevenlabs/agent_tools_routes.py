@@ -302,3 +302,65 @@ async def _seed_system_tools(tenant_id: str, db: AsyncSession):
             }
         )
     await db.commit()
+# ============================================================
+# PERSONALIDADE DO AGENTE
+# ============================================================
+
+class PersonalityUpdate(BaseModel):
+    agent_name: Optional[str] = None
+    voice: Optional[str] = None
+    system_prompt: Optional[str] = None
+
+
+@router.get("/personality")
+async def get_personality(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Retorna a personalidade do agente do tenant."""
+    tenant_id = str(current_user.id)
+
+    result = await db.execute(
+        text("""
+            SELECT agent_name, voice, system_prompt
+            FROM agent_personality
+            WHERE tenant_id = :tenant_id
+        """),
+        {"tenant_id": tenant_id}
+    )
+    row = result.mappings().first()
+
+    if not row:
+        return {"agent_name": "Sofia", "voice": "rachel", "system_prompt": ""}
+
+    return dict(row)
+
+
+@router.put("/personality")
+async def save_personality(
+    data: PersonalityUpdate,
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Salva ou atualiza a personalidade do agente."""
+    tenant_id = str(current_user.id)
+
+    await db.execute(
+        text("""
+            INSERT INTO agent_personality (tenant_id, agent_name, voice, system_prompt, updated_at)
+            VALUES (:tenant_id, :agent_name, :voice, :system_prompt, NOW())
+            ON CONFLICT (tenant_id) DO UPDATE SET
+                agent_name = EXCLUDED.agent_name,
+                voice = EXCLUDED.voice,
+                system_prompt = EXCLUDED.system_prompt,
+                updated_at = NOW()
+        """),
+        {
+            "tenant_id": tenant_id,
+            "agent_name": data.agent_name or "Sofia",
+            "voice": data.voice or "rachel",
+            "system_prompt": data.system_prompt or "",
+        }
+    )
+    await db.commit()
+    return {"ok": True, "agent_name": data.agent_name, "voice": data.voice}
