@@ -152,7 +152,7 @@ async def create_tool(
                  method, webhook_url, parameters, is_system, is_active)
             VALUES
                 (:tenant_id, :name, :display_name, :description, :when_to_use,
-                 :method, :webhook_url, :parameters::jsonb, false, true)
+                 :method, :webhook_url,CAST(:parameters AS JSONB), false, true)
             RETURNING id, name, display_name, description, when_to_use,
                       is_active, is_system, method, webhook_url, parameters, created_at
         """),
@@ -218,7 +218,7 @@ async def update_tool(
             params["webhook_url"] = data.webhook_url
         if data.parameters is not None:
             import json
-            fields.append("parameters = :parameters::jsonb")
+            fields.append("parameters = CAST(:parameters AS JSONB)")
             params["parameters"] = json.dumps(data.parameters)
 
     if not fields:
@@ -285,7 +285,7 @@ async def _seed_system_tools(tenant_id: str, db: AsyncSession):
                      is_system, is_active, method, webhook_url, parameters)
                 VALUES
                     (:tenant_id, :name, :display_name, :description, :when_to_use,
-                     :is_system, :is_active, :method, :webhook_url, :parameters::jsonb)
+                     :is_system, :is_active, :method, :webhook_url, CAST(:parameters AS JSONB))
                 ON CONFLICT DO NOTHING
             """),
             {
