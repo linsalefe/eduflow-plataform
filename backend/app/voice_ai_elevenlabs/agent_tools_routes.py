@@ -310,6 +310,7 @@ class PersonalityUpdate(BaseModel):
     agent_name: Optional[str] = None
     voice: Optional[str] = None
     system_prompt: Optional[str] = None
+    agent_id: Optional[str] = None  # ← adicionar essa linha
 
 
 @router.get("/personality")
@@ -364,3 +365,92 @@ async def save_personality(
     )
     await db.commit()
     return {"ok": True, "agent_name": data.agent_name, "voice": data.voice}
+
+    # ============================================================
+# AGENTES ELEVENLABS
+# ============================================================
+
+import os
+import httpx
+
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+ELEVENLABS_BASE = "https://api.elevenlabs.io/v1"
+
+
+@router.get("/elevenlabs-agents")
+async def list_elevenlabs_agents(
+    current_user=Depends(get_current_user),
+):
+    """Lista todos os agentes da conta ElevenLabs."""
+    async with httpx.AsyncClient() as client:
+        res = await client.get(
+            f"{ELEVENLABS_BASE}/convai/agents",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+            timeout=10,
+        )
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="Erro ao buscar agentes do ElevenLabs")
+    
+    agents = res.json().get("agents", [])
+    return [{"agent_id": a["agent_id"], "name": a["name"]} for a in agents]
+
+
+@router.get("/elevenlabs-agents/{agent_id}")
+async def get_elevenlabs_agent(
+    agent_id: str,
+    current_user=Depends(get_current_user),
+):
+    """Busca configuração atual de um agente do ElevenLabs."""
+    async with httpx.AsyncClient() as client:
+        res = await client.get(
+            f"{ELEVENLABS_BASE}/convai/agents/{agent_id}",
+            headers={"xi-api-key": ELEVENLABS_API_KEY},
+            timeout=10,
+        )
+    if res.status_code != 200:
+        raise HTTPException(status_code=502, detail="Erro ao buscar agente do ElevenLabs")
+
+    data = res.json()
+    return {
+        "agent_id": agent_id,
+        "name": data.get("name", ""),
+        "system_prompt": data.get("conversation_config", {}).get("agent", {}).get("prompt", {}).get("prompt", ""),
+        "voice_id": data.get("conversation_config", {}).get("tts", {}).get("voice_id", ""),
+    }
+
+
+@router.put("/elevenlabs-agents/{agent_id}")
+async def update_elevenlabs_agent(
+    agent_id: str,
+    data: PersonalityUpdate,
+    current_user=Depends(get_current_user),
+):
+    """Atualiza system prompt e voz de um agente no ElevenLabs."""
+    payload: dict = {"conversation_config": {"agent": {}, "tts": {}}}
+
+    if data.system_prompt is not None:
+        payload["conversation_config"]["agent"] = {
+            "prompt": {"prompt": data.system_prompt}
+        }
+    if data.voice is not None:
+        payload["conversation_config"]["tts"] = {
+            "voice_id": data.voice
+        }
+    if data.agent_name is not None:
+        payload["name"] = data.agent_name
+
+    async with httpx.AsyncClient() as client:
+        res = await client.patch(
+            f"{ELEVENLABS_BASE}/convai/agents/{agent_id}",
+            headers={
+                "xi-api-key": ELEVENLABS_API_KEY,
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=15,
+        )
+
+    if res.status_code not in (200, 204):
+        raise HTTPException(status_code=502, detail=f"Erro ao atualizar agente: {res.text}")
+
+    return {"ok": True}
