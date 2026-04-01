@@ -127,6 +127,7 @@ interface AgentTool {
   method: string | null;
   webhook_url: string | null;
   parameters: any[];
+  post_action_stage?: string;
 }
 
 // ============================================================
@@ -658,7 +659,12 @@ function AgentTab() {
   const [expandedTool, setExpandedTool] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
 
-  const [personality, setPersonality] = useState({ agent_id: '', agent_name: 'Sofia', voice: 'rachel', system_prompt: '' });
+  const [personality, setPersonality] = useState({
+    agent_name: 'Sofia',
+    voice: 'rachel',
+    system_prompt: '',
+    agent_id: 'agent_8201khxrydbcfxqtav8ffy0enqft', // Rafael SDR por padrão
+  });
   const [loadingPersonality, setLoadingPersonality] = useState(true);
   const [savingPersonality, setSavingPersonality] = useState(false);
   const [elevenlabsAgents, setElevenlabsAgents] = useState<{ agent_id: string; name: string }[]>([]);
@@ -677,12 +683,12 @@ function AgentTab() {
     }
   };
 
-  const fetchElevenlabsAgents = async () => {
+  const fetchPersonality = async () => {
     try {
-      const res = await api.get('/voice-ai/agent-tools/elevenlabs-agents', { headers });
-      setElevenlabsAgents(res.data);
+      const res = await api.get('/voice-ai/agent-tools/personality', { headers });
+      setPersonality(prev => ({ ...prev, ...res.data }));
     } catch {
-      toast.error('Erro ao buscar agentes do ElevenLabs');
+      toast.error('Erro ao buscar personalidade');
     } finally {
       setLoadingPersonality(false);
     }
@@ -690,7 +696,11 @@ function AgentTab() {
 
   useEffect(() => {
     fetchTools();
-    fetchElevenlabsAgents();
+    fetchPersonality();
+    // Buscar agentes ElevenLabs
+    api.get('/voice-ai/agent-tools/elevenlabs-agents', { headers })
+      .then(res => setElevenlabsAgents(res.data))
+      .catch(() => toast.error('Erro ao buscar agentes ElevenLabs'));
   }, []);
 
   const toggleTool = async (tool: AgentTool) => {
@@ -831,6 +841,16 @@ function AgentTab() {
                             <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{tool.webhook_url || 'Não configurado'}</p>
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Dropdown de estágio para tool de agendamento */}
+                    {tool.name === 'schedule_meeting' && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Após agendar, mover lead para</p>
+                        <StageSelector tool={tool} headers={headers} onUpdate={(stage) => {
+                          setTools(prev => prev.map(t => t.id === tool.id ? { ...t, post_action_stage: stage } : t));
+                        }} />
                       </div>
                     )}
                   </div>
@@ -978,6 +998,55 @@ function AgentTab() {
         }}
         headers={headers}
       />
+    </div>
+  );
+}
+
+// ============================================================
+// STAGE SELECTOR
+// ============================================================
+
+function StageSelector({ tool, headers, onUpdate }: {
+  tool: AgentTool;
+  headers: any;
+  onUpdate: (stage: string) => void;
+}) {
+  const [stages, setStages] = useState<{ slug: string; name: string }[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/voice-ai/agent-tools/pipeline-stages', { headers })
+      .then(res => setStages(res.data))
+      .catch(() => {});
+  }, []);
+
+  const handleChange = async (slug: string) => {
+    setSaving(true);
+    try {
+      await api.patch(`/voice-ai/agent-tools/${tool.id}`, { post_action_stage: slug }, { headers });
+      onUpdate(slug);
+      toast.success('Estágio configurado!');
+    } catch {
+      toast.error('Erro ao salvar estágio');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        className="flex-1 h-9 px-3 rounded-md border border-input bg-background text-sm"
+        value={(tool as any).post_action_stage || ''}
+        onChange={e => handleChange(e.target.value)}
+        disabled={saving}
+      >
+        <option value="">Selecionar estágio...</option>
+        {stages.map(s => (
+          <option key={s.slug} value={s.slug}>{s.name}</option>
+        ))}
+      </select>
+      {saving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
     </div>
   );
 }
