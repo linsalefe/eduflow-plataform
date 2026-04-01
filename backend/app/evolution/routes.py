@@ -284,10 +284,28 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     if not contact:
                         from datetime import datetime, timezone, timedelta
                         SP_TZ = timezone(timedelta(hours=-3))
+
+                        # Para grupos, buscar nome do grupo na Evolution API
+                        group_name = sender_name
+                        if is_group:
+                            try:
+                                import httpx
+                                from app.evolution.config import EVOLUTION_API_URL, EVOLUTION_API_KEY
+                                async with httpx.AsyncClient(timeout=5) as http_client:
+                                    group_resp = await http_client.get(
+                                        f"{EVOLUTION_API_URL}/group/findGroupInfos/{instance_name}",
+                                        params={"groupJid": contact_phone},
+                                        headers={"apikey": EVOLUTION_API_KEY},
+                                    )
+                                    if group_resp.status_code == 200:
+                                        group_name = group_resp.json().get("subject", sender_name)
+                            except Exception as e:
+                                print(f"⚠️ Erro ao buscar nome do grupo: {e}")
+
                         contact = Contact(
                             tenant_id=tenant_id,
                             wa_id=contact_phone,
-                            name=sender_name,
+                            name=group_name,
                             channel_id=channel_id,
                             lead_status="novo",
                             ai_active=True,
