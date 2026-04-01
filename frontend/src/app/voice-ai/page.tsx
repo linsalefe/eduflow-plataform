@@ -658,6 +658,10 @@ function AgentTab() {
   const [expandedTool, setExpandedTool] = useState<number | null>(null);
   const [savingId, setSavingId] = useState<number | null>(null);
 
+  const [personality, setPersonality] = useState({ agent_name: 'Sofia', voice: 'rachel', system_prompt: '' });
+  const [loadingPersonality, setLoadingPersonality] = useState(true);
+  const [savingPersonality, setSavingPersonality] = useState(false);
+
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -672,7 +676,33 @@ function AgentTab() {
     }
   };
 
-  useEffect(() => { fetchTools(); }, []);
+  const fetchPersonality = async () => {
+    try {
+      const res = await api.get('/voice-ai/agent-tools/personality', { headers });
+      setPersonality(res.data);
+    } catch {
+      toast.error('Erro ao buscar personalidade');
+    } finally {
+      setLoadingPersonality(false);
+    }
+  };
+
+  const savePersonality = async () => {
+    setSavingPersonality(true);
+    try {
+      await api.put('/voice-ai/agent-tools/personality', personality, { headers });
+      toast.success('Configurações salvas!');
+    } catch {
+      toast.error('Erro ao salvar configurações');
+    } finally {
+      setSavingPersonality(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTools();
+    fetchPersonality();
+  }, []);
 
   const toggleTool = async (tool: AgentTool) => {
     setSavingId(tool.id);
@@ -825,31 +855,51 @@ function AgentTab() {
       {/* PERSONALIDADE */}
       {subTab === 'personality' && (
         <Card className="p-6">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-foreground mb-1">Nome do Agente</p>
-              <p className="text-xs text-muted-foreground mb-2">Como o agente se apresenta para os leads</p>
-              <Input placeholder="Ex: Sofia, Carlos, Ana..." defaultValue="Sofia" />
+          {loadingPersonality ? (
+            <div className="space-y-4">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-32 w-full" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground mb-1">Voz</p>
-              <p className="text-xs text-muted-foreground mb-2">Voz utilizada nas ligações (ElevenLabs)</p>
-              <Input placeholder="Ex: rachel, adam..." defaultValue="rachel" />
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Nome do Agente</p>
+                <p className="text-xs text-muted-foreground mb-2">Como o agente se apresenta para os leads</p>
+                <Input
+                  placeholder="Ex: Sofia, Carlos, Ana..."
+                  value={personality.agent_name}
+                  onChange={e => setPersonality(p => ({ ...p, agent_name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Voz</p>
+                <p className="text-xs text-muted-foreground mb-2">Voz utilizada nas ligações (ElevenLabs)</p>
+                <Input
+                  placeholder="Ex: rachel, adam..."
+                  value={personality.voice}
+                  onChange={e => setPersonality(p => ({ ...p, voice: e.target.value }))}
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">Instruções do Agente</p>
+                <p className="text-xs text-muted-foreground mb-2">Como o agente deve se comportar durante as ligações</p>
+                <Textarea
+                  rows={8}
+                  placeholder="Você é Sofia, uma consultora de vendas da empresa. Seu objetivo é qualificar leads de forma natural e empática..."
+                  className="font-mono text-xs resize-none"
+                  value={personality.system_prompt}
+                  onChange={e => setPersonality(p => ({ ...p, system_prompt: e.target.value }))}
+                />
+              </div>
+              <Button onClick={savePersonality} disabled={savingPersonality} className="w-full gap-1.5">
+                {savingPersonality ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salvar Configurações
+              </Button>
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground mb-1">Instruções do Agente</p>
-              <p className="text-xs text-muted-foreground mb-2">Como o agente deve se comportar durante as ligações</p>
-              <Textarea
-                rows={8}
-                placeholder="Você é Sofia, uma consultora de vendas da empresa. Seu objetivo é qualificar leads de forma natural e empática..."
-                className="font-mono text-xs resize-none"
-              />
-            </div>
-            <Button className="w-full gap-1.5">
-              <Save className="w-4 h-4" />
-              Salvar Configurações
-            </Button>
-          </div>
+          )}
         </Card>
       )}
 
