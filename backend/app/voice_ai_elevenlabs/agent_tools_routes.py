@@ -201,7 +201,7 @@ async def update_tool(
         fields.append("is_active = :is_active")
         params["is_active"] = data.is_active
 
-     if data.post_action_stage is not None:
+    if data.post_action_stage is not None:
         fields.append("post_action_stage = :post_action_stage")
         params["post_action_stage"] = data.post_action_stage    
 
