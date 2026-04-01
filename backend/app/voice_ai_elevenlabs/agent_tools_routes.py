@@ -7,6 +7,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 from sqlalchemy import select, text
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 from sqlalchemy import Integer, String, Boolean, Text, DateTime
@@ -401,22 +402,27 @@ async def get_elevenlabs_agent(
     current_user=Depends(get_current_user),
 ):
     """Busca configuração atual de um agente do ElevenLabs."""
-    async with httpx.AsyncClient() as client:
-        res = await client.get(
-            f"{ELEVENLABS_BASE}/convai/agents/{agent_id}",
-            headers={"xi-api-key": ELEVENLABS_API_KEY},
-            timeout=30,
-        )
-    if res.status_code != 200:
-        raise HTTPException(status_code=502, detail="Erro ao buscar agente do ElevenLabs")
-
-    data = res.json()
-    return {
-        "agent_id": agent_id,
-        "name": data.get("name", ""),
-        "system_prompt": data.get("conversation_config", {}).get("agent", {}).get("prompt", {}).get("prompt", ""),
-        "voice_id": data.get("conversation_config", {}).get("tts", {}).get("voice_id", ""),
-    }
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(
+                    f"{ELEVENLABS_BASE}/convai/agents/{agent_id}",
+                    headers={"xi-api-key": ELEVENLABS_API_KEY},
+                    timeout=60,
+                )
+            if res.status_code == 200:
+                data = res.json()
+                return {
+                    "agent_id": agent_id,
+                    "name": data.get("name", ""),
+                    "system_prompt": data.get("conversation_config", {}).get("agent", {}).get("prompt", {}).get("prompt", ""),
+                    "voice_id": data.get("conversation_config", {}).get("tts", {}).get("voice_id", ""),
+                }
+        except httpx.TimeoutException:
+            if attempt == 2:
+                raise HTTPException(status_code=504, detail="ElevenLabs timeout após 3 tentativas")
+            await asyncio.sleep(2)
+    raise HTTPException(status_code=502, detail="Erro ao buscar agente")
 
 
 @router.put("/elevenlabs-agents/{agent_id}")
