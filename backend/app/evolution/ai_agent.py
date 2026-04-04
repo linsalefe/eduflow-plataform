@@ -10,7 +10,7 @@ import uuid
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import Contact, Message, AIConfig, Channel, Tenant
+from app.models import Contact, Message, AIConfig, Channel, Tenant, TokenUsage
 from app.evolution.client import send_text, send_audio
 from app.elevenlabs.client import text_to_audio_base64
 from app.ai_engine import search_knowledge
@@ -196,6 +196,22 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
             }
             response = await client.chat.completions.create(**retry_params)
             raw = (response.choices[0].message.content or "").strip()
+
+        # Salvar consumo de tokens
+        try:
+            usage = response.usage
+            if usage and tenant_id:
+                token_record = TokenUsage(
+                    tenant_id=tenant_id,
+                    source="whatsapp_ai",
+                    model=response.model,
+                    prompt_tokens=usage.prompt_tokens or 0,
+                    completion_tokens=usage.completion_tokens or 0,
+                    total_tokens=usage.total_tokens or 0,
+                )
+                db.add(token_record)
+        except Exception as e:
+            print(f"⚠️ Erro ao salvar token_usage: {e}")
 
         # Parse JSON
         try:

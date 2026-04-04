@@ -7,7 +7,9 @@ from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
-from app.models import Tenant, User, Contact, Channel
+from app.models import Tenant, User, Contact, Channel, TokenUsage
+from sqlalchemy import select, func, and_
+from datetime import datetime, timedelta
 from app.auth import get_current_user, get_tenant_id, hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -573,3 +575,77 @@ async def update_reengagement_config(
 
     await db.commit()
     return {"message": "Configuração de reengajamento atualizada", "reengagement_config": tenant.reengagement_config}
+# === Rotas de Token Usage ===
+
+@router.get("/token-usage")
+async def get_token_usage_summary(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_superadmin),
+):
+    """Retorna consumo total de tokens por tenant."""
+    result = await db.execute(
+        select(
+            TokenUsage.tenant_id,
+            Tenant.name.label("tenant_name"),
+            func.sum(TokenUsage.prompt_tokens).label("prompt_tokens"),
+            func.sum(TokenUsage.completion_tokens).label("completion_tokens"),
+            func.sum(TokenUsage.total_tokens).label("total_tokens"),
+            func.count(TokenUsage.id).label("total_calls"),
+        )
+        .join(Tenant, Tenant.id == TokenUsage.tenant_id)
+        .group_by(TokenUsage.tenant_id, Tenant.name)
+        .order_by(func.sum(TokenUsage.total_tokens).desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "tenant_id": r.tenant_id,
+            "tenant_name": r.tenant_name,
+            "prompt_tokens": r.prompt_tokens or 0,
+            "completion_tokens": r.completion_tokens or 0,
+            "total_tokens": r.total_tokens or 0,
+            "total_calls": r.total_calls or 0,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/token-usage/{tenant_id}")
+async def get_token_usage_by_tenant(
+    tenant_id: int,
+    days: int = 30,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_superadmin),
+):
+    """Retorna consumo diário de tokens de um tenant específico."""
+    since = datetime.utcnow() - timedelta(days=days)
+    result = await db.execute(
+        select(
+            func.date(TokenUsage.created_at).label("date"),
+            func.sum(TokenUsage.prompt_tokens).label("prompt_tokens"),
+            func.sum(TokenUsage.completion_tokens).label("completion_tokens"),
+            func.sum(TokenUsage.total_tokens).label("total_tokens"),
+            func.count(TokenUsage.id).label("calls"),
+            TokenUsage.model,
+        )
+        .where(
+            and_(
+                TokenUsage.tenant_id == tenant_id,
+                TokenUsage.created_at >= since,
+            )
+        )
+        .group_by(func.date(TokenUsage.created_at), TokenUsage.model)
+        .order_by(func.date(TokenUsage.created_at).desc())
+    )
+    rows = result.all()
+    return [
+        {
+            "date": str(r.date),
+            "prompt_tokens": r.prompt_tokens or 0,
+            "completion_tokens": r.completion_tokens or 0,
+            "total_tokens": r.total_tokens or 0,
+            "calls": r.calls or 0,
+            "model": r.model,
+        }
+        for r in rows
+    ]
