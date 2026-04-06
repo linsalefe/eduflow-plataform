@@ -27,6 +27,8 @@ interface Tenant {
   notes: string | null;
   user_count: number;
   contact_count: number;
+  credits_balance: number;
+  credits_used: number;
   created_at: string;
 }
 
@@ -37,6 +39,8 @@ interface TokenSummary {
   completion_tokens: number;
   total_tokens: number;
   total_calls: number;
+  credits_balance: number;
+  credits_used: number;
 }
 
 interface TokenDetail {
@@ -555,7 +559,7 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/[0.06]">
-                          {['Cliente', 'Chamadas', 'Tokens Prompt', 'Tokens Resposta', 'Total Tokens', 'Custo Est. (USD)', ''].map(h => (
+                          {['Cliente', 'Chamadas', 'Tokens Prompt', 'Tokens Resposta', 'Total Tokens', 'Custo Est. (USD)', 'Créditos', ''].map(h => (
                             <th key={h} className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500">{h}</th>
                           ))}
                         </tr>
@@ -584,12 +588,21 @@ export default function AdminPage() {
                               <td className="px-5 py-4 text-indigo-400 font-semibold">{formatTokens(row.total_tokens)}</td>
                               <td className="px-5 py-4 text-amber-400 font-semibold">${cost.toFixed(4)}</td>
                               <td className="px-5 py-4">
-                                <button
-                                  onClick={() => setSelectedTenant(row)}
-                                  className="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg text-xs text-gray-300 transition-colors"
-                                >
-                                  Ver detalhe
-                                </button>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-emerald-400 font-semibold">{row.credits_balance} restantes</span>
+                                  <span className="text-[10px] text-gray-600">{row.credits_used} usados</span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => setSelectedTenant(row)}
+                                    className="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg text-xs text-gray-300 transition-colors"
+                                  >
+                                    Ver detalhe
+                                  </button>
+                                  <AddCreditsButton tenantId={row.tenant_id} onAdded={fetchTokenSummary} />
+                                </div>
                               </td>
                             </tr>
                           );
@@ -839,6 +852,61 @@ function EditTenantInfo({ tenant, onSaved }: { tenant: Tenant; onSaved: () => vo
           Cancelar
         </button>
       </div>
+    </div>
+  );
+}
+
+function AddCreditsButton({ tenantId, onAdded }: { tenantId: number; onAdded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState('100');
+  const [saving, setSaving] = useState(false);
+
+  const handleAdd = async () => {
+    setSaving(true);
+    try {
+      await api.post(`/admin/tenants/${tenantId}/credits`, { amount: parseInt(amount) });
+      onAdded();
+      setOpen(false);
+      setAmount('100');
+    } catch {
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-xs text-emerald-400 transition-colors"
+      >
+        + Créditos
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <input
+        type="number"
+        value={amount}
+        onChange={e => setAmount(e.target.value)}
+        className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white outline-none"
+        min="1"
+      />
+      <button
+        onClick={handleAdd}
+        disabled={saving}
+        className="px-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-medium transition-colors"
+      >
+        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+      </button>
+      <button
+        onClick={() => setOpen(false)}
+        className="px-2 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg text-xs text-gray-400 transition-colors"
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
