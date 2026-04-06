@@ -377,23 +377,21 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
                 {"wid": contact.wa_id, "tid": tag_obj.id}
             )
 
-    await db.commit()
-
     # === Enviar mensagem WhatsApp ===
     if page.whatsapp_message and phone_clean:
         try:
             from app.evolution import client as evo_client
-            channel_result = await db.execute(
-                select(Channel).where(Channel.id == page.channel_id)
-            )
+            channel_result = await db.execute(select(Channel).where(Channel.id == page.channel_id))
             channel_obj = channel_result.scalar_one_or_none()
             if channel_obj and channel_obj.instance_name:
                 full_name = data.get("name", "")
-        first_name = full_name.strip().split()[0] if full_name.strip() else full_name
-        message_text = page.whatsapp_message.replace("{nome}", first_name)
+                first_name = full_name.strip().split()[0] if full_name.strip() else full_name
+                message_text = page.whatsapp_message.replace("{nome}", first_name)
                 await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
         except Exception as e:
-            print(f"⚠️ Erro ao enviar mensagem WhatsApp: {e}")
+            print(f"Erro WhatsApp: {e}")
+    await db.commit()
+
 
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
