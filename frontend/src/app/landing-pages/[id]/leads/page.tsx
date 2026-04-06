@@ -249,7 +249,7 @@ export default function LeadsPage() {
               {selectedLead.contact?.wa_id && (
                 <div className="pt-4 border-t border-gray-100">
                   <button
-                    onClick={() => router.push(`/conversations/${selectedLead.contact!.wa_id}`)}
+                    onClick={() => router.push(`/conversations?wa_id=${selectedLead.contact!.wa_id}`)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
                   >
                     <MessageCircle className="w-4 h-4" /> Abrir Conversa

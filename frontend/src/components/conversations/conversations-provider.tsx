@@ -9,6 +9,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { CheckCheck, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -195,6 +196,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   // ── Contacts ──────────────────────────────────────────────────────
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const searchParams = useSearchParams();
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [profilePics, setProfilePics] = useState<Record<string, string | null>>({});
@@ -314,6 +316,15 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       return () => clearInterval(interval);
     }
   }, [activeChannel]);
+
+  // Auto-selecionar contato via query param ?wa_id=
+  useEffect(() => {
+    const waIdParam = searchParams.get('wa_id');
+    if (waIdParam && contacts.length > 0 && !selectedContact) {
+      const found = contacts.find((c) => c.wa_id === waIdParam);
+      if (found) setSelectedContact(found);
+    }
+  }, [contacts, searchParams]);
 
   // Carregar mensagens ao selecionar contato
   useEffect(() => {
