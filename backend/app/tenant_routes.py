@@ -599,6 +599,19 @@ async def get_token_usage_summary(
         .order_by(func.sum(TokenUsage.total_tokens).desc())
     )
     rows = result.all()
+
+    # Buscar créditos de cada tenant
+    
+    tenant_ids = [r.tenant_id for r in rows]
+    credits_map = {}
+    if tenant_ids:
+        t_result = await db.execute(
+            select(Tenant.id, Tenant.credits_balance, Tenant.credits_used)
+            .where(Tenant.id.in_(tenant_ids))
+        )
+        for tr in t_result.all():
+            credits_map[tr.id] = {"balance": tr.credits_balance or 0, "used": tr.credits_used or 0}
+
     return [
         {
             "tenant_id": r.tenant_id,
@@ -607,6 +620,8 @@ async def get_token_usage_summary(
             "completion_tokens": r.completion_tokens or 0,
             "total_tokens": r.total_tokens or 0,
             "total_calls": r.total_calls or 0,
+            "credits_balance": credits_map.get(r.tenant_id, {}).get("balance", 0),
+            "credits_used": credits_map.get(r.tenant_id, {}).get("used", 0),
         }
         for r in rows
     ]
