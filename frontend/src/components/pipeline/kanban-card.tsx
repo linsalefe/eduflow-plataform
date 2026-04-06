@@ -1,7 +1,6 @@
 'use client';
 
 import { Clock, Sparkles, MessageCircle } from 'lucide-react';
-import { Card } from '@/components/ui/card';
 
 interface Tag {
   id: number;
@@ -58,7 +57,6 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** Retorna null se a nota for JSON cru ou vazia */
 function sanitizeNotes(notes: string | null): string | null {
   if (!notes) return null;
   const trimmed = notes.trim();
@@ -68,77 +66,93 @@ function sanitizeNotes(notes: string | null): string | null {
 }
 
 export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanCardProps) {
-  const time =
-    lead.updated_at
-      ? getRelativeTime(lead.updated_at)
-      : lead.created_at
-      ? getRelativeTime(lead.created_at)
-      : '';
+  const time = lead.updated_at
+    ? getRelativeTime(lead.updated_at)
+    : lead.created_at
+    ? getRelativeTime(lead.created_at)
+    : '';
 
   const initials = getInitials(lead.name);
-  const avatarBg = hexToRgba(color, 0.15);
   const visibleTags = lead.tags?.slice(0, 2) ?? [];
   const extraTags = (lead.tags?.length ?? 0) - visibleTags.length;
   const notes = sanitizeNotes(lead.notes);
 
   return (
-    <Card
+    <div
       onClick={onClick}
-      className={`relative overflow-hidden serviçor-grab active:serviçor-grabbing border border-border/60 bg-card transition-all duration-200 select-none group ${
+      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 ${
         isDragging
-          ? 'opacity-80 scale-[0.97] shadow-lg shadow-black/10 rotate-[1.5deg]'
-          : 'hover:shadow-md hover:border-border hover:-translate-y-0.5'
+          ? 'opacity-90 scale-[0.97] shadow-xl shadow-black/15 rotate-[1.5deg]'
+          : 'hover:shadow-lg hover:-translate-y-0.5'
       }`}
+      style={{
+        background: 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: `1px solid ${hexToRgba(color, 0.15)}`,
+      }}
     >
-      {/* Accent bar esquerda */}
+      {/* Top accent gradient */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg"
-        style={{ backgroundColor: color }}
+        className="absolute top-0 left-3 right-3 h-[2px] rounded-full"
+        style={{
+          background: `linear-gradient(90deg, ${color}, ${hexToRgba(color, 0.3)})`,
+        }}
       />
 
-      <div className="p-2.5 pl-[14px] space-y-2">
-
-        {/* ── Linha 1: Avatar + Nome ── */}
-        <div className="flex items-start gap-2">
-          {/* Avatar compacto */}
+      <div className="p-3 space-y-2.5">
+        {/* Row 1: Avatar + Name + Time */}
+        <div className="flex items-center gap-2.5">
           <div
-            className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold leading-none mt-[1px]"
-            style={{ backgroundColor: avatarBg, color }}
+            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold"
+            style={{
+              background: `linear-gradient(135deg, ${hexToRgba(color, 0.2)}, ${hexToRgba(color, 0.08)})`,
+              color,
+            }}
           >
             {initials}
           </div>
-
-          {/* 
-            Nome sem truncate/line-clamp: usa break-words para quebrar
-            naturalmente. A largura total da coluna limita o texto.
-          */}
-          <p
-            className="flex-1 min-w-0 text-[11.5px] font-semibold text-foreground leading-[1.35] break-words"
-            title={lead.name || 'Sem nome'}
-          >
-            {lead.name || 'Sem nome'}
-          </p>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-gray-900 truncate" title={lead.name || 'Sem nome'}>
+              {lead.name || 'Sem nome'}
+            </p>
+            {time && (
+              <span className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
+                <Clock className="w-2.5 h-2.5" />
+                {time}
+              </span>
+            )}
+          </div>
+          {lead.ai_active && (
+            <div
+              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg"
+              style={{
+                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.12), rgba(147, 51, 234, 0.04))',
+              }}
+              title="IA ativa"
+            >
+              <Sparkles className="w-3 h-3 text-purple-500" />
+              <span className="text-[10px] font-semibold text-purple-500">IA</span>
+            </div>
+          )}
         </div>
 
-        {/* ── Linha 2: Nota (somente se não for JSON) ── */}
+        {/* Row 2: Notes */}
         {notes && (
-          <div className="flex items-start gap-1 pl-[32px]">
-            <MessageCircle className="w-2.5 h-2.5 text-muted-foreground/50 flex-shrink-0 mt-[1px]" />
-            <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
-              {notes}
-            </p>
-          </div>
+          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 pl-[42px]">
+            {notes}
+          </p>
         )}
 
-        {/* ── Linha 3: Tags ── */}
+        {/* Row 3: Tags */}
         {visibleTags.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap pl-[32px]">
+          <div className="flex items-center gap-1.5 pl-[42px]">
             {visibleTags.map((tag) => (
               <span
                 key={tag.id}
-                className="inline-flex items-center h-[14px] px-1.5 rounded-full text-[9px] font-medium leading-none"
+                className="inline-flex items-center h-[18px] px-2 rounded-md text-[10px] font-medium"
                 style={{
-                  backgroundColor: hexToRgba(tag.color, 0.15),
+                  backgroundColor: hexToRgba(tag.color, 0.12),
                   color: tag.color,
                 }}
               >
@@ -146,35 +160,11 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
               </span>
             ))}
             {extraTags > 0 && (
-              <span className="text-[9px] text-muted-foreground">+{extraTags}</span>
+              <span className="text-[10px] text-gray-400">+{extraTags}</span>
             )}
           </div>
         )}
-
-        {/* ── Linha 4 (rodapé): IA badge + Tempo ── */}
-        <div className="flex items-center justify-between pl-[32px]">
-          {lead.ai_active ? (
-            <div
-              className="flex items-center gap-1 h-4 px-1.5 rounded-full"
-              style={{ backgroundColor: hexToRgba('#9333ea', 0.1) }}
-              title="IA ativa"
-            >
-              <Sparkles className="w-2.5 h-2.5 text-purple-500" />
-              <span className="text-[9px] font-medium text-purple-500 leading-none">IA</span>
-            </div>
-          ) : (
-            <span />
-          )}
-
-          {time && (
-            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground/60">
-              <Clock className="w-2.5 h-2.5" />
-              {time}
-            </span>
-          )}
-        </div>
-
       </div>
-    </Card>
+    </div>
   );
 }

@@ -15,6 +15,15 @@ interface KanbanColumnProps {
   index?: number;
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(100,100,100,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 export function KanbanColumn({
   columnKey,
   label,
@@ -26,38 +35,45 @@ export function KanbanColumn({
 }: KanbanColumnProps) {
   return (
     <motion.div
-      className="flex-1 min-w-0 flex flex-col"
+      className="min-w-[260px] w-[260px] flex-shrink-0 flex flex-col h-full"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
         duration: 0.35,
-        delay: index * 0.06,
+        delay: index * 0.04,
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
     >
-      {/* Column Header */}
+      {/* Column Header - glass */}
       <div
-        className="px-4 py-3 rounded-t-xl border border-b-0"
+        className="px-3.5 py-2.5 rounded-xl mb-2"
         style={{
-          background: `linear-gradient(135deg, ${color}14 0%, ${color}08 100%)`,
-          borderColor: `${color}30`,
+          background: `linear-gradient(135deg, ${hexToRgba(color, 0.1)}, ${hexToRgba(color, 0.04)})`,
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+          border: `1px solid ${hexToRgba(color, 0.15)}`,
         }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="h-6 w-6 rounded-md flex items-center justify-center"
-              style={{ backgroundColor: `${color}20` }}
+              className="h-6 w-6 rounded-lg flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${hexToRgba(color, 0.25)}, ${hexToRgba(color, 0.1)})`,
+              }}
             >
               <Icon className="w-3.5 h-3.5" style={{ color }} />
             </div>
-            <span className="text-[13px] font-semibold text-foreground">
+            <span className="text-[13px] font-semibold text-foreground truncate">
               {label}
             </span>
           </div>
           <span
-            className="text-[12px] font-bold px-2 py-0.5 rounded-full tabular-nums"
-            style={{ color, backgroundColor: `${color}18` }}
+            className="text-[12px] font-bold px-2 py-0.5 rounded-lg tabular-nums min-w-[28px] text-center"
+            style={{
+              color,
+              background: `linear-gradient(135deg, ${hexToRgba(color, 0.15)}, ${hexToRgba(color, 0.06)})`,
+            }}
           >
             {leads.length}
           </span>
@@ -70,43 +86,28 @@ export function KanbanColumn({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 border border-t-0 rounded-b-xl p-2.5 space-y-2 overflow-y-auto transition-all duration-200 min-h-[120px]"
+            className="flex-1 rounded-xl p-2 space-y-2 overflow-y-auto transition-all duration-200 min-h-[100px]"
             style={
               snapshot.isDraggingOver
                 ? {
-                    boxShadow: `inset 0 0 0 2px ${color}40`,
-                    backgroundColor: `${color}06`,
-                    borderColor: `${color}30`,
+                    background: `linear-gradient(180deg, ${hexToRgba(color, 0.08)}, ${hexToRgba(color, 0.02)})`,
+                    border: `2px dashed ${hexToRgba(color, 0.35)}`,
                   }
                 : {
-                    backgroundColor: 'var(--card)',
-                    borderColor: `${color}30`,
+                    background: 'transparent',
+                    border: '2px dashed transparent',
                   }
             }
           >
             {leads.length === 0 && !snapshot.isDraggingOver && (
-              <div className="text-center py-10">
-                <div className="relative w-12 h-12 mx-auto mb-2">
-                  <div
-                    className="absolute inset-0 rounded-full opacity-10"
-                    style={{ backgroundColor: color }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Users className="w-5 h-5" style={{ color, opacity: 0.4 }} />
-                  </div>
+              <div className="text-center py-8">
+                <div
+                  className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ background: hexToRgba(color, 0.06) }}
+                >
+                  <Users className="w-4 h-4" style={{ color, opacity: 0.35 }} />
                 </div>
-                <p className="text-[11px] text-muted-foreground/50">Nenhum lead</p>
-              </div>
-            )}
-
-            {snapshot.isDraggingOver && leads.length === 0 && (
-              <div
-                className="border-2 border-dashed rounded-xl p-4 text-center transition-colors"
-                style={{ borderColor: `${color}60` }}
-              >
-                <p className="text-[12px] font-medium" style={{ color }}>
-                  Soltar aqui
-                </p>
+                <p className="text-[11px] text-muted-foreground/40">Nenhum lead</p>
               </div>
             )}
 
