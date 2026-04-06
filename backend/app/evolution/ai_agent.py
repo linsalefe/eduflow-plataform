@@ -132,6 +132,11 @@ async def process_message(
             if tenant and tenant.qualification_fields:
                 qualification_fields = tenant.qualification_fields
             ai_audio_enabled = bool((tenant.features or {}).get("ai_audio_response", False)) if tenant else False
+
+            # Bloquear se sem créditos
+            if tenant and tenant.credits_balance <= 0:
+                print(f"🚫 Tenant {tenant_id} sem créditos. IA bloqueada.")
+                return {"message": "", "collected": {}, "action": "continue"}
         except Exception as e:
             print(f"⚠️ Erro ao buscar qualification_fields: {e}")
             ai_audio_enabled = False
@@ -197,7 +202,7 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
             response = await client.chat.completions.create(**retry_params)
             raw = (response.choices[0].message.content or "").strip()
 
-        # Salvar consumo de tokens
+        # Salvar consumo de tokens e debitar crédito
         try:
             usage = response.usage
             if usage and tenant_id:
@@ -210,8 +215,18 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
                     total_tokens=usage.total_tokens or 0,
                 )
                 db.add(token_record)
+
+            # Debitar 1 crédito por mensagem processada
+            if tenant_id:
+                tenant_result2 = await db.execute(
+                    select(Tenant).where(Tenant.id == tenant_id)
+                )
+                t = tenant_result2.scalar_one_or_none()
+                if t:
+                    t.credits_balance = max(0, (t.credits_balance or 0) - 1)
+                    t.credits_used = (t.credits_used or 0) + 1
         except Exception as e:
-            print(f"⚠️ Erro ao salvar token_usage: {e}")
+            print(f"⚠️ Erro ao salvar token_usage/créditos: {e}")
 
         # Parse JSON
         try:

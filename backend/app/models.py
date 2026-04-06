@@ -423,6 +423,8 @@ class Tenant(Base):
     monthly_goal = Column(Float, default=0)
     monthly_lead_goal = Column(Integer, default=0)
     monthly_schedule_goal = Column(Integer, default=0)
+    credits_balance = Column(Integer, default=0)
+    credits_used = Column(Integer, default=0)
 
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")

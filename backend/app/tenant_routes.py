@@ -88,6 +88,8 @@ async def list_tenants(
             "notes": t.notes,
             "user_count": user_count,
             "contact_count": contact_count,
+            "credits_balance": t.credits_balance or 0,
+            "credits_used": t.credits_used or 0,
             "created_at": t.created_at.isoformat() if t.created_at else None,
         })
 
@@ -649,3 +651,28 @@ async def get_token_usage_by_tenant(
         }
         for r in rows
     ]
+
+@router.post("/tenants/{tenant_id}/credits")
+async def add_credits(
+    tenant_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_superadmin),
+):
+    """Adiciona créditos a um tenant."""
+    amount = int(body.get("amount", 0))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Quantidade inválida")
+
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    tenant.credits_balance = (tenant.credits_balance or 0) + amount
+    await db.commit()
+
+    return {
+        "credits_balance": tenant.credits_balance,
+        "credits_used": tenant.credits_used,
+    }
