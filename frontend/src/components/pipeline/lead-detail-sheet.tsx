@@ -252,7 +252,7 @@ export function LeadDetailSheet({ lead, columns, onClose, onMove }: LeadDetailSh
         {/* Actions */}
         <div className="flex gap-2 pt-4">
           <Button asChild className="flex-1">
-            <a href="/conversations">
+            <a href={`/conversations/${lead.wa_id}`}>
               <MessageCircle className="w-4 h-4 mr-2" />
               Abrir Conversa
             </a>
