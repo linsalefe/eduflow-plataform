@@ -601,7 +601,7 @@ async def get_token_usage_summary(
     rows = result.all()
 
     # Buscar créditos de cada tenant
-    
+
     tenant_ids = [r.tenant_id for r in rows]
     credits_map = {}
     if tenant_ids:
@@ -685,6 +685,31 @@ async def add_credits(
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
 
     tenant.credits_balance = (tenant.credits_balance or 0) + amount
+    await db.commit()
+
+    return {
+        "credits_balance": tenant.credits_balance,
+        "credits_used": tenant.credits_used,
+    }
+
+@router.patch("/tenants/{tenant_id}/credits")
+async def set_credits(
+    tenant_id: int,
+    body: dict,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_superadmin),
+):
+    """Define o saldo de créditos de um tenant."""
+    amount = int(body.get("amount", 0))
+    if amount < 0:
+        raise HTTPException(status_code=400, detail="Valor inválido")
+
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    tenant.credits_balance = amount
     await db.commit()
 
     return {

@@ -857,16 +857,20 @@ function EditTenantInfo({ tenant, onSaved }: { tenant: Tenant; onSaved: () => vo
 }
 
 function AddCreditsButton({ tenantId, onAdded }: { tenantId: number; onAdded: () => void }) {
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<null | 'add' | 'set'>(null);
   const [amount, setAmount] = useState('100');
   const [saving, setSaving] = useState(false);
 
-  const handleAdd = async () => {
+  const handleSubmit = async () => {
     setSaving(true);
     try {
-      await api.post(`/admin/tenants/${tenantId}/credits`, { amount: parseInt(amount) });
+      if (mode === 'add') {
+        await api.post(`/admin/tenants/${tenantId}/credits`, { amount: parseInt(amount) });
+      } else {
+        await api.patch(`/admin/tenants/${tenantId}/credits`, { amount: parseInt(amount) });
+      }
       onAdded();
-      setOpen(false);
+      setMode(null);
       setAmount('100');
     } catch {
     } finally {
@@ -874,35 +878,44 @@ function AddCreditsButton({ tenantId, onAdded }: { tenantId: number; onAdded: ()
     }
   };
 
-  if (!open) {
+  if (!mode) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-xs text-emerald-400 transition-colors"
-      >
-        + Créditos
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => setMode('add')}
+          className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-lg text-xs text-emerald-400 transition-colors"
+        >
+          + Créditos
+        </button>
+        <button
+          onClick={() => setMode('set')}
+          className="px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-lg text-xs text-gray-400 transition-colors"
+        >
+          Editar
+        </button>
+      </div>
     );
   }
 
   return (
     <div className="flex items-center gap-1.5">
+      <span className="text-[10px] text-gray-500">{mode === 'add' ? 'Adicionar:' : 'Definir:'}</span>
       <input
         type="number"
         value={amount}
         onChange={e => setAmount(e.target.value)}
         className="w-20 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs text-white outline-none"
-        min="1"
+        min="0"
       />
       <button
-        onClick={handleAdd}
+        onClick={handleSubmit}
         disabled={saving}
         className="px-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-medium transition-colors"
       >
         {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
       </button>
       <button
-        onClick={() => setOpen(false)}
+        onClick={() => setMode(null)}
         className="px-2 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg text-xs text-gray-400 transition-colors"
       >
         <X className="w-3 h-3" />
