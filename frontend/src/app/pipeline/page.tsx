@@ -236,7 +236,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Board */}
-        <div className="flex-1 overflow-x-auto p-4 lg:p-6">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 lg:p-6">
           {loading ? (
             <KanbanSkeleton columns={columns.length} />
           ) : (
