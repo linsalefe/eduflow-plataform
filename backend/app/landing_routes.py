@@ -323,6 +323,12 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     import json as json_lib
 
     if not contact:
+        extra_data = data.get("extra", {}) or {}
+        notes_data = {
+            "course": data.get("course", ""),
+            "source": "landing_page",
+            **extra_data,
+        }
         contact = Contact(
             tenant_id=page.tenant_id,
             wa_id=phone_clean,
@@ -330,7 +336,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             lead_status=page.pipeline_stage or "novo",
             channel_id=page.channel_id,
             ai_active=True,
-            notes=json_lib.dumps({"course": data.get("course", ""), "source": "landing_page"}, ensure_ascii=False),
+            notes=json_lib.dumps(notes_data, ensure_ascii=False),
         )
         db.add(contact)
     else:
@@ -341,8 +347,10 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             existing_notes = json_lib.loads(contact.notes or "{}")
         except (json_lib.JSONDecodeError, TypeError):
             existing_notes = {}
+        extra_data = data.get("extra", {}) or {}
         existing_notes["course"] = data.get("course", "")
         existing_notes["source"] = "landing_page"
+        existing_notes.update(extra_data)
         contact.notes = json_lib.dumps(existing_notes, ensure_ascii=False)
 
     await db.flush()
@@ -370,6 +378,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             )
 
     await db.commit()
+
     # === Enviar mensagem WhatsApp ===
     if page.whatsapp_message and phone_clean:
         try:
@@ -380,11 +389,11 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             channel_obj = channel_result.scalar_one_or_none()
             if channel_obj and channel_obj.instance_name:
                 full_name = data.get("name", "")
-                first_name = full_name.strip().split()[0] if full_name.strip() else full_name
-                message_text = page.whatsapp_message.replace("{nome}", first_name)
+        first_name = full_name.strip().split()[0] if full_name.strip() else full_name
+        message_text = page.whatsapp_message.replace("{nome}", first_name)
                 await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
         except Exception as e:
-            print(f"\u26a0\ufe0f Erro ao enviar mensagem WhatsApp: {e}")
+            print(f"⚠️ Erro ao enviar mensagem WhatsApp: {e}")
 
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
