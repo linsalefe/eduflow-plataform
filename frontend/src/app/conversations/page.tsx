@@ -32,15 +32,18 @@ import dynamic from 'next/dynamic';
 import AppShell from "@/components/app-shell";
 import ActivityTimeline from '@/components/ActivityTimeline';
 import { ConversationsProvider, useConversations } from '@/components/conversations/conversations-provider';
+import { Suspense } from 'react';
 import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig } from '@/lib/inbox-constants';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
 export default function ConversationsPage() {
   return (
-    <ConversationsProvider>
-      <ConversationsContent />
-    </ConversationsProvider>
+    <Suspense>
+      <ConversationsProvider>
+        <ConversationsContent />
+      </ConversationsProvider>
+    </Suspense>
   );
 }
 
