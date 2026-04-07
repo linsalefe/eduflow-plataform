@@ -61,7 +61,7 @@ async def run_reengagement():
                     if time_since_last < delay_minutes:
                         continue
 
-                    # Verificar que a última mensagem não é outbound (evitar loop)
+                    # Verificar última mensagem da conversa
                     last_msg_result = await db.execute(
                         select(Message)
                         .where(Message.contact_wa_id == contact.wa_id, Message.tenant_id == tenant.id)
@@ -69,8 +69,13 @@ async def run_reengagement():
                         .limit(1)
                     )
                     last_msg = last_msg_result.scalar_one_or_none()
+
+                    # Se a última mensagem é INBOUND (lead respondeu), não reengajar
+                    if last_msg and last_msg.direction == "inbound":
+                        continue
+
+                    # Se última mensagem é outbound da IA, verificar tempo desde ela
                     if last_msg and last_msg.direction == "outbound" and last_msg.sent_by_ai:
-                        # Última mensagem já foi da IA, verificar tempo desde ela
                         time_since_ai = (now - last_msg.timestamp).total_seconds() / 60
                         if time_since_ai < delay_minutes:
                             continue
