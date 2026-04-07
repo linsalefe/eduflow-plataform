@@ -315,8 +315,30 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     if phone_clean and not phone_clean.startswith("55"):
         phone_clean = "55" + phone_clean
 
+    # Gerar variações do número (com e sem 9º dígito) para encontrar contato existente
+    def phone_variants(phone: str) -> list:
+        """Retorna variações do telefone BR: com e sem o 9º dígito."""
+        variants = [phone]
+        if len(phone) == 13 and phone.startswith("55"):
+            # 55 + DDD(2) + 9 + 8 dígitos → remover o 9
+            ddd = phone[2:4]
+            rest = phone[5:]  # pula o 9
+            variants.append(f"55{ddd}{rest}")
+        elif len(phone) == 12 and phone.startswith("55"):
+            # 55 + DDD(2) + 8 dígitos → adicionar o 9
+            ddd = phone[2:4]
+            rest = phone[4:]
+            variants.append(f"55{ddd}9{rest}")
+        return variants
+
+    variants = phone_variants(phone_clean)
+
+    from sqlalchemy import or_
     existing_contact = await db.execute(
-        select(Contact).where(Contact.wa_id == phone_clean)
+        select(Contact).where(
+            Contact.tenant_id == page.tenant_id,
+            or_(*[Contact.wa_id == v for v in variants])
+        )
     )
     contact = existing_contact.scalar_one_or_none()
 
