@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.database import get_db
-from app.models import LandingPage, FormSubmission, Contact, Channel
+from app.models import LandingPage, FormSubmission, Contact, Channel, Tenant
 from app.auth import get_current_user, get_tenant_id
 import json
 
@@ -344,6 +344,13 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
 
     import json as json_lib
 
+    # Verificar se o estágio da LP desliga a IA
+    target_stage = page.pipeline_stage or "novo"
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == page.tenant_id))
+    tenant_obj = tenant_result.scalar_one_or_none()
+    ai_off_statuses = (tenant_obj.ai_off_statuses if tenant_obj and tenant_obj.ai_off_statuses else [])
+    should_ai_be_active = target_stage not in ai_off_statuses
+
     if not contact:
         extra_data = data.get("extra", {}) or {}
         notes_data = {
@@ -355,14 +362,14 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             tenant_id=page.tenant_id,
             wa_id=phone_clean,
             name=data.get("name", ""),
-            lead_status=page.pipeline_stage or "novo",
+            lead_status=target_stage,
             channel_id=page.channel_id,
-            ai_active=True,
+            ai_active=should_ai_be_active,
             notes=json_lib.dumps(notes_data, ensure_ascii=False),
         )
         db.add(contact)
     else:
-        contact.ai_active = True
+        contact.ai_active = should_ai_be_active
         if page.pipeline_stage:
             contact.lead_status = page.pipeline_stage
         try:
