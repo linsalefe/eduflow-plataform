@@ -414,6 +414,37 @@ async def update_kanban_columns(
     await db.commit()
     return {"message": "Colunas atualizadas", "kanban_columns": tenant.kanban_columns}
 
+@tenant_router.get("/ai-off-statuses")
+async def get_ai_off_statuses(
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    return tenant.ai_off_statuses or []
+
+
+@tenant_router.put("/ai-off-statuses")
+async def update_ai_off_statuses(
+    data: List[Any],
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    from sqlalchemy.orm.attributes import flag_modified
+    tenant.ai_off_statuses = data
+    flag_modified(tenant, "ai_off_statuses")
+
+    await db.commit()
+    return {"message": "AI off statuses atualizados", "ai_off_statuses": tenant.ai_off_statuses}
+
 @tenant_router.get("/agent-messages")
 async def get_agent_messages(
     db: AsyncSession = Depends(get_db),
