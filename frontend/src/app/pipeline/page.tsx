@@ -356,6 +356,17 @@ function KanbanSettingsModal({
   const [newLabel, setNewLabel] = useState('');
   const [newColor, setNewColor] = useState('#1D4ED8');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [aiOffStatuses, setAiOffStatuses] = useState<string[]>([]);
+
+  useEffect(() => {
+    api.get('/tenant/ai-off-statuses').then((res) => setAiOffStatuses(res.data || [])).catch(() => {});
+  }, []);
+
+  const toggleAiOff = (key: string) => {
+    setAiOffStatuses((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
 
   const leadsInColumn = (key: string) => leads.filter((l) => l.lead_status === key).length;
 
@@ -412,6 +423,7 @@ function KanbanSettingsModal({
     setSaving(true);
     try {
       await api.put('/tenant/kanban-columns', items);
+      await api.put('/tenant/ai-off-statuses', aiOffStatuses);
       onSaved(items);
       onClose();
     } catch (err) {
@@ -468,6 +480,15 @@ function KanbanSettingsModal({
                     {leadsInColumn(col.key)} leads
                   </Badge>
                 )}
+                <Button
+                  variant={aiOffStatuses.includes(col.key) ? "default" : "ghost"}
+                  size="icon"
+                  className={`h-7 w-7 flex-shrink-0 ${aiOffStatuses.includes(col.key) ? 'bg-red-500 hover:bg-red-600 text-white' : 'text-muted-foreground hover:text-foreground'}`}
+                  onClick={() => toggleAiOff(col.key)}
+                  title={aiOffStatuses.includes(col.key) ? 'IA será desligada neste estágio' : 'Clique para desligar IA neste estágio'}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
