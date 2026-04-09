@@ -28,6 +28,7 @@ import {
   DollarSign,
   Shield,
   Bot,
+  Puzzle,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -79,6 +80,7 @@ const featureMap: Record<string, string> = {
   '/voice-inbound': 'voice_inbound',
   '/agenda': 'agenda',
   '/canais': 'conversas',
+  '/integracoes': 'conversas',
   '/configuracoes/agentes': 'agentes_ia',
 };
 
@@ -131,6 +133,8 @@ const menuGroups = [
         color: 'text-teal-600', bg: 'bg-teal-500/10' },
       { href: '/canais', label: 'Canais', icon: Radio,
         color: 'text-cyan-600', bg: 'bg-cyan-500/10' },
+      { href: '/integracoes', label: 'Integrações', icon: Puzzle,
+        color: 'text-pink-600', bg: 'bg-pink-500/10' },
       { href: '/ai-config', label: 'Config. IA', icon: Sparkles,
         color: 'text-purple-600', bg: 'bg-purple-500/10' },
       { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot,
@@ -161,6 +165,7 @@ const pageTitles: Record<string, string> = {
   '/canais': 'Canais',
   '/ai-config': 'Config. IA',
   '/configuracoes/agentes': 'Agentes IA',
+  '/integracoes': 'Integrações',
   '/admin': 'Painel Admin',
 };
 
