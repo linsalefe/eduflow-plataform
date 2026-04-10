@@ -425,6 +425,9 @@ class Tenant(Base):
     monthly_schedule_goal = Column(Integer, default=0)
     credits_balance = Column(Integer, default=0)
     credits_used = Column(Integer, default=0)
+    stripe_customer_id = Column(String(255), nullable=True)
+    stripe_subscription_id = Column(String(255), nullable=True)
+    subscription_status = Column(String(30), default="manual")
 
     users = relationship("User", back_populates="tenant")
     channels = relationship("Channel", back_populates="tenant")

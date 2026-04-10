@@ -44,3 +44,4 @@ google-auth
 twilio
 websockets
 elevenlabs
+stripe
