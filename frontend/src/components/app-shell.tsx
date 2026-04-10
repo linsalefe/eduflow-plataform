@@ -34,6 +34,7 @@ import {
   PanelLeftOpen,
   Moon,
   Sun,
+  UserCircle,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -117,6 +118,8 @@ const menuGroups = [
   {
     label: 'Configurações',
     items: [
+      { href: '/configuracoes/conta', label: 'Minha Conta', icon: UserCircle,
+        color: 'text-blue-600', bg: 'bg-blue-500/10' },
       { href: '/users', label: 'Usuários', icon: Users,
         color: 'text-gray-600', bg: 'bg-gray-500/10' },
       { href: '/automacoes', label: 'Automações', icon: Zap,
@@ -166,6 +169,7 @@ const pageTitles: Record<string, string> = {
   '/ai-config': 'Config. IA',
   '/configuracoes/agentes': 'Agentes IA',
   '/integracoes': 'Integrações',
+  '/configuracoes/conta': 'Minha Conta',
   '/admin': 'Painel Admin',
 };
 
@@ -207,11 +211,12 @@ function SidebarNavContent({
         {/* Logo */}
         <div className="flex items-center gap-3">
           <Image
-            src="/logo-icon-color.png"
+            src="/logo-icon-color.png?v=2"
             alt="EduFlow"
             width={32}
             height={32}
             className="object-contain flex-shrink-0"
+            unoptimized
           />
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="font-semibold text-[15px] tracking-widest uppercase leading-tight text-foreground">

@@ -10,7 +10,7 @@ from app.database import get_db
 from app.models import Contact, Message, User, Tag, contact_tags
 from app.auth import get_current_user, get_tenant_id
 
-router = APIRouter(prefix="/export", tags=["export"])
+router = APIRouter(prefix="/api/export", tags=["export"])
 
 
 def style_header(ws, headers, col_widths):

@@ -106,6 +106,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="atendente")
     is_active = Column(Boolean, default=True)
+    avatar_url = Column(String(500), nullable=True)
+    notify_email = Column(Boolean, default=True)
+    notify_sound = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
     tenant = relationship("Tenant", back_populates="users")
@@ -355,6 +358,7 @@ class Tenant(Base):
     max_users = Column(Integer, default=5)
     max_channels = Column(Integer, default=2)
     notes = Column(Text, nullable=True)
+    logo_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     is_active = Column(Boolean, default=True)

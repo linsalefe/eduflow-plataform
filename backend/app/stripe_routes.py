@@ -11,9 +11,10 @@ import logging
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
 from app.database import get_db
 from app.models import Tenant, User
-from app.auth import hash_password
+from app.auth import hash_password, get_current_user, get_tenant_id
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,12 @@ PRICE_TO_PLAN = {
     "price_1TKUf7IQX3lFbR8HWCe1Uz3y": {"plan": "starter", "name": "EduFlow Starter", "max_users": 3, "max_channels": 1},
     "price_1TKUg6IQX3lFbR8HcMozNhQ0": {"plan": "pro", "name": "EduFlow Pro", "max_users": 5, "max_channels": 3},
     "price_1TKUhWIQX3lFbR8Hv9E40G7F": {"plan": "enterprise", "name": "EduFlow Enterprise", "max_users": 15, "max_channels": 5},
+    "price_1TKXGpIQX3lFbR8Hp4MA3qHr": {"plan": "starter", "name": "EduFlow Starter", "max_users": 3, "max_channels": 1},
+    "price_1TKXHZIQX3lFbR8HZ7GDP2a3": {"plan": "starter", "name": "EduFlow Starter", "max_users": 3, "max_channels": 1},
+    "price_1TKXJMIQX3lFbR8HymrHnrua": {"plan": "pro", "name": "EduFlow Pro", "max_users": 5, "max_channels": 3},
+    "price_1TKXJoIQX3lFbR8HxFfEewKk": {"plan": "pro", "name": "EduFlow Pro", "max_users": 5, "max_channels": 3},
+    "price_1TKXKKIQX3lFbR8HZo3ErHbg": {"plan": "enterprise", "name": "EduFlow Enterprise", "max_users": 15, "max_channels": 5},
+    "price_1TKXKqIQX3lFbR8H0k7mp8ER": {"plan": "enterprise", "name": "EduFlow Enterprise", "max_users": 15, "max_channels": 5},
 }
 
 # Features por plano
@@ -336,3 +343,51 @@ async def get_stripe_config():
             },
         ],
     }
+
+
+@router.get("/subscription-status")
+async def subscription_status(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+
+    if tenant.stripe_subscription_id:
+        try:
+            sub = stripe.Subscription.retrieve(tenant.stripe_subscription_id)
+            current_period_end = datetime.fromtimestamp(sub["current_period_end"]).isoformat() if sub.get("current_period_end") else None
+            return {
+                "plan": tenant.plan,
+                "subscription_status": sub.get("status", tenant.subscription_status),
+                "current_period_end": current_period_end,
+                "cancel_at_period_end": sub.get("cancel_at_period_end", False),
+            }
+        except Exception as e:
+            logger.error(f"Erro ao consultar subscription Stripe: {e}")
+
+    return {
+        "plan": tenant.plan,
+        "subscription_status": tenant.subscription_status or "manual",
+        "current_period_end": None,
+        "cancel_at_period_end": False,
+    }
+
+
+@router.post("/cancel-subscription")
+async def cancel_subscription(db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
+    result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+    tenant = result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant não encontrado")
+    if not tenant.stripe_subscription_id:
+        raise HTTPException(status_code=400, detail="Plano gerenciado manualmente")
+
+    try:
+        stripe.Subscription.modify(tenant.stripe_subscription_id, cancel_at_period_end=True)
+    except Exception as e:
+        logger.error(f"Erro ao cancelar subscription Stripe: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao cancelar assinatura")
+
+    tenant.subscription_status = "canceling"
+    await db.commit()
+    return {"status": "ok", "message": "Assinatura será cancelada no fim do período"}
