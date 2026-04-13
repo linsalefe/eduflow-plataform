@@ -32,7 +32,7 @@ import dynamic from 'next/dynamic';
 import AppShell from "@/components/app-shell";
 import ActivityTimeline from '@/components/ActivityTimeline';
 import { ConversationsProvider, useConversations } from '@/components/conversations/conversations-provider';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig } from '@/lib/inbox-constants';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -72,6 +72,8 @@ function ConversationsContent() {
     messagesEndRef, emojiPickerRef, attachMenuRef, fileInputRef, imageInputRef, chatContainerRef,
     getStatusIcon,
   } = useConversations();
+
+  const [showCRMMobile, setShowCRMMobile] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
 
@@ -580,8 +582,15 @@ function ConversationsContent() {
 
                   <button
                     onClick={() => setShowCRM(!showCRM)}
-                    className={`p-2 rounded-full transition-all duration-200 ${showCRM ? 'bg-[#2a3942] text-[#00a884]' : 'hover:bg-[#2a3942] text-[#8696a0]'}`}
+                    className={`hidden xl:flex p-2 rounded-full transition-all duration-200 ${showCRM ? 'bg-[#2a3942] text-[#00a884]' : 'hover:bg-[#2a3942] text-[#8696a0]'}`}
                     title="Painel CRM" aria-label="Painel CRM"
+                  >
+                    <User className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setShowCRMMobile(true)}
+                    className="xl:hidden p-2 rounded-full hover:bg-[#2a3942] text-[#8696a0] hover:text-[#00a884] transition-all duration-200"
+                    title="Informações do Lead" aria-label="Informações do Lead"
                   >
                     <User className="w-5 h-5" />
                   </button>
@@ -1088,6 +1097,246 @@ function ConversationsContent() {
                   <><Send className="w-4 h-4" /> Enviar template</>
                 )}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL CRM MOBILE */}
+        {showCRMMobile && selectedContact && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 xl:hidden" onClick={() => setShowCRMMobile(false)}>
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-[#111b21] rounded-t-2xl max-h-[90vh] overflow-y-auto animate-slide-up"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle bar + header */}
+              <div className="sticky top-0 bg-[#111b21] pt-3 pb-2 px-5 flex items-center justify-between border-b border-[#2a3942] rounded-t-2xl z-10">
+                <div className="w-10 h-1 rounded-full bg-[#3b4a54] mx-auto absolute left-1/2 -translate-x-1/2 top-2" />
+                <h3 className="text-[15px] font-semibold text-[#e9edef] mt-2">Informações do Lead</h3>
+                <button onClick={() => setShowCRMMobile(false)} className="p-1.5 hover:bg-[#2a3942] rounded-lg transition-colors mt-2">
+                  <X className="w-5 h-5 text-[#8696a0]" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-6">
+
+                {/* Perfil */}
+                <div className="text-center pb-5 border-b border-[#2a3942]">
+                  {profilePics[selectedContact.wa_id] ? (
+                    <img src={profilePics[selectedContact.wa_id]!} alt="" className="w-16 h-16 rounded-full object-cover shadow-md mx-auto" onError={() => setProfilePics(prev => ({ ...prev, [selectedContact.wa_id]: null }))} />
+                  ) : (
+                    <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${getAvatarColor(selectedContact.name)} flex items-center justify-center text-white font-bold text-xl shadow-md mx-auto`}>
+                      {getInitials(selectedContact.name || selectedContact.wa_id)}
+                    </div>
+                  )}
+                  <p className="font-semibold text-[#e9edef] mt-3 text-[15px]">{selectedContact.name || selectedContact.wa_id}</p>
+                  <div className="flex items-center justify-center gap-1.5 mt-1.5 text-[#8696a0]">
+                    <Phone className="w-3.5 h-3.5" />
+                    <span className="text-[12px]">+{selectedContact.wa_id}</span>
+                  </div>
+                  {selectedContact.created_at && (
+                    <div className="flex items-center justify-center gap-1.5 mt-1 text-[#8696a0]">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span className="text-[11px]">Desde {formatFullDate(selectedContact.created_at)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Toggle IA */}
+                <div className="pb-4 border-b border-[#2a3942]">
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Agente IA (Nat)</p>
+                  <button
+                    onClick={toggleAI}
+                    disabled={togglingAI}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all ${selectedContact.ai_active ? "border-[#00a884]/30 bg-[#00a884]/10" : "border-[#2a3942] bg-[#202c33]"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[16px]">{selectedContact.ai_active ? "🤖" : "👤"}</span>
+                      <span className={`text-[13px] font-medium ${selectedContact.ai_active ? "text-[#00a884]" : "text-[#8696a0]"}`}>
+                        {selectedContact.ai_active ? "IA Ativa" : "IA Desligada"}
+                      </span>
+                    </div>
+                    <div className={`w-10 h-5 rounded-full transition-all ${selectedContact.ai_active ? "bg-[#00a884]" : "bg-[#3b4a54]"} relative`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${selectedContact.ai_active ? "left-5" : "left-0.5"}`} />
+                    </div>
+                  </button>
+                </div>
+
+                {/* Atribuído a */}
+                <div className="pb-4 border-b border-[#2a3942]">
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Atribuído a</p>
+                  <div className="relative">
+                    <button onClick={() => setShowAssignMenu(!showAssignMenu)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-[#2a3942] bg-[#202c33] hover:bg-[#2a3942] transition-all">
+                      <div className="flex items-center gap-2">
+                        {selectedContact.assigned_to ? (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[#60a5fa] text-[9px] font-bold">
+                              {teamUsers.find(u => u.id === selectedContact.assigned_to)?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '??'}
+                            </div>
+                            <span className="text-[13px] text-[#e9edef]">
+                              {teamUsers.find(u => u.id === selectedContact.assigned_to)?.name || `#${selectedContact.assigned_to}`}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <User className="w-4 h-4 text-[#8696a0]" />
+                            <span className="text-[13px] text-[#8696a0]">Ninguém</span>
+                          </>
+                        )}
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform ${showAssignMenu ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showAssignMenu && (
+                      <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
+                        <button onClick={() => assignContact(null)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left">
+                          <User className="w-4 h-4 text-[#8696a0]" />
+                          <span className="text-[13px] text-[#8696a0]">Ninguém</span>
+                        </button>
+                        {teamUsers.map(u => (
+                          <button key={u.id} onClick={() => assignContact(u.id)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left">
+                            <div className="w-6 h-6 rounded-full bg-primary/30 flex items-center justify-center text-[#60a5fa] text-[9px] font-bold">
+                              {u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </div>
+                            <span className="text-[13px] text-[#e9edef]">{u.name}</span>
+                            <span className="text-[10px] text-[#8696a0] ml-auto">{u.role}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status do Lead */}
+                <div>
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Status do Lead</p>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowStatusMenu(!showStatusMenu)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border ${getStatusConfig(selectedContact.lead_status).border} ${getStatusConfig(selectedContact.lead_status).bg} transition-all hover:shadow-sm`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(selectedContact.lead_status).color}`} />
+                        <span className={`text-[13px] font-medium ${getStatusConfig(selectedContact.lead_status).text}`}>
+                          {getStatusConfig(selectedContact.lead_status).label}
+                        </span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showStatusMenu && (
+                      <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
+                        {leadStatuses.map(s => (
+                          <button key={s.value} onClick={() => updateLeadStatus(s.value)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left">
+                            <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+                            <span className="text-[13px] text-[#e9edef]">{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Valor do Lead */}
+                <div className="pb-4 border-b border-[#2a3942]">
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Valor do Lead</p>
+                  <p className="text-lg font-bold text-emerald-400">
+                    {(selectedContact.deal_value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {selectedContact.tags.map(tag => {
+                      const tc = getTagColorConfig(tag.color);
+                      return (
+                        <span key={tag.id} className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg ${tc.bg} ${tc.text}`}>
+                          {tag.name}
+                          <button onClick={() => removeTag(tag.id)} aria-label="Remover tag" className="hover:opacity-60 transition-opacity">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+
+                  <button onClick={() => setShowTagMenu(!showTagMenu)} className="flex items-center gap-1 text-[12px] text-[#00a884] hover:text-[#06cf9c] font-medium transition-colors">
+                    <Plus className="w-3.5 h-3.5" /> Adicionar tag
+                  </button>
+
+                  {showTagMenu && (
+                    <div className="mt-2 bg-[#202c33] rounded-xl p-3 space-y-2 border border-[#2a3942]">
+                      {allTags.filter(t => !selectedContact.tags.find(ct => ct.id === t.id)).map(tag => {
+                        const tc = getTagColorConfig(tag.color);
+                        return (
+                          <button key={tag.id} onClick={() => { addTag(tag.id); setShowTagMenu(false); }} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium ${tc.bg} ${tc.text} hover:opacity-80 transition-opacity`}>
+                            {tag.name}
+                          </button>
+                        );
+                      })}
+
+                      <div className="pt-2 border-t border-[#2a3942]">
+                        <p className="text-[10px] text-[#8696a0] uppercase font-semibold mb-1.5 tracking-wider">Criar nova tag</p>
+                        <input value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Nome da tag" className="w-full px-2.5 py-1.5 text-[12px] text-[#e9edef] bg-[#2a3942] border border-[#3b4a54] rounded-lg outline-none focus:border-[#00a884] transition-colors" />
+                        <div className="flex gap-1.5 mt-2">
+                          {tagColors.map(c => (
+                            <button key={c.value} onClick={() => setNewTagColor(c.value)} className={`w-5 h-5 rounded-full ${c.bg} transition-all ${newTagColor === c.value ? 'ring-2 ring-offset-1 ring-offset-[#202c33] ring-[#00a884] scale-110' : 'hover:scale-105'}`} />
+                          ))}
+                        </div>
+                        <button onClick={() => { createTag(); setShowTagMenu(false); }} disabled={!newTagName.trim()} className="w-full mt-2.5 px-2.5 py-1.5 bg-[#00a884] text-[#111b21] text-[11px] font-medium rounded-lg disabled:opacity-40 hover:bg-[#06cf9c] transition-colors">
+                          Criar tag
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider">Notas</p>
+                    {!editingNotes && (
+                      <button onClick={() => setEditingNotes(true)} className="text-[12px] text-[#00a884] font-medium hover:text-[#06cf9c] transition-colors">Editar</button>
+                    )}
+                  </div>
+
+                  {editingNotes ? (
+                    <div>
+                      <textarea value={notesValue} onChange={(e) => setNotesValue(e.target.value)} rows={4} className="w-full px-3 py-2.5 text-[13px] text-[#e9edef] bg-[#2a3942] border border-[#3b4a54] rounded-xl outline-none focus:border-[#00a884] resize-none transition-all" placeholder="Adicione notas sobre este lead..." />
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={saveNotes} className="px-3.5 py-1.5 bg-[#00a884] text-[#111b21] text-[11px] font-medium rounded-lg hover:bg-[#06cf9c] transition-colors">Salvar</button>
+                        <button onClick={() => { setEditingNotes(false); setNotesValue(selectedContact.notes || ''); }} className="px-3.5 py-1.5 text-[#8696a0] text-[11px] font-medium rounded-lg hover:bg-[#202c33] transition-colors">Cancelar</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-[#202c33] rounded-xl p-3 min-h-[60px] border border-[#2a3942]">
+                      <p className="text-[13px] text-[#8696a0] whitespace-pre-wrap leading-relaxed">{selectedContact.notes || 'Sem notas'}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Criar Tarefa */}
+                <div>
+                  <button
+                    onClick={() => {
+                      const params = new URLSearchParams({ contact: selectedContact.wa_id, name: selectedContact.name || '' });
+                      window.open(`/tarefas?new=1&${params.toString()}`, '_self');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary/20 text-[#60a5fa] text-[12px] font-medium rounded-xl hover:bg-primary/30 transition-colors border border-primary/20"
+                  >
+                    <Target className="w-4 h-4" />
+                    Criar Tarefa para este Lead
+                  </button>
+                </div>
+
+                {/* Timeline */}
+                <div>
+                  <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Atividades</p>
+                  <ActivityTimeline contactWaId={selectedContact.wa_id} />
+                </div>
+
+              </div>
             </div>
           </div>
         )}
