@@ -5,6 +5,7 @@ import {
   Users, UserPlus, MessageCircle, CheckCircle, XCircle,
   RefreshCw, Search, Sparkles, FileText, Settings2,
   GripVertical, Trash2, Plus, X, Save, AlertTriangle, Loader2,
+  MoreVertical,
 } from 'lucide-react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
@@ -31,6 +32,14 @@ interface ColumnConfig {
   key: string;
   label: string;
   color: string;
+  order: number;
+}
+
+interface PipelineInfo {
+  id: number;
+  name: string;
+  columns: ColumnConfig[];
+  is_default: boolean;
   order: number;
 }
 
@@ -70,32 +79,124 @@ export default function PipelinePage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Multi-pipeline state
+  const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
+  const [activePipeline, setActivePipeline] = useState<PipelineInfo | null>(null);
+  const [showCreatePipeline, setShowCreatePipeline] = useState(false);
+  const [showRenamePipeline, setShowRenamePipeline] = useState(false);
+  const [showDeletePipeline, setShowDeletePipeline] = useState(false);
+  const [newPipelineName, setNewPipelineName] = useState('');
+  const [savingPipeline, setSavingPipeline] = useState(false);
+  const [showPipelineMenu, setShowPipelineMenu] = useState(false);
+
   const loadLeads = useCallback(async () => {
     try {
-      const res = await api.get('/contacts');
+      const params: any = {};
+      if (activePipeline) params.pipeline_id = activePipeline.id;
+      const res = await api.get('/contacts', { params });
       setLeads(res.data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activePipeline]);
 
+  // Initial load: fetch pipelines
   useEffect(() => {
     const init = async () => {
       try {
-        const res = await api.get('/tenant/kanban-columns');
+        const res = await api.get('/pipelines');
         const sorted = [...res.data].sort((a: any, b: any) => a.order - b.order);
-        setColumns(sorted);
+        setPipelines(sorted);
+        const def = sorted.find((p: any) => p.is_default) || sorted[0];
+        if (def) {
+          setActivePipeline(def);
+          setColumns(def.columns.sort((a: any, b: any) => a.order - b.order));
+        }
       } catch {
-        // use DEFAULT_COLUMNS
+        // fallback: load from old endpoint
+        try {
+          const res = await api.get('/tenant/kanban-columns');
+          const sorted = [...res.data].sort((a: any, b: any) => a.order - b.order);
+          setColumns(sorted);
+        } catch {
+          // use DEFAULT_COLUMNS
+        }
       }
-      loadLeads();
     };
     init();
+  }, []);
+
+  // Reload leads when activePipeline changes
+  useEffect(() => {
+    if (activePipeline) {
+      setLoading(true);
+      loadLeads();
+    }
+  }, [activePipeline, loadLeads]);
+
+  // Polling interval
+  useEffect(() => {
     const interval = setInterval(loadLeads, 15000);
     return () => clearInterval(interval);
   }, [loadLeads]);
+
+  const switchPipeline = (pipeline: PipelineInfo) => {
+    setActivePipeline(pipeline);
+    setColumns(pipeline.columns.sort((a: any, b: any) => a.order - b.order));
+  };
+
+  const createPipeline = async () => {
+    if (!newPipelineName.trim()) return;
+    setSavingPipeline(true);
+    try {
+      const res = await api.post('/pipelines', { name: newPipelineName.trim() });
+      const newP = res.data;
+      setPipelines(prev => [...prev, newP]);
+      setActivePipeline(newP);
+      setColumns((newP.columns || []).sort((a: any, b: any) => a.order - b.order));
+      setShowCreatePipeline(false);
+      setNewPipelineName('');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao criar funil');
+    } finally {
+      setSavingPipeline(false);
+    }
+  };
+
+  const renamePipeline = async () => {
+    if (!activePipeline || !newPipelineName.trim()) return;
+    setSavingPipeline(true);
+    try {
+      await api.put(`/pipelines/${activePipeline.id}`, { name: newPipelineName.trim() });
+      setPipelines(prev => prev.map(p => p.id === activePipeline.id ? { ...p, name: newPipelineName.trim() } : p));
+      setActivePipeline(prev => prev ? { ...prev, name: newPipelineName.trim() } : null);
+      setShowRenamePipeline(false);
+      setNewPipelineName('');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao renomear');
+    } finally {
+      setSavingPipeline(false);
+    }
+  };
+
+  const deletePipeline = async () => {
+    if (!activePipeline || activePipeline.is_default) return;
+    setSavingPipeline(true);
+    try {
+      await api.delete(`/pipelines/${activePipeline.id}`);
+      const remaining = pipelines.filter(p => p.id !== activePipeline.id);
+      setPipelines(remaining);
+      const def = remaining.find(p => p.is_default) || remaining[0];
+      if (def) switchPipeline(def);
+      setShowDeletePipeline(false);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Erro ao excluir');
+    } finally {
+      setSavingPipeline(false);
+    }
+  };
 
   const moveLead = async (waId: string, newStatus: string) => {
     setLeads((prev) =>
@@ -198,9 +299,77 @@ export default function PipelinePage() {
             </div>
           </div>
 
+          {/* Pipeline Tabs */}
+          {pipelines.length > 0 && (
+            <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
+              {pipelines.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => switchPipeline(p)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    activePipeline?.id === p.id
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {p.name}
+                  {p.is_default && <span className="text-[10px] opacity-70">(Principal)</span>}
+                </button>
+              ))}
+              {pipelines.length < 10 && (
+                <button
+                  onClick={() => { setNewPipelineName(''); setShowCreatePipeline(true); }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[13px] font-medium text-muted-foreground hover:bg-muted transition-all whitespace-nowrap flex-shrink-0 border border-dashed border-border"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Novo Funil
+                </button>
+              )}
+              {/* Pipeline actions menu */}
+              {activePipeline && (
+                <div className="relative flex-shrink-0 ml-1">
+                  <button
+                    onClick={() => setShowPipelineMenu(!showPipelineMenu)}
+                    className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                  {showPipelineMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowPipelineMenu(false)} />
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-border py-1 w-44">
+                        <button
+                          onClick={() => {
+                            setNewPipelineName(activePipeline.name);
+                            setShowRenamePipeline(true);
+                            setShowPipelineMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left text-[13px] text-foreground hover:bg-muted transition-colors"
+                        >
+                          Renomear funil
+                        </button>
+                        {!activePipeline.is_default && (
+                          <button
+                            onClick={() => {
+                              setShowDeletePipeline(true);
+                              setShowPipelineMenu(false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-[13px] text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Excluir funil
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Stats pills */}
           <motion.div
-            className="flex gap-2 mt-4 overflow-x-auto pb-1"
+            className="flex gap-2 mt-3 overflow-x-auto pb-1"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.15 }}
@@ -268,6 +437,17 @@ export default function PipelinePage() {
           columns={columns}
           onClose={() => setSelectedLead(null)}
           onMove={moveLead}
+          pipelines={pipelines.map(p => ({ id: p.id, name: p.name, is_default: p.is_default }))}
+          activePipelineId={activePipeline?.id}
+          onMoveToPipeline={async (waId, pipelineId) => {
+            try {
+              await api.patch(`/contacts/${waId}`, { pipeline_id: pipelineId, lead_status: 'novo' });
+              setSelectedLead(null);
+              loadLeads();
+            } catch (err: any) {
+              alert(err.response?.data?.detail || 'Erro ao mover lead');
+            }
+          }}
         />
 
         {/* Add Lead Modal */}
@@ -322,13 +502,119 @@ export default function PipelinePage() {
           </div>
         )}
 
+        {/* Create Pipeline Modal */}
+        {showCreatePipeline && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowCreatePipeline(false)}>
+            <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-gray-800">Novo Funil</h3>
+                <button onClick={() => setShowCreatePipeline(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 text-xl leading-none">&times;</button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do funil *</label>
+                  <input
+                    value={newPipelineName}
+                    onChange={(e) => setNewPipelineName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && createPipeline()}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
+                    placeholder="Ex: Funil Pós-Venda"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-[11px] text-gray-400">
+                  Será criado com colunas padrão. Você pode personalizar depois em Configurações.
+                </p>
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setShowCreatePipeline(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                <button
+                  disabled={savingPipeline || !newPipelineName.trim()}
+                  onClick={createPipeline}
+                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {savingPipeline ? 'Criando...' : 'Criar Funil'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rename Pipeline Modal */}
+        {showRenamePipeline && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowRenamePipeline(false)}>
+            <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-gray-800">Renomear Funil</h3>
+                <button onClick={() => setShowRenamePipeline(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 text-xl leading-none">&times;</button>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Nome do funil</label>
+                <input
+                  value={newPipelineName}
+                  onChange={(e) => setNewPipelineName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && renamePipeline()}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-primary"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button onClick={() => setShowRenamePipeline(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                <button
+                  disabled={savingPipeline || !newPipelineName.trim()}
+                  onClick={renamePipeline}
+                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                >
+                  {savingPipeline ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Pipeline Modal */}
+        {showDeletePipeline && activePipeline && !activePipeline.is_default && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowDeletePipeline(false)}>
+            <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-800">Excluir Funil</h3>
+                <button onClick={() => setShowDeletePipeline(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 text-xl leading-none">&times;</button>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-red-50 rounded-xl mb-4">
+                <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div className="text-[13px] text-red-700">
+                  <p className="font-semibold mb-1">Tem certeza?</p>
+                  <p>Todos os leads de &quot;{activePipeline.name}&quot; serão movidos para o Pipeline Principal com status &quot;Novo&quot;.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowDeletePipeline(false)} className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+                <button
+                  disabled={savingPipeline}
+                  onClick={deletePipeline}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {savingPipeline ? 'Excluindo...' : 'Excluir Funil'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Settings modal */}
         {showSettings && (
           <KanbanSettingsModal
             columns={columns}
             leads={leads}
             onClose={() => setShowSettings(false)}
-            onSaved={setColumns}
+            onSaved={(cols) => {
+              setColumns(cols);
+              if (activePipeline) {
+                setPipelines(prev => prev.map(p => p.id === activePipeline.id ? { ...p, columns: cols } : p));
+                setActivePipeline(prev => prev ? { ...prev, columns: cols } : null);
+              }
+            }}
+            pipelineId={activePipeline?.id}
           />
         )}
       </div>
@@ -344,11 +630,13 @@ function KanbanSettingsModal({
   leads,
   onClose,
   onSaved,
+  pipelineId,
 }: {
   columns: ColumnConfig[];
   leads: Lead[];
   onClose: () => void;
   onSaved: (cols: ColumnConfig[]) => void;
+  pipelineId?: number;
 }) {
   const [items, setItems] = useState<ColumnConfig[]>([...columns]);
   const [saving, setSaving] = useState(false);
@@ -422,7 +710,11 @@ function KanbanSettingsModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.put('/tenant/kanban-columns', items);
+      if (pipelineId) {
+        await api.put(`/pipelines/${pipelineId}/columns`, items);
+      } else {
+        await api.put('/tenant/kanban-columns', items);
+      }
       await api.put('/tenant/ai-off-statuses', aiOffStatuses);
       onSaved(items);
       onClose();
@@ -457,13 +749,13 @@ function KanbanSettingsModal({
                   dragIdx === idx ? 'opacity-50 scale-[0.98]' : 'hover:border-border'
                 }`}
               >
-                <GripVertical className="w-4 h-4 text-muted-foreground/50 serviçor-grab flex-shrink-0" />
+                <GripVertical className="w-4 h-4 text-muted-foreground/50 cursor-grab flex-shrink-0" />
                 <div className="relative flex-shrink-0">
                   <input
                     type="color"
                     value={col.color}
                     onChange={(e) => handleColorChange(col.key, e.target.value)}
-                    className="absolute inset-0 opacity-0 serviçor-pointer w-full h-full"
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                   />
                   <div
                     className="w-7 h-7 rounded-lg border-2 border-background shadow-sm"
@@ -512,10 +804,10 @@ function KanbanSettingsModal({
                   type="color"
                   value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
-                  className="absolute inset-0 opacity-0 serviçor-pointer w-full h-full"
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                 />
                 <div
-                  className="w-8 h-8 rounded-lg border-2 border-background shadow-sm serviçor-pointer"
+                  className="w-8 h-8 rounded-lg border-2 border-background shadow-sm cursor-pointer"
                   style={{ backgroundColor: newColor }}
                 />
               </div>

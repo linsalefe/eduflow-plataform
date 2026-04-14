@@ -20,11 +20,20 @@ interface KanbanColumn {
   order: number;
 }
 
+interface PipelineOption {
+  id: number;
+  name: string;
+  is_default: boolean;
+}
+
 interface LeadDetailSheetProps {
   lead: Lead | null;
   columns: KanbanColumn[];
   onClose: () => void;
   onMove: (waId: string, newStatus: string) => void;
+  pipelines?: PipelineOption[];
+  activePipelineId?: number;
+  onMoveToPipeline?: (waId: string, pipelineId: number) => void;
 }
 
 const formatDate = (d: string) =>
@@ -87,7 +96,7 @@ function FunnelProgress({
   );
 }
 
-export function LeadDetailSheet({ lead, columns, onClose, onMove }: LeadDetailSheetProps) {
+export function LeadDetailSheet({ lead, columns, onClose, onMove, pipelines, activePipelineId, onMoveToPipeline }: LeadDetailSheetProps) {
   if (!lead) return null;
 
   const currentCol = columns.find((c) => c.key === lead.lead_status);
@@ -245,6 +254,27 @@ export function LeadDetailSheet({ lead, columns, onClose, onMove }: LeadDetailSh
               })}
             </div>
           </div>
+
+          {/* Move to another pipeline */}
+          {pipelines && pipelines.length > 1 && (
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Mover para outro funil
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {pipelines.filter(p => p.id !== activePipelineId).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => onMoveToPipeline?.(lead!.wa_id, p.id)}
+                    className="py-2 px-3 rounded-lg text-[11px] font-medium border border-border bg-muted text-muted-foreground hover:border-primary hover:text-primary transition-all"
+                  >
+                    {p.name}
+                    {p.is_default && <span className="text-[9px] opacity-60 ml-1">(Principal)</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <Separator />

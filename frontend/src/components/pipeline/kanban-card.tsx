@@ -18,6 +18,7 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   tags: Tag[];
+  pipeline_id: number | null;
 }
 
 interface KanbanCardProps {
