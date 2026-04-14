@@ -21,6 +21,7 @@ class FlowCreate(BaseModel):
     name: str
     stage: str
     channel_id: Optional[int] = None
+    pipeline_id: Optional[int] = None
     steps: List[StepSchema]
 
 
@@ -28,6 +29,7 @@ class FlowUpdate(BaseModel):
     name: Optional[str] = None
     stage: Optional[str] = None
     channel_id: Optional[int] = None
+    pipeline_id: Optional[int] = None
     is_active: Optional[bool] = None
     steps: Optional[List[StepSchema]] = None
 
@@ -60,6 +62,7 @@ async def list_flows(
             "stage": flow.stage,
             "is_active": flow.is_active,
             "channel_id": flow.channel_id,
+            "pipeline_id": flow.pipeline_id,
             "created_at": flow.created_at.isoformat() if flow.created_at else None,
             "steps": [
                 {
@@ -87,6 +90,7 @@ async def create_flow(
         name=data.name,
         stage=data.stage,
         channel_id=data.channel_id,
+        pipeline_id=data.pipeline_id,
         is_active=True,
     )
     db.add(flow)
@@ -127,6 +131,8 @@ async def update_flow(
         flow.stage = data.stage
     if data.channel_id is not None:
         flow.channel_id = data.channel_id
+    if data.pipeline_id is not None:
+        flow.pipeline_id = data.pipeline_id
     if data.is_active is not None:
         flow.is_active = data.is_active
     flow.updated_at = datetime.utcnow()

@@ -43,6 +43,7 @@ interface Flow {
   name: string;
   stage: string;
   channel_id: number | null;
+  pipeline_id: number | null;
   is_active: boolean;
   created_at: string;
   steps: Step[];
@@ -109,6 +110,8 @@ export default function AutomacoesPage() {
   const [savingWebhook, setSavingWebhook] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [kanbanColumns, setKanbanColumns] = useState<{key: string; label: string}[]>([]);
+  const [pipelines, setPipelines] = useState<{id: number; name: string; is_default: boolean; columns: {key: string; label: string}[]}[]>([]);
+  const [formPipelineId, setFormPipelineId] = useState<number | null>(null);
 
   // Form webhook
   const [wName, setWName] = useState('');
@@ -128,6 +131,7 @@ export default function AutomacoesPage() {
       loadWebhooks();
       loadChannels();
       loadKanbanColumns();
+      loadPipelines();
     }
   }, [user]);
 
@@ -173,6 +177,13 @@ export default function AutomacoesPage() {
     } catch {}
   };
 
+  const loadPipelines = async () => {
+    try {
+      const res = await api.get('/pipelines');
+      setPipelines(res.data);
+    } catch {}
+  };
+
   // ── Fluxos ─────────────────────────────────────────────
 
   const openCreate = () => {
@@ -181,6 +192,8 @@ export default function AutomacoesPage() {
     setFormStage('novo');
     setFormSteps([emptyStep()]);
     if (channels.length > 0) setFormChannelId(channels[0].id);
+    const defaultP = pipelines.find(p => p.is_default);
+    setFormPipelineId(defaultP?.id || null);
     setShowModal(true);
   };
 
@@ -188,6 +201,7 @@ export default function AutomacoesPage() {
     setEditFlow(flow);
     setFormName(flow.name);
     setFormStage(flow.stage);
+    setFormPipelineId(flow.pipeline_id || null);
     setFormSteps(flow.steps.length > 0 ? flow.steps.map(s => ({ ...s, ...fromMinutes(s.delay_minutes) })) : [emptyStep()]);
     setFormChannelId(flow.channel_id || (channels.length > 0 ? channels[0].id : 0));
     setShowModal(true);
@@ -234,6 +248,7 @@ export default function AutomacoesPage() {
         name: formName,
         stage: formStage,
         channel_id: formChannelId,
+        pipeline_id: formPipelineId,
         steps: formSteps.map(s => ({ ...s, delay_minutes: toMinutes(s.delay_minutes, s.delay_unit) })),
       };
       if (editFlow) {
@@ -438,6 +453,11 @@ export default function AutomacoesPage() {
                           <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium border ${STAGE_COLORS[flow.stage] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                             {STAGES.find(s => s.key === flow.stage)?.label || flow.stage}
                           </span>
+                          {pipelines.length > 1 && flow.pipeline_id && (
+                            <span className="inline-flex px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                              {pipelines.find(p => p.id === flow.pipeline_id)?.name || 'Pipeline'}
+                            </span>
+                          )}
                           {flow.is_active && (
                             <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
@@ -625,9 +645,33 @@ export default function AutomacoesPage() {
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Nome do fluxo</label>
                 <input type="text" value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Follow-up Sem Contato" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all" />
               </div>
+              {pipelines.length > 1 && (
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Funil</label>
+                  <select
+                    value={formPipelineId || ''}
+                    onChange={e => {
+                      const pid = Number(e.target.value);
+                      setFormPipelineId(pid);
+                      const p = pipelines.find(p => p.id === pid);
+                      if (p && p.columns && p.columns.length > 0) {
+                        setKanbanColumns(p.columns);
+                        if (!p.columns.find((c: any) => c.key === formStage)) {
+                          setFormStage(p.columns[0]?.key || 'novo');
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all cursor-pointer"
+                  >
+                    {pipelines.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (Principal)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Quando o lead entrar em</label>
-                <select value={formStage} onChange={e => setFormStage(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all serviçor-pointer">
+                <select value={formStage} onChange={e => setFormStage(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all cursor-pointer">
                   {(kanbanColumns.length > 0 ? kanbanColumns : STAGES).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                 </select>
               </div>

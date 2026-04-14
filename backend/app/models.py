@@ -52,6 +52,7 @@ class Contact(Base):
     channel_id = Column(Integer, ForeignKey("channels.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
     deal_value = Column(Numeric(10, 2), nullable=True, default=0)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True)
     is_group = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -344,6 +345,18 @@ class FinancialEntry(Base):
     contact = relationship("Contact", backref="financial_entries")
     creator = relationship("User", backref="financial_entries")
 
+class Pipeline(Base):
+    __tablename__ = "pipelines"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    columns = Column(JSON, default=[])
+    is_default = Column(Boolean, default=False)
+    order = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class Tenant(Base):
     __tablename__ = "tenants"
 
@@ -496,6 +509,7 @@ class AutomationFlow(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     channel_id = Column(Integer, ForeignKey("channels.id", ondelete="SET NULL"), nullable=True)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True)
 
 
 class AutomationStep(Base):

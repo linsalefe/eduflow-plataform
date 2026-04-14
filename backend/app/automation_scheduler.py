@@ -23,18 +23,26 @@ async def trigger_automations_for_contact(
     stage: str,
     tenant_id: int,
     db: AsyncSession,
+    pipeline_id: int = None,
 ):
     """
     Chamado quando um lead muda de estágio.
     Inicia execuções dos fluxos ativos para aquele estágio.
     """
+    from sqlalchemy import or_
+
     # Buscar fluxos ativos para este estágio e tenant
+    filters = [
+        AutomationFlow.tenant_id == tenant_id,
+        AutomationFlow.stage == stage,
+        AutomationFlow.is_active == True,
+    ]
+    if pipeline_id:
+        # Match pipeline-specific automations OR legacy ones without pipeline
+        filters.append(or_(AutomationFlow.pipeline_id == pipeline_id, AutomationFlow.pipeline_id == None))
+
     result = await db.execute(
-        select(AutomationFlow).where(
-            AutomationFlow.tenant_id == tenant_id,
-            AutomationFlow.stage == stage,
-            AutomationFlow.is_active == True,
-        )
+        select(AutomationFlow).where(*filters)
     )
     flows = result.scalars().all()
 

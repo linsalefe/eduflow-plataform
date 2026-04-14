@@ -40,6 +40,7 @@ class UpdateContactRequest(BaseModel):
     lead_status: Optional[str] = None
     notes: Optional[str] = None
     assigned_to: Optional[int] = None
+    pipeline_id: Optional[int] = None
 
 
 class TagRequest(BaseModel):
@@ -457,7 +458,7 @@ async def send_media(
 # === Contatos ===
 
 @router.get("/contacts")
-async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     from sqlalchemy.orm import aliased
     from sqlalchemy import case
 
@@ -479,6 +480,8 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
     )
     if channel_id:
         query = query.where(Contact.channel_id == channel_id)
+    if pipeline_id:
+        query = query.where(Contact.pipeline_id == pipeline_id)
     result = await db.execute(query)
     contacts = result.scalars().all()
 
@@ -516,6 +519,7 @@ async def list_contacts(channel_id: Optional[int] = None, db: AsyncSession = Dep
             "ai_active": c.ai_active or False,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": c.assigned_to,
+            "pipeline_id": c.pipeline_id,
         })
 
     return contacts_list
@@ -675,7 +679,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
             print(f"⚠️ Erro ao verificar ai_off_statuses: {e}")
         from app.automation_scheduler import trigger_automations_for_contact, cancel_automations_for_contact
         await cancel_automations_for_contact(wa_id, db)
-        await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db)
+        await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db, pipeline_id=contact.pipeline_id)
         # Kanban triggers → orquestrador
         try:
             from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
@@ -705,6 +709,8 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
     if req.notes is not None:
         contact.notes = req.notes
         await log_activity(db, wa_id, "note", "Notas atualizadas", tenant_id=tenant_id)
+    if req.pipeline_id is not None:
+        contact.pipeline_id = req.pipeline_id
 
     await db.commit()
     return {"status": "updated"}
