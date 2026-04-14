@@ -28,6 +28,7 @@ import {
   DollarSign,
   Shield,
   Bot,
+  BookOpen,
   Puzzle,
   Menu,
   PanelLeftClose,
@@ -142,6 +143,8 @@ const menuGroups = [
         color: 'text-purple-600', bg: 'bg-purple-500/10' },
       { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot,
         color: 'text-fuchsia-600', bg: 'bg-fuchsia-500/10' },
+      { href: '/suporte', label: 'Central de Ajuda', icon: BookOpen,
+        color: 'text-blue-600', bg: 'bg-blue-500/10' },
     ],
   },
 ];
@@ -170,6 +173,7 @@ const pageTitles: Record<string, string> = {
   '/configuracoes/agentes': 'Agentes IA',
   '/integracoes': 'Integrações',
   '/configuracoes/conta': 'Minha Conta',
+  '/suporte': 'Central de Ajuda',
   '/admin': 'Painel Admin',
 };
 
