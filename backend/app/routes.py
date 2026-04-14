@@ -18,6 +18,22 @@ from app.auth import get_current_user, get_tenant_id
 router = APIRouter(prefix="/api", tags=["api"])
 
 
+async def resolve_pipeline_id(channel_id: int, tenant_id: int, db) -> int | None:
+    """Retorna o pipeline_id para um novo contact: usa o do canal ou o default do tenant."""
+    from app.models import Pipeline
+    if channel_id:
+        ch_result = await db.execute(
+            select(Channel.default_pipeline_id).where(Channel.id == channel_id)
+        )
+        ch_pipeline = ch_result.scalar_one_or_none()
+        if ch_pipeline:
+            return ch_pipeline
+    p_result = await db.execute(
+        select(Pipeline.id).where(Pipeline.tenant_id == tenant_id, Pipeline.is_default == True)
+    )
+    return p_result.scalar_one_or_none()
+
+
 # === Schemas ===
 
 class SendTextRequest(BaseModel):
@@ -84,6 +100,7 @@ async def list_channels(db: AsyncSession = Depends(get_db), tenant_id: int = Dep
             "instance_name": c.instance_name,
             "page_id": c.page_id,
             "instagram_id": c.instagram_id,
+            "default_pipeline_id": c.default_pipeline_id,
         }
         for c in channels
     ]
@@ -162,6 +179,39 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), te
     await db.delete(channel)
     await db.commit()
     return {"message": "Canal removido com sucesso"}
+
+
+class UpdateChannelRequest(BaseModel):
+    default_pipeline_id: Optional[int] = None
+
+
+@router.patch("/channels/{channel_id}")
+async def update_channel(
+    channel_id: int,
+    req: UpdateChannelRequest,
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+    current_user=Depends(get_current_user),
+):
+    result = await db.execute(
+        select(Channel).where(Channel.id == channel_id, Channel.tenant_id == tenant_id)
+    )
+    channel = result.scalar_one_or_none()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
+    if req.default_pipeline_id is not None:
+        from app.models import Pipeline
+        p_result = await db.execute(
+            select(Pipeline).where(Pipeline.id == req.default_pipeline_id, Pipeline.tenant_id == tenant_id)
+        )
+        if not p_result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Pipeline não encontrado")
+        channel.default_pipeline_id = req.default_pipeline_id
+
+    await db.commit()
+    return {"message": "Canal atualizado", "default_pipeline_id": channel.default_pipeline_id}
+
 
 # === Dashboard ===
 
@@ -270,7 +320,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id, tenant_id=tenant_id)
+            contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
             db.add(contact)
             await db.flush()
 
@@ -301,7 +351,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id)
+            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
             db.add(contact)
             await db.flush()
 
@@ -327,7 +377,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id)
+            contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
             db.add(contact)
             await db.flush()
         message = Message(
@@ -356,7 +406,7 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
-            db.add(Contact(wa_id=wa_id, name=req.contact_name or "", channel_id=req.channel_id, tenant_id=tenant_id))
+            db.add(Contact(wa_id=wa_id, name=req.contact_name or "", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db)))
             await db.flush()
         elif req.contact_name and not contact.name:
             contact.name = req.contact_name
@@ -435,7 +485,7 @@ async def send_media(
     contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
     contact = contact_result.scalar_one_or_none()
     if not contact:
-        contact = Contact(wa_id=wa_id, name="", channel_id=channel_id, tenant_id=tenant_id)
+        contact = Contact(wa_id=wa_id, name="", channel_id=channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(channel_id, tenant_id, db))
         db.add(contact)
         await db.flush()
 
@@ -545,6 +595,7 @@ async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_i
         name=req.get("name", ""),
         lead_status="novo",
         channel_id=channel_id,
+        pipeline_id=await resolve_pipeline_id(channel_id, tenant_id, db),
         ai_active=False,
         notes=notes,
     )
@@ -559,6 +610,7 @@ async def import_contacts(file: UploadFile = File(...), db: AsyncSession = Depen
     ch = await db.execute(select(Channel).where(Channel.tenant_id == tenant_id, Channel.is_active == True).limit(1))
     ch = ch.scalar_one_or_none()
     default_channel_id = ch.id if ch else None
+    default_pipeline = await resolve_pipeline_id(default_channel_id, tenant_id, db)
     content = await file.read()
     rows = []
     if file.filename.endswith('.csv'):
@@ -592,6 +644,7 @@ async def import_contacts(file: UploadFile = File(...), db: AsyncSession = Depen
             name=name,
             lead_status='novo',
             channel_id=default_channel_id,
+            pipeline_id=default_pipeline,
             ai_active=False,
             notes=json_lib.dumps({'course': course}, ensure_ascii=False),
         )

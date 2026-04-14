@@ -192,12 +192,31 @@ async def receive_external_lead(
     }, ensure_ascii=False)
 
     if not contact:
+        # Resolve pipeline for new contact
+        _pipeline_id = None
+        try:
+            from app.models import Pipeline
+            _ch_result = await db.execute(
+                select(Channel.default_pipeline_id).where(Channel.id == webhook.channel_id)
+            )
+            _ch_pipeline = _ch_result.scalar_one_or_none()
+            if _ch_pipeline:
+                _pipeline_id = _ch_pipeline
+            else:
+                _p_result = await db.execute(
+                    select(Pipeline.id).where(Pipeline.tenant_id == webhook.tenant_id, Pipeline.is_default == True)
+                )
+                _pipeline_id = _p_result.scalar_one_or_none()
+        except:
+            pass
+
         contact = Contact(
             tenant_id=webhook.tenant_id,
             wa_id=phone,
             name=data.name,
             lead_status="novo",
             channel_id=webhook.channel_id,
+            pipeline_id=_pipeline_id,
             ai_active=True,
             notes=notes,
         )

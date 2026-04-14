@@ -20,6 +20,7 @@ interface ChannelItem {
   instance_name: string | null;
   page_id: string | null;
   instagram_id: string | null;
+  default_pipeline_id: number | null;
 }
 
 const typeColors: Record<string, string> = {
@@ -45,6 +46,7 @@ export default function ChannelsPage() {
   const [qrStatus, setQrStatus] = useState<'loading' | 'scanning' | 'connected' | 'error'>('loading');
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} });
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const [pipelines, setPipelines] = useState<{id: number; name: string; is_default: boolean}[]>([]);
 
   const loadChannels = async () => {
     try {
@@ -59,6 +61,7 @@ export default function ChannelsPage() {
 
   useEffect(() => {
     loadChannels();
+    api.get('/pipelines').then(res => setPipelines(res.data)).catch(() => {});
   }, []);
 
   // Cleanup polling on unmount
@@ -299,10 +302,38 @@ export default function ChannelsPage() {
                           <span className="text-[12px] text-gray-400">Instância: {ch.instance_name}</span>
                         )}
                       </div>
+                      {pipelines.length > 1 && ch.default_pipeline_id && (
+                        <p className="text-[11px] text-gray-400 mt-0.5">
+                          Funil: {pipelines.find(p => p.id === ch.default_pipeline_id)?.name || 'Principal'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {pipelines.length > 1 && (
+                      <select
+                        value={ch.default_pipeline_id || ''}
+                        onChange={async (e) => {
+                          const pipelineId = Number(e.target.value);
+                          try {
+                            await api.patch(`/channels/${ch.id}`, { default_pipeline_id: pipelineId });
+                            setChannels(prev => prev.map(c => c.id === ch.id ? { ...c, default_pipeline_id: pipelineId } : c));
+                            toast.success('Pipeline atualizado');
+                          } catch {
+                            toast.error('Erro ao atualizar pipeline');
+                          }
+                        }}
+                        className="px-2.5 py-1.5 text-[12px] bg-gray-50 border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:border-primary cursor-pointer"
+                        title="Pipeline padrão para leads deste canal"
+                      >
+                        {pipelines.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}{p.is_default ? ' (Principal)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
                       ch.is_connected ? 'bg-emerald-50' : 'bg-red-50'
                     }`}>

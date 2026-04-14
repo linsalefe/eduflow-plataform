@@ -100,11 +100,31 @@ async def receive_new_lead(data: NewLeadRequest, db: AsyncSession = Depends(get_
     result = await db.execute(select(Contact).where(Contact.wa_id == phone))
     contact = result.scalar_one_or_none()
     if not contact:
+        # Resolve pipeline for new contact
+        _pipeline_id = None
+        try:
+            from app.models import Pipeline
+            _ch_result = await db.execute(
+                select(Channel.default_pipeline_id, Channel.tenant_id).where(Channel.id == data.channel_id)
+            )
+            _ch_row = _ch_result.first()
+            if _ch_row:
+                if _ch_row.default_pipeline_id:
+                    _pipeline_id = _ch_row.default_pipeline_id
+                else:
+                    _p_result = await db.execute(
+                        select(Pipeline.id).where(Pipeline.tenant_id == _ch_row.tenant_id, Pipeline.is_default == True)
+                    )
+                    _pipeline_id = _p_result.scalar_one_or_none()
+        except:
+            pass
+
         contact = Contact(
             wa_id=phone,
             name=data.name,
             lead_status="novo",
             channel_id=data.channel_id,
+            pipeline_id=_pipeline_id,
         )
         db.add(contact)
         await db.flush()

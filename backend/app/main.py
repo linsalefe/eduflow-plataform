@@ -36,6 +36,7 @@ from app.evolution.routes import router as evolution_router
 from app.jarvis.routes import router as jarvis_router
 from app.composio_routes import router as composio_router
 from app.stripe_routes import router as stripe_router
+from app.pipeline_routes import router as pipeline_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -242,6 +243,7 @@ app.include_router(export_router)
 app.include_router(jarvis_router)
 app.include_router(composio_router)
 app.include_router(stripe_router)
+app.include_router(pipeline_router)
 
 @app.get("/webhook")
 async def verify_webhook(
@@ -290,7 +292,26 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 contact = result.scalar_one_or_none()
 
                 if not contact:
-                    contact = Contact(wa_id=wa_id, name=name, channel_id=channel_id)
+                    # Resolve pipeline for new contact
+                    _pipeline_id = None
+                    try:
+                        from app.models import Pipeline
+                        if channel_id:
+                            _ch_result = await db.execute(
+                                select(Channel.default_pipeline_id, Channel.tenant_id).where(Channel.id == channel_id)
+                            )
+                            _ch_row = _ch_result.first()
+                            if _ch_row:
+                                if _ch_row.default_pipeline_id:
+                                    _pipeline_id = _ch_row.default_pipeline_id
+                                else:
+                                    _p_result = await db.execute(
+                                        select(Pipeline.id).where(Pipeline.tenant_id == _ch_row.tenant_id, Pipeline.is_default == True)
+                                    )
+                                    _pipeline_id = _p_result.scalar_one_or_none()
+                    except:
+                        pass
+                    contact = Contact(wa_id=wa_id, name=name, channel_id=channel_id, pipeline_id=_pipeline_id)
                     db.add(contact)
                     await notify_all_users(
                         db, "new_lead", 
@@ -519,10 +540,30 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                     except Exception as e:
                         print(f"⚠️ Erro ao buscar perfil Instagram: {e}")
 
+                # Resolve pipeline for new Instagram contact
+                _ig_pipeline_id = None
+                try:
+                    from app.models import Pipeline
+                    if channel_id:
+                        _ig_ch = await db.execute(
+                            select(Channel.default_pipeline_id, Channel.tenant_id).where(Channel.id == channel_id)
+                        )
+                        _ig_row = _ig_ch.first()
+                        if _ig_row:
+                            if _ig_row.default_pipeline_id:
+                                _ig_pipeline_id = _ig_row.default_pipeline_id
+                            else:
+                                _ig_p = await db.execute(
+                                    select(Pipeline.id).where(Pipeline.tenant_id == _ig_row.tenant_id, Pipeline.is_default == True)
+                                )
+                                _ig_pipeline_id = _ig_p.scalar_one_or_none()
+                except:
+                    pass
                 contact = Contact(
                     wa_id=ig_sender_id,
                     name=ig_name,
                     channel_id=channel_id,
+                    pipeline_id=_ig_pipeline_id,
                 )
                 db.add(contact)
                 await db.flush()

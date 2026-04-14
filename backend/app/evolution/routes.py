@@ -302,11 +302,30 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                             except Exception as e:
                                 print(f"⚠️ Erro ao buscar nome do grupo: {e}")
 
+                        # Resolve pipeline for new contact
+                        _pipeline_id = None
+                        try:
+                            from app.models import Pipeline
+                            _ch_result = await db.execute(
+                                select(Channel.default_pipeline_id).where(Channel.id == channel_id)
+                            )
+                            _ch_pipeline = _ch_result.scalar_one_or_none()
+                            if _ch_pipeline:
+                                _pipeline_id = _ch_pipeline
+                            else:
+                                _p_result = await db.execute(
+                                    select(Pipeline.id).where(Pipeline.tenant_id == tenant_id, Pipeline.is_default == True)
+                                )
+                                _pipeline_id = _p_result.scalar_one_or_none()
+                        except:
+                            pass
+
                         contact = Contact(
                             tenant_id=tenant_id,
                             wa_id=contact_phone,
                             name=group_name,
                             channel_id=channel_id,
+                            pipeline_id=_pipeline_id,
                             lead_status="novo",
                             ai_active=False if is_group else True,
                             last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),

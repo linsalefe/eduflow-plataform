@@ -32,6 +32,7 @@ class Channel(Base):
     is_connected = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+    default_pipeline_id = Column(Integer, ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True)
 
     tenant = relationship("Tenant", back_populates="channels")
     contacts = relationship("Contact", back_populates="channel")
