@@ -87,7 +87,9 @@ Dica: use um numero dedicado para vendas. Evite usar seu WhatsApp pessoal como c
   - O agente usa esses documentos para responder com precisao
 6. Salve e teste enviando uma mensagem para o numero conectado
 
-Dica: quanto mais detalhado o prompt e a base de conhecimento, melhor o agente responde. Invista tempo nessa configuracao.`,
+O agente de IA funciona 24 horas por dia, 7 dias por semana. Ele responde instantaneamente e mantem o lead engajado ate que um humano assuma.
+
+Dica: quanto mais detalhado o prompt e a base de conhecimento, melhor o agente responde. Invista pelo menos 1 hora nessa configuracao \u2014 e o que vai determinar a qualidade do atendimento automatizado.`,
   },
   {
     id: 4,
@@ -118,7 +120,7 @@ Dica: use tags para categorizar seus leads (ex: "Quente", "Frio", "Aguardando pr
 
 Para pausar a IA em um contato:
 \u2022 Abra a conversa do contato
-\u2022 No painel direito (ou modal no mobile), encontre "Agente IA (Nat)"
+\u2022 No painel direito (ou modal no mobile), encontre "Agente IA"
 \u2022 Desative o toggle — a IA para de responder
 \u2022 Agora voce responde manualmente
 
@@ -380,49 +382,165 @@ Dica: se nao configurar, o lead cai no "Pipeline Principal" como padrao. Configu
     category: 'Agente IA',
     title: 'Escrevendo um Bom Prompt',
     difficulty: 'intermediario',
-    content: `O prompt e a instrucao que guia o comportamento do agente de IA. Um bom prompt faz toda a diferenca.
+    content: `O prompt e a instrucao principal que define como o agente de IA se comporta. Um prompt bem escrito e a diferenca entre um agente que converte e um que espanta leads.
 
-Estrutura recomendada:
-1. Identidade: "Voce e a Nat, assistente comercial da [empresa]"
-2. Contexto: descreva o negocio, produtos/servicos, publico-alvo
-3. Objetivo: o que a IA deve fazer (qualificar, agendar reuniao, tirar duvidas)
-4. Tom de voz: formal, informal, amigavel, profissional
-5. Regras: o que NAO fazer (nao passar preco, nao inventar informacoes)
-6. Perguntas de qualificacao: o que perguntar ao lead
-7. Encerramento: como finalizar a conversa (ex: agendar call)
+Estrutura recomendada (siga esta ordem):
 
-Exemplo:
-"Voce e a Nat, consultora comercial da GV Sports Education. Seu objetivo e qualificar leads interessados em intercambio esportivo para os EUA. Seja simpatica e use emojis com moderacao. NUNCA passe valores — diga que um consultor entrara em contato. Pergunte: nome, idade, esporte, e se tem passaporte."
+1. Identidade e papel
+  - Defina quem e o agente: "Voce e a assistente virtual da [nome da empresa]"
+  - De um nome ao agente (ex: Ana, Lia, Sofia)
+  - Defina o papel: atendente, consultora comercial, suporte tecnico
 
-Dica: teste o prompt enviando mensagens reais. Ajuste conforme a IA erra ou nao responde como esperado. E um processo iterativo.`,
+2. Contexto do negocio
+  - Descreva o que sua empresa faz em 2-3 paragrafos
+  - Liste os produtos ou servicos oferecidos
+  - Descreva o publico-alvo (faixa etaria, perfil, necessidades)
+  - Mencione diferenciais competitivos
+
+3. Objetivo da conversa
+  - O que o agente deve alcancar: qualificar o lead, agendar reuniao, tirar duvidas, coletar dados
+  - Defina o "final ideal" da conversa (ex: lead agendou uma call)
+  - Defina quando encaminhar para um humano
+
+4. Tom de voz e estilo
+  - Formal, semiformal ou descontraido
+  - Usar ou nao emojis (e com que frequencia)
+  - Tamanho das mensagens (curtas e diretas ou mais explicativas)
+  - Idioma (portugues BR, sem girias regionais, etc.)
+
+5. Perguntas de qualificacao
+  - Liste as perguntas que o agente deve fazer, em ordem
+  - Exemplo: nome, interesse principal, orcamento disponivel, prazo
+  - Defina quantas perguntas fazer antes de encaminhar
+
+6. Regras e restricoes (MUITO IMPORTANTE)
+  - O que o agente NUNCA deve fazer:
+  - Nao inventar informacoes que nao estao na base de conhecimento
+  - Nao passar precos (se for politica da empresa)
+  - Nao fazer promessas de prazo ou garantia
+  - Nao falar mal de concorrentes
+  - Nao responder sobre assuntos fora do escopo
+  - O que fazer quando nao souber a resposta: "Vou verificar com a equipe e te retorno em breve"
+
+7. Formato das respostas
+  - Mensagens curtas (1-3 paragrafos no maximo por resposta)
+  - Usar listas quando explicar multiplas opcoes
+  - Sempre terminar com uma pergunta ou CTA (call to action)
+  - Nao enviar blocos gigantes de texto
+
+8. Encerramento
+  - Como finalizar a conversa positivamente
+  - Exemplo: "Foi um prazer te atender! Qualquer duvida, e so chamar aqui"
+  - Quando agendar: confirmar data, horario e meio (call, presencial, etc.)
+
+Exemplo de prompt completo:
+
+"Voce e a Sofia, consultora comercial da [empresa]. Seu objetivo e qualificar leads interessados em [servico/produto] e agendar uma reuniao com um consultor.
+
+Sobre a empresa: [descreva em 2-3 linhas o que a empresa faz, diferenciais e publico].
+
+Tom: seja simpatica, profissional e use emojis com moderacao (maximo 1-2 por mensagem). Mensagens curtas e diretas.
+
+Fluxo de qualificacao:
+1. Cumprimente e pergunte o nome
+2. Pergunte o que motivou o interesse
+3. Pergunte o prazo (quando pretende comecar)
+4. Pergunte se tem orcamento definido
+5. Agradeca e ofereca agendar uma reuniao com um especialista
+
+Regras:
+- NUNCA invente informacoes. Se nao souber, diga que vai verificar.
+- NUNCA passe valores exatos. Diga que os valores sao personalizados e que o consultor apresentara na reuniao.
+- Se o lead perguntar algo fora do escopo, redirecione gentilmente para o tema.
+- Se o lead demonstrar urgencia, priorize o agendamento."
+
+Erros comuns a evitar:
+\u2022 Prompt muito curto: "Atenda os clientes" \u2014 a IA nao sabe o que fazer
+\u2022 Prompt contraditorio: "Seja direta" + "Explique tudo em detalhes"
+\u2022 Nao definir restricoes: sem regras, a IA pode inventar precos e prazos
+\u2022 Copiar prompts genericos da internet: cada negocio e unico
+
+Dica: escreva o prompt como se estivesse treinando um novo funcionario no primeiro dia. Quanto mais contexto e regras claras, melhor o resultado. Revise e ajuste semanalmente com base nas conversas reais.`,
   },
   {
     id: 17,
     category: 'Agente IA',
     title: 'Base de Conhecimento (RAG)',
     difficulty: 'intermediario',
-    content: `A Base de Conhecimento permite que a IA responda perguntas com base em documentos reais do seu negocio.
+    content: `A Base de Conhecimento (RAG) e o que torna seu agente de IA realmente inteligente. Sem ela, o agente so tem o prompt. Com ela, o agente responde com precisao usando informacoes reais do seu negocio.
 
-Como funciona:
-\u2022 Voce faz upload de documentos (PDF, TXT, etc.)
-\u2022 O sistema indexa o conteudo
-\u2022 Quando o lead faz uma pergunta, a IA busca a resposta nos documentos
-\u2022 A resposta e precisa e baseada em fatos reais, nao inventada
+Como funciona tecnicamente:
+\u2022 Voce faz upload de documentos (PDF, TXT, DOCX)
+\u2022 O sistema divide o documento em trechos pequenos e indexa cada um
+\u2022 Quando o lead faz uma pergunta, o sistema busca os trechos mais relevantes
+\u2022 Esses trechos sao enviados junto com a pergunta para a IA
+\u2022 A IA responde com base nos trechos encontrados \u2014 nao inventa
 
-O que adicionar:
-\u2022 FAQ completo do seu negocio
-\u2022 Tabela de precos (se quiser que a IA informe)
-\u2022 Descricao detalhada de produtos/servicos
-\u2022 Politicas de pagamento e cancelamento
-\u2022 Depoimentos de clientes (para a IA usar como prova social)
+O que adicionar na base de conhecimento:
 
-Para adicionar:
-1. Acesse Config. IA \u2192 selecione o canal
-2. Na secao Base de Conhecimento, clique em "Adicionar documento"
-3. Faca upload do arquivo
-4. O sistema processa e indexa automaticamente
+1. FAQ completo (ESSENCIAL)
+  - Liste as 20-30 perguntas mais frequentes dos seus clientes
+  - Para cada pergunta, escreva a resposta ideal
+  - Formato: "Pergunta: ... Resposta: ..."
+  - Exemplo: "Pergunta: Qual o prazo de entrega? Resposta: O prazo medio e de 15 dias uteis apos a confirmacao do pagamento."
 
-Dica: quanto mais documentos relevantes, melhor a IA responde. Mas evite documentos contraditorios — a IA pode ficar confusa.`,
+2. Descricao de produtos/servicos
+  - Nome, descricao detalhada, beneficios, publico-alvo
+  - Diferenciais em relacao a concorrencia
+  - Casos de uso e resultados esperados
+
+3. Tabela de precos (OPCIONAL \u2014 so se quiser que a IA informe)
+  - Se incluir: precos exatos, condicoes, formas de pagamento
+  - Se NAO incluir: a IA vai dizer que nao tem essa informacao (comportamento correto se seu prompt disser "nao passe precos")
+
+4. Politicas da empresa
+  - Politica de cancelamento e reembolso
+  - Garantias oferecidas
+  - Prazos de atendimento e resposta
+  - Formas de pagamento aceitas
+
+5. Informacoes de contato e localizacao
+  - Endereco, telefone, horario de funcionamento
+  - Links uteis (site, redes sociais)
+  - Como chegar (se atendimento presencial)
+
+6. Depoimentos e cases (para prova social)
+  - "Mais de 500 clientes atendidos"
+  - Depoimentos curtos (use iniciais ou genericos)
+  - Resultados alcancados por clientes
+
+7. Informacoes do mercado/nicho
+  - Dados relevantes do setor
+  - Tendencias que reforcam a venda
+  - Comparativos com alternativas (sem citar nomes de concorrentes)
+
+Boas praticas:
+
+\u2022 Um documento por tema: em vez de um PDF gigante, crie documentos separados (FAQ.txt, Servicos.txt, Politicas.txt). Isso melhora a precisao da busca.
+
+\u2022 Linguagem simples e direta: escreva como se estivesse explicando para o cliente, nao em linguagem tecnica interna.
+
+\u2022 Atualize regularmente: mudou o preco? Atualize o documento. Lancou servico novo? Adicione. Documentos desatualizados = respostas erradas.
+
+\u2022 Teste apos cada upload: envie as perguntas mais comuns para o agente e veja se ele responde corretamente. Se nao, ajuste o documento.
+
+\u2022 Evite contradicoes: se o prompt diz "nao passe precos" mas o documento tem precos, a IA pode ficar confusa. Mantenha consistencia.
+
+Formato ideal do documento FAQ:
+
+Pergunta: O que e [seu servico]?
+Resposta: [Explicacao clara e objetiva em 2-3 linhas]
+
+Pergunta: Quanto custa?
+Resposta: Os valores sao personalizados de acordo com a necessidade de cada cliente. Agende uma conversa com nosso consultor para receber uma proposta sob medida.
+
+Pergunta: Qual o prazo?
+Resposta: [Prazo medio com ressalvas quando necessario]
+
+Pergunta: Como funciona o pagamento?
+Resposta: [Formas de pagamento, parcelamento, etc.]
+
+Dica: crie um documento "FAQ.txt" com pelo menos 20 perguntas e respostas. Esse unico documento ja vai melhorar drasticamente a qualidade das respostas do agente. Revise mensalmente e adicione novas perguntas que os leads fazem frequentemente.`,
   },
   {
     id: 18,
