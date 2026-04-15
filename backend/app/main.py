@@ -472,6 +472,11 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
             if channel:
                 channel_id = channel.id
 
+        # Sem canal = sem tenant_id = não conseguimos processar
+        if not channel:
+            print(f"⚠️ Instagram webhook: canal não encontrado para ig_user_id={ig_user_id}")
+            continue
+
         for messaging_event in entry.get("messaging", []):
             sender_id = str(messaging_event.get("sender", {}).get("id", ""))
             message_data = messaging_event.get("message", {})
@@ -514,7 +519,10 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
 
             # Criar ou atualizar contato
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id == ig_sender_id)
+                select(Contact).where(
+                    Contact.wa_id == ig_sender_id,
+                    Contact.tenant_id == channel.tenant_id,
+                )
             )
             contact = contact_result.scalar_one_or_none()
 
@@ -560,6 +568,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                 except:
                     pass
                 contact = Contact(
+                    tenant_id=channel.tenant_id,
                     wa_id=ig_sender_id,
                     name=ig_name,
                     channel_id=channel_id,
@@ -579,6 +588,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
             ts = datetime.fromtimestamp(timestamp / 1000, tz=SP_TZ).replace(tzinfo=None) if timestamp > 9999999999 else datetime.fromtimestamp(timestamp, tz=SP_TZ).replace(tzinfo=None)
 
             message = Message(
+                tenant_id=channel.tenant_id,
                 wa_message_id=msg_id,
                 contact_wa_id=ig_sender_id,
                 channel_id=channel_id,

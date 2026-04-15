@@ -10,6 +10,7 @@ import os
 
 from app.database import get_db
 from app.models import Channel
+from app.auth import get_current_user, get_tenant_id
 
 router = APIRouter(prefix="/api/oauth", tags=["OAuth"])
 
@@ -53,6 +54,8 @@ async def get_instagram_oauth_url():
 async def instagram_oauth_callback(
     req: InstagramCallbackRequest,
     db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
 ):
     """Troca o code do Instagram por token e cria o canal."""
     redirect_uri = f"{FRONTEND_URL}/canais/callback"
@@ -121,7 +124,11 @@ async def instagram_oauth_callback(
 
     # 4. Verificar se já existe canal com esse instagram_id
     existing = await db.execute(
-        select(Channel).where(Channel.instagram_id == ig_user_id, Channel.is_active == True)
+        select(Channel).where(
+            Channel.instagram_id == ig_user_id,
+            Channel.tenant_id == tenant_id,
+            Channel.is_active == True,
+        )
     )
     existing_channel = existing.scalar_one_or_none()
 
@@ -142,6 +149,7 @@ async def instagram_oauth_callback(
 
     # 5. Criar novo canal
     channel = Channel(
+        tenant_id=tenant_id,
         name=req.channel_name or ig_name or f"Instagram @{ig_username}",
         type="instagram",
         provider="instagram",
