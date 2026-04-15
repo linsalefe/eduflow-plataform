@@ -214,7 +214,7 @@ export default function ChannelsPage() {
   };
 
   const getProviderLabel = (ch: ChannelItem) => {
-    if (ch.provider === 'evolution') return 'Evolution API';
+    if (ch.provider === 'evolution') return 'WhatsApp API';
     if (ch.provider === 'meta') return 'Meta Graph API';
     if (ch.provider === 'instagram') return 'Instagram API';
     return 'API Oficial';
@@ -413,7 +413,7 @@ export default function ChannelsPage() {
                   </svg>
                   <div>
                     <p className="text-[14px] font-semibold text-green-800">WhatsApp</p>
-                    <p className="text-[11px] text-green-600 mt-0.5">Conexão via QR Code usando Evolution API</p>
+                    <p className="text-[11px] text-green-600 mt-0.5">Conexão via QR Code</p>
                   </div>
                 </button>
 

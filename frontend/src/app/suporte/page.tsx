@@ -312,7 +312,7 @@ Dica: adicione parametros UTM no link (?utm_source=instagram&utm_campaign=promo)
     category: 'Canais e Integracoes',
     title: 'Conectando WhatsApp',
     difficulty: 'basico',
-    content: `O WhatsApp e conectado via Evolution API usando QR Code. Voce pode ter multiplos numeros.
+    content: `O WhatsApp é conectado via QR Code. Voce pode ter multiplos numeros.
 
 1. Acesse Canais no menu lateral
 2. Clique em Novo Canal \u2192 WhatsApp
