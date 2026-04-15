@@ -582,6 +582,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                     f"Um novo lead entrou pelo Instagram",
                     f"/conversations",
                     ig_sender_id,
+                    tenant_id=channel.tenant_id,
                 )
 
             # Salvar mensagem
