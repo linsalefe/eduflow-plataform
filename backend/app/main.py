@@ -539,12 +539,18 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                                     "access_token": channel.access_token,
                                 },
                             )
+                        print(f"🔍 Instagram profile API status={profile_res.status_code} body={profile_res.text[:500]}")
                         if profile_res.status_code == 200:
                             profile = profile_res.json()
                             username = profile.get("username", "")
                             name = profile.get("name", "")
-                            ig_name = name or f"@{username}" if username else ig_name
+                            if name:
+                                ig_name = name
+                            elif username:
+                                ig_name = f"@{username}"
                             print(f"👤 Instagram perfil: {ig_name} (@{username})")
+                        else:
+                            print(f"⚠️ Instagram profile API error: {profile_res.text[:500]}")
                     except Exception as e:
                         print(f"⚠️ Erro ao buscar perfil Instagram: {e}")
 
