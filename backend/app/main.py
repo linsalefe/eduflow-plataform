@@ -535,7 +535,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                             profile_res = await http_client.get(
                                 f"https://graph.instagram.com/v22.0/{sender_id}",
                                 params={
-                                    "fields": "name,username,profile_picture_url",
+                                    "fields": "name,username",
                                     "access_token": channel.access_token,
                                 },
                             )
