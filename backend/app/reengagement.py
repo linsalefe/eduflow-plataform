@@ -105,7 +105,7 @@ async def run_reengagement():
                         lead_name = (contact.name or "").split()[0] if contact.name else "Lead"
 
                         gpt_response = await client.chat.completions.create(
-                            model="gpt-4o",
+                            model="gpt-5-mini",
                             messages=[
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": f"O lead {lead_name} parou de responder há {int(time_since_last)} minutos. Esta é a tentativa {attempt_index + 1} de {max_attempts} de reengajamento. {instruction} Responda APENAS com o texto da mensagem, sem JSON."},
@@ -145,6 +145,8 @@ async def run_reengagement():
 
                     except Exception as e:
                         print(f"❌ Erro reengajamento {contact.wa_id}: {e}")
+                        contact.reengagement_count = attempt_index + 1
+                        await db.commit()
 
                 # Desativar IA para quem esgotou tentativas
                 expired_result = await db.execute(
