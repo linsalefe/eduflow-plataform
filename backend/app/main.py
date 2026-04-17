@@ -182,7 +182,7 @@ async def scheduler_job():
         except Exception as e:
             print(f"❌ Erro reengagement: {e}")
 
-        await asyncio.sleep(60)  # Checa a cada 1 minuto
+        await asyncio.sleep(300)  # Checa a cada 5 minutos
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
