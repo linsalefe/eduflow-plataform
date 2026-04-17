@@ -509,10 +509,10 @@ async def send_media(
 
 @router.get("/contacts")
 async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
-    from sqlalchemy.orm import aliased
-    from sqlalchemy import case
+    from sqlalchemy import case, literal_column
 
-    latest_msg = (
+    # Subquery: última mensagem por contato
+    latest_msg_sub = (
         select(
             Message.contact_wa_id,
             func.max(Message.timestamp).label("last_ts")
@@ -522,38 +522,79 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         .subquery()
     )
 
+    # Subquery: unread count por contato
+    unread_sub = (
+        select(
+            Message.contact_wa_id,
+            func.count(Message.id).label("unread")
+        )
+        .where(
+            Message.tenant_id == tenant_id,
+            Message.direction == "inbound",
+            Message.status == "received"
+        )
+        .group_by(Message.contact_wa_id)
+        .subquery()
+    )
+
+    # Query principal
     query = (
         select(Contact)
-        .outerjoin(latest_msg, Contact.wa_id == latest_msg.c.contact_wa_id)
+        .outerjoin(latest_msg_sub, Contact.wa_id == latest_msg_sub.c.contact_wa_id)
         .where(Contact.tenant_id == tenant_id)
-        .order_by(latest_msg.c.last_ts.desc().nullslast())
+        .order_by(latest_msg_sub.c.last_ts.desc().nullslast())
     )
     if channel_id:
         query = query.where(Contact.channel_id == channel_id)
     if pipeline_id:
         query = query.where(Contact.pipeline_id == pipeline_id)
+
     result = await db.execute(query)
     contacts = result.scalars().all()
 
+    if not contacts:
+        return []
+
+    # Buscar todas as wa_ids de uma vez
+    wa_ids = [c.wa_id for c in contacts]
+
+    # Batch: última mensagem de todos os contatos (1 query)
+    last_msgs_result = await db.execute(
+        select(Message)
+        .where(Message.contact_wa_id.in_(wa_ids), Message.tenant_id == tenant_id)
+        .distinct(Message.contact_wa_id)
+        .order_by(Message.contact_wa_id, Message.timestamp.desc())
+    )
+    last_msgs = {m.contact_wa_id: m for m in last_msgs_result.scalars().all()}
+
+    # Batch: tags de todos os contatos (1 query)
+    tag_result = await db.execute(
+        select(Tag, contact_tags.c.contact_wa_id)
+        .join(contact_tags, Tag.id == contact_tags.c.tag_id)
+        .where(contact_tags.c.contact_wa_id.in_(wa_ids))
+    )
+    tags_map = {}
+    for row in tag_result:
+        tag, wa_id = row
+        tags_map.setdefault(wa_id, []).append({"id": tag.id, "name": tag.name, "color": tag.color})
+
+    # Batch: unread count de todos os contatos (1 query)
+    unread_result = await db.execute(
+        select(Message.contact_wa_id, func.count(Message.id))
+        .where(
+            Message.contact_wa_id.in_(wa_ids),
+            Message.tenant_id == tenant_id,
+            Message.direction == "inbound",
+            Message.status == "received"
+        )
+        .group_by(Message.contact_wa_id)
+    )
+    unread_map = dict(unread_result.all())
+
+    # Montar resposta
     contacts_list = []
     for c in contacts:
-        msg_result = await db.execute(
-            select(Message).where(Message.contact_wa_id == c.wa_id).order_by(Message.timestamp.desc()).limit(1)
-        )
-        last_msg = msg_result.scalar_one_or_none()
-
-        tag_result = await db.execute(
-            select(Tag).join(contact_tags).where(contact_tags.c.contact_wa_id == c.wa_id)
-        )
-        tags = tag_result.scalars().all()
-
-        unread_result = await db.execute(
-            select(func.count(Message.id)).where(
-                Message.contact_wa_id == c.wa_id, Message.direction == "inbound", Message.status == "received"
-            )
-        )
-        unread = unread_result.scalar()
-
+        last_msg = last_msgs.get(c.wa_id)
         contacts_list.append({
             "id": c.id,
             "wa_id": c.wa_id,
@@ -564,14 +605,13 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "last_message": last_msg.content if last_msg else "",
             "last_message_time": last_msg.timestamp.isoformat() if last_msg else None,
             "direction": last_msg.direction if last_msg else None,
-            "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
-            "unread": unread,
+            "tags": tags_map.get(c.wa_id, []),
+            "unread": unread_map.get(c.wa_id, 0),
             "ai_active": c.ai_active or False,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": c.assigned_to,
             "pipeline_id": c.pipeline_id,
         })
-
     return contacts_list
 @router.post("/contacts")
 async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id), current_user=Depends(get_current_user)):
