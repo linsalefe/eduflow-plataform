@@ -858,14 +858,28 @@ async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id
 
 @router.get("/contacts/{wa_id}/picture")
 async def get_contact_picture(wa_id: str, channel_id: int = 1, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
-    """Busca a URL da foto de perfil do contato via Evolution API."""
-    channel = await get_channel(channel_id, db, tenant_id)
+    """Busca a URL da foto de perfil do contato - usa cache do banco."""
+    # Primeiro, tentar do banco
+    result = await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )
+    contact = result.scalar_one_or_none()
+    if contact and contact.profile_picture_url:
+        return {"profilePictureUrl": contact.profile_picture_url}
 
+    # Se não tem no banco, buscar na Evolution API
+    channel = await get_channel(channel_id, db, tenant_id)
     if not channel.provider == "evolution" or not channel.instance_name:
         return {"profilePictureUrl": None}
 
     from app.evolution.client import get_profile_picture
     url = await get_profile_picture(channel.instance_name, wa_id)
+
+    # Salvar no banco para cache
+    if contact and url:
+        contact.profile_picture_url = url
+        await db.commit()
+
     return {"profilePictureUrl": url}
 
 
