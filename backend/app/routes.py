@@ -611,6 +611,7 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": c.assigned_to,
             "pipeline_id": c.pipeline_id,
+            "profile_picture_url": c.profile_picture_url,
         })
     return contacts_list
 @router.post("/contacts")

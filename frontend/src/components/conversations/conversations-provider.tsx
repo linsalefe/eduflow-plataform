@@ -398,7 +398,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
         res.data.forEach((c: Contact) => {
           if (!loadedPicsRef.current.has(c.wa_id)) {
             loadedPicsRef.current.add(c.wa_id);
-            loadProfilePic(c.wa_id);
+            if (c.profile_picture_url) {
+              setProfilePics(prev => ({ ...prev, [c.wa_id]: c.profile_picture_url }));
+            }
           }
         });
       }
