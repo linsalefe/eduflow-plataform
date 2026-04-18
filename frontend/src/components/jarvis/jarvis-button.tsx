@@ -81,6 +81,18 @@ export function JarvisButton() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  // External trigger (ex: JarvisHeroCard dispatch 'jarvis:open')
+  useEffect(() => {
+    const handleExternalOpen = () => {
+      if (!isOpen) {
+        startListening();
+      }
+    };
+    window.addEventListener('jarvis:open', handleExternalOpen);
+    return () => window.removeEventListener('jarvis:open', handleExternalOpen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   // Monitor mic volume + detecção de silêncio (VAD simples)
   const startAudioMonitor = useCallback(async () => {
     try {

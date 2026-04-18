@@ -12,6 +12,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 import { GreetingHeader } from '@/components/dashboard/greeting-header';
+import { JarvisHeroCard } from '@/components/dashboard/jarvis-hero-card';
 import { StatsOverview } from '@/components/dashboard/stats-overview';
 import { HeroChart } from '@/components/dashboard/hero-chart';
 import { StatusDistribution } from '@/components/dashboard/status-distribution';
@@ -98,6 +99,9 @@ export default function DashboardPage() {
       <div className="space-y-4 lg:space-y-6 max-w-7xl mx-auto pb-6" data-density="high">
         {/* Greeting */}
         <GreetingHeader />
+
+        {/* Jarvis hero */}
+        <JarvisHeroCard />
 
         {/* Loading state */}
         {loading || !stats ? (
