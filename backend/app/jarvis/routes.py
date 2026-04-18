@@ -1,7 +1,7 @@
 # backend/app/jarvis/routes.py
 """
 Rota principal do Jarvis — assistente de voz do dashboard.
-v2: Suporte a actions com confirmação (query + action flow).
+v3: Memoria conversacional + filtro de tools por plano + prompt engajador.
 """
 import base64
 import json
@@ -22,10 +22,11 @@ from app.auth import get_current_user, get_tenant_id
 from app.database import get_db
 from app.models import User
 from app.jarvis.tools import JARVIS_TOOLS
-from app.jarvis.filters import get_available_tools
 from app.jarvis.execute import execute_tool
 from app.jarvis.actions import prepare_action, execute_action
 from app.jarvis.prompts import build_system_prompt
+from app.jarvis.filters import get_available_tools
+from app.jarvis import session as jarvis_session
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "ZxhW0J5Q17DnNxZM6VDC")
 
-# Action tool names (requerem confirmação)
+# Action tool names (requerem confirmacao)
 ACTION_TOOLS = {"action_send_followup", "action_make_call", "action_move_pipeline", "action_schedule"}
 
 
@@ -56,7 +57,7 @@ class JarvisConfirm(BaseModel):
 
 
 # ============================================================
-# POST /api/jarvis/query — pergunta ou ação (com confirmação)
+# POST /api/jarvis/query — pergunta ou acao (com confirmacao)
 # ============================================================
 @router.post("/query")
 async def jarvis_query(
@@ -74,17 +75,20 @@ async def jarvis_query(
         # 1. Montar system prompt
         system_prompt = await build_system_prompt(tenant_id, db)
 
-        # 2. Filtrar tools disponíveis para este tenant (plano/features)
+        # 2. Filtrar tools disponiveis para este tenant (plano/features)
         available_tools = await get_available_tools(tenant_id, db)
         if not available_tools:
-            raise HTTPException(status_code=403, detail="Nenhuma tool disponível para este tenant")
+            raise HTTPException(status_code=403, detail="Nenhuma tool disponivel para este tenant")
 
-        # 3. Chamar GPT-4o com tools filtradas
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": body.text},
-        ]
+        # 3. Recuperar historico da sessao (ultimos turnos)
+        history = jarvis_session.get_history(tenant_id, user.id)
 
+        # 4. Montar messages: system + historico + user atual
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": body.text})
+
+        # 5. Chamar GPT-4o com tools filtradas
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
@@ -92,18 +96,33 @@ async def jarvis_query(
             tool_choice="auto",
         )
 
-        # 4. Processar — pode ser query ou action
-        result = await _process_response(response, messages, tenant_id, db, user_id=user.id, available_tools=available_tools)
+        # 6. Processar — pode ser query ou action
+        result = await _process_response(
+            response, messages, tenant_id, db,
+            user_id=user.id, available_tools=available_tools,
+        )
+
+        # 7. Salvar turno na sessao — somente se for resposta final de texto
+        # (pending_action NAO salva ainda, so apos confirmacao no /confirm)
+        if result.get("type") == "answer" and result.get("text"):
+            jarvis_session.append_turn(
+                tenant_id=tenant_id,
+                user_id=user.id,
+                user_message=body.text,
+                assistant_message=result["text"],
+            )
 
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[Jarvis] Erro ao processar query: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Erro ao processar sua pergunta")
 
 
 # ============================================================
-# POST /api/jarvis/confirm — executa ação confirmada
+# POST /api/jarvis/confirm — executa acao confirmada
 # ============================================================
 @router.post("/confirm")
 async def jarvis_confirm(
@@ -112,16 +131,25 @@ async def jarvis_confirm(
     user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
 ):
-    """Executa uma ação previamente preparada, após confirmação do usuário."""
+    """Executa uma acao previamente preparada, apos confirmacao do usuario."""
 
     try:
         result = await execute_action(body.action, body.details, tenant_id, db)
 
-        text = result.get("message", "Ação executada.")
+        text = result.get("message", "Acao executada.")
         audio_b64 = None
 
         if body.generate_audio and result.get("success"):
             audio_b64 = _generate_audio(text)
+
+        # Registrar acao confirmada na sessao como turno
+        synthetic_user_msg = f"[Acao confirmada: {body.action}]"
+        jarvis_session.append_turn(
+            tenant_id=tenant_id,
+            user_id=user.id,
+            user_message=synthetic_user_msg,
+            assistant_message=text,
+        )
 
         return {
             "type": "action_result",
@@ -131,8 +159,21 @@ async def jarvis_confirm(
         }
 
     except Exception as e:
-        logger.error(f"[Jarvis] Erro ao confirmar ação: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Erro ao executar a ação")
+        logger.error(f"[Jarvis] Erro ao confirmar acao: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Erro ao executar a acao")
+
+
+# ============================================================
+# POST /api/jarvis/session/clear — reseta conversa do usuario
+# ============================================================
+@router.post("/session/clear")
+async def jarvis_session_clear(
+    user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    """Apaga o historico da sessao atual (para botao 'nova conversa')."""
+    jarvis_session.clear(tenant_id, user.id)
+    return {"status": "cleared"}
 
 
 # ============================================================
@@ -143,8 +184,8 @@ async def _process_response(
     messages: list,
     tenant_id: int,
     db: AsyncSession,
-    user_id: int | None = None,
-    available_tools: list | None = None,
+    user_id: Optional[int] = None,
+    available_tools: Optional[list] = None,
     max_iterations: int = 5,
 ) -> dict:
     """Processa resposta do GPT-4o. Se for action, retorna pending_action."""
@@ -163,14 +204,14 @@ async def _process_response(
 
         # Sem tool calls — fallback
         if not msg.tool_calls:
-            text = "Não entendi a pergunta. Pode repetir?"
+            text = "Nao entendi a pergunta. Pode repetir?"
             return {
                 "type": "answer",
                 "text": text,
                 "audio_b64": _generate_audio(text) if ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID else None,
             }
 
-        # Verificar se alguma tool call é uma ACTION
+        # Verificar se alguma tool call e uma ACTION
         for tc in msg.tool_calls:
             if tc.function.name in ACTION_TOOLS:
                 try:
@@ -179,12 +220,9 @@ async def _process_response(
                     args = {}
 
                 logger.info(f"[Jarvis] Action detected: {tc.function.name}({args})")
-
-                # Preparar ação (sem executar)
                 pending = await prepare_action(tc.function.name, args, tenant_id, db)
 
                 if pending.get("error"):
-                    # Erro na preparação — retorna como resposta
                     text = pending["error"]
                     return {
                         "type": "answer",
@@ -192,7 +230,6 @@ async def _process_response(
                         "audio_b64": _generate_audio(text) if ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID else None,
                     }
 
-                # Gerar áudio da descrição
                 desc = pending.get("description", "")
                 audio_b64 = _generate_audio(f"Posso {desc.lower()}?") if ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID else None
 
@@ -203,7 +240,7 @@ async def _process_response(
                     "pending_action": pending,
                 }
 
-        # É uma query tool — executar normalmente
+        # E uma query tool — executar normalmente
         messages.append(msg)
         for tc in msg.tool_calls:
             try:
@@ -220,14 +257,13 @@ async def _process_response(
                 "content": json.dumps(result, ensure_ascii=False, default=str),
             })
 
-        # Nova chamada ao GPT-4o
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
             tools=available_tools or JARVIS_TOOLS,
         )
 
-    text = "Desculpe, não consegui processar sua pergunta."
+    text = "Desculpe, nao consegui processar sua pergunta."
     return {
         "type": "answer",
         "text": text,
@@ -239,7 +275,7 @@ async def _process_response(
 # INTERNAL — generate ElevenLabs TTS audio
 # ============================================================
 def _generate_audio(text: str) -> str | None:
-    """Gera áudio via ElevenLabs TTS e retorna base64."""
+    """Gera audio via ElevenLabs TTS e retorna base64."""
     if not ELEVENLABS_API_KEY or not ELEVENLABS_VOICE_ID:
         return None
     try:
@@ -253,5 +289,5 @@ def _generate_audio(text: str) -> str | None:
         audio_bytes = b"".join(audio_generator)
         return base64.b64encode(audio_bytes).decode()
     except Exception as e:
-        logger.error(f"[Jarvis] Erro ao gerar áudio ElevenLabs: {e}")
+        logger.error(f"[Jarvis] Erro ao gerar audio ElevenLabs: {e}")
         return None

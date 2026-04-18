@@ -51,6 +51,16 @@ export function JarvisButton() {
   const streamRef = useRef<MediaStream | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<{id: number, name: string, instance_name: string} | null>(null);
   const finalTranscriptRef = useRef('');
+  const silenceStartRef = useRef<number | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasSpokenRef = useRef(false);
+  const manualStopRef = useRef(false);
+  const [silenceCountdown, setSilenceCountdown] = useState<number | null>(null);
+
+  // VAD config
+  const SPEAKING_THRESHOLD = 0.04; // nível de áudio considerado "falando"
+  const SILENCE_DURATION_MS = 1800; // 1.8s de silêncio contínuo → stop
+  const SILENCE_GRACE_MS = 400; // tolerância inicial antes de começar a contar
 
   // Cleanup on unmount
   useEffect(() => {
@@ -71,7 +81,7 @@ export function JarvisButton() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  // Monitor mic volume
+  // Monitor mic volume + detecção de silêncio (VAD simples)
   const startAudioMonitor = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -83,10 +93,40 @@ export function JarvisButton() {
       source.connect(analyser);
 
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const startedAt = performance.now();
+
       const tick = () => {
         analyser.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        setAudioLevel(avg / 255);
+        const level = avg / 255;
+        setAudioLevel(level);
+
+        const elapsed = performance.now() - startedAt;
+
+        if (level >= SPEAKING_THRESHOLD) {
+          // Está falando — resetar contagem de silêncio
+          hasSpokenRef.current = true;
+          silenceStartRef.current = null;
+          setSilenceCountdown(null);
+        } else if (hasSpokenRef.current && elapsed > SILENCE_GRACE_MS) {
+          // Silêncio DEPOIS de ter falado
+          if (silenceStartRef.current === null) {
+            silenceStartRef.current = performance.now();
+          }
+          const silentFor = performance.now() - silenceStartRef.current;
+          const remaining = Math.max(0, SILENCE_DURATION_MS - silentFor);
+          setSilenceCountdown(Math.ceil(remaining / 1000));
+
+          if (silentFor >= SILENCE_DURATION_MS) {
+            // Silêncio suficiente — parar e enviar
+            setSilenceCountdown(null);
+            if (recognitionRef.current) {
+              try { recognitionRef.current.stop(); } catch {}
+            }
+            return; // interrompe o loop
+          }
+        }
+
         animFrameRef.current = requestAnimationFrame(tick);
       };
       tick();
@@ -100,6 +140,13 @@ export function JarvisButton() {
     streamRef.current = null;
     cancelAnimationFrame(animFrameRef.current);
     setAudioLevel(0);
+    silenceStartRef.current = null;
+    hasSpokenRef.current = false;
+    setSilenceCountdown(null);
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
   }, []);
 
   // Start listening
@@ -124,7 +171,8 @@ export function JarvisButton() {
     recognition.lang = 'pt-BR';
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
-    recognition.continuous = false;
+    recognition.continuous = true;
+    manualStopRef.current = false;
 
     recognition.onresult = (e: any) => {
       let interim = '';
@@ -164,6 +212,15 @@ export function JarvisButton() {
     startAudioMonitor();
     setState('listening');
   }, [startAudioMonitor, stopAudioMonitor]);
+
+  // Forçar envio manual (usuário clicou "Enviar")
+  const sendNow = useCallback(() => {
+    manualStopRef.current = true;
+    setSilenceCountdown(null);
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+    }
+  }, []);
 
   // Send to backend
   const sendToJarvis = async (text: string) => {
@@ -471,6 +528,28 @@ export function JarvisButton() {
                     ) : (
                       <p className="text-[16px] text-blue-300/70 italic">Ouvindo...</p>
                     )}
+
+                    <div className="mt-6 flex items-center justify-center gap-3">
+                      <button
+                        onClick={sendNow}
+                        disabled={!transcript}
+                        className={cn(
+                          "px-5 py-2 rounded-full text-[14px] font-medium transition-all",
+                          "border backdrop-blur-sm",
+                          transcript
+                            ? "bg-blue-500/20 border-blue-400/40 text-white hover:bg-blue-500/30"
+                            : "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"
+                        )}
+                      >
+                        Enviar agora
+                      </button>
+
+                      {silenceCountdown !== null && silenceCountdown > 0 && transcript && (
+                        <span className="text-[12px] text-white/50">
+                          enviando em {silenceCountdown}s...
+                        </span>
+                      )}
+                    </div>
                   </motion.div>
                 )}
 
