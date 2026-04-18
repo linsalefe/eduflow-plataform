@@ -1,6 +1,8 @@
 # backend/app/jarvis/tools.py
 """
 Definição das tools que o GPT-4o pode chamar para buscar dados reais do CRM.
+IMPORTANTE: as tools expostas ao GPT em runtime são filtradas por
+backend/app/jarvis/filters.py com base em agent_plan_flags e features do tenant.
 """
 
 JARVIS_TOOLS = [
@@ -32,7 +34,7 @@ JARVIS_TOOLS = [
                 "properties": {
                     "stage_name": {
                         "type": "string",
-                        "description": "Nome da coluna do pipeline (ex: novo, em_contato, qualificado, em_matricula, matriculado, perdido). Se não informado, retorna todas."
+                        "description": "Nome da coluna do pipeline (ex: novo, em_contato, qualificado, etc). Se não informado, retorna todas."
                     }
                 }
             }
@@ -43,10 +45,7 @@ JARVIS_TOOLS = [
         "function": {
             "name": "get_revenue_summary",
             "description": "Faturamento atual do mês e progresso em relação à meta mensal configurada",
-            "parameters": {
-                "type": "object",
-                "properties": {}
-            }
+            "parameters": {"type": "object", "properties": {}}
         }
     },
     {
@@ -104,18 +103,15 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_goal_progress",
-            "description": "Quanto falta para bater a meta de faturamento e/ou leads do mês. Inclui ticket médio e matrículas necessárias.",
-            "parameters": {
-                "type": "object",
-                "properties": {}
-            }
+            "description": "Quanto falta para bater a meta de faturamento e/ou leads do mês. Inclui ticket médio e vendas necessárias.",
+            "parameters": {"type": "object", "properties": {}}
         }
     },
     {
         "type": "function",
         "function": {
             "name": "get_contact_details",
-            "description": "Busca informações detalhadas de um contato/lead específico: nome, telefone, status no pipeline, score, formação, atuação, motivação, valor do deal, tags e última mensagem.",
+            "description": "Busca informações detalhadas de um contato/lead específico: nome, telefone, status no pipeline, score, valor do deal, tags e última mensagem.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -132,24 +128,104 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_contact_conversations",
-            "description": "Retorna as últimas mensagens trocadas com um contato/lead. Mostra quem enviou (lead ou atendente/IA), conteúdo e horário.",
+            "description": "Retorna as últimas mensagens trocadas com um contato/lead.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lead_name": {
-                        "type": "string",
-                        "description": "Nome ou parte do nome do contato"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Quantidade de mensagens a retornar (default: 10)"
-                    }
+                    "lead_name": {"type": "string", "description": "Nome ou parte do nome do contato"},
+                    "limit": {"type": "integer", "description": "Quantidade de mensagens (default: 10)"}
                 },
                 "required": ["lead_name"]
             }
         }
     },
-    
+
+    # ============================================================
+    # NOVAS TOOLS — Sprint 3 / Jarvis J.1
+    # ============================================================
+    {
+        "type": "function",
+        "function": {
+            "name": "get_upcoming_schedules",
+            "description": "Lista os próximos agendamentos (reuniões, ligações) dentro de uma janela de dias. Use para perguntas como 'quais minhas próximas reuniões?' ou 'o que tenho amanhã?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "Janela em dias a partir de hoje (default: 7). Use 1 para 'amanhã', 7 para 'semana', 30 para 'mês'."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "completed", "cancelled", "all"],
+                        "description": "Filtro de status (default: pending)"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_tasks",
+            "description": "Lista as tarefas atribuídas ao usuário logado. Use para 'minhas tarefas', 'tarefas pendentes', 'o que preciso fazer hoje'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["pending", "completed", "all"],
+                        "description": "Filtro de status (default: pending)"
+                    },
+                    "due_filter": {
+                        "type": "string",
+                        "enum": ["today", "overdue", "week", "all"],
+                        "description": "Filtro por data: today (vencem hoje), overdue (atrasadas), week (próximos 7 dias), all (todas). Default: all"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_form_submissions_summary",
+            "description": "Resumo de leads que vieram de landing pages no período, com breakdown opcional por UTM source/campaign. Use para 'quantos leads vieram da LP hoje?', 'qual campanha trouxe mais leads?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "enum": ["today", "week", "month"],
+                        "description": "Período (default: week)"
+                    },
+                    "group_by": {
+                        "type": "string",
+                        "enum": ["utm_source", "utm_campaign", "utm_medium", "landing_page", "none"],
+                        "description": "Agrupamento (default: none)"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_landing_page_performance",
+            "description": "Performance de cada landing page: quantos leads captou no período. Use para 'qual LP está convertendo melhor?', 'minhas landing pages'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "enum": ["week", "month", "all"],
+                        "description": "Período (default: month)"
+                    }
+                }
+            }
+        }
+    },
+
     # ============================================================
     # ACTION TOOLS — requerem confirmação do usuário
     # ============================================================
@@ -157,18 +233,12 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "action_send_followup",
-            "description": "Envia uma mensagem de follow-up via WhatsApp para um lead específico. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "description": "Envia uma mensagem de follow-up via WhatsApp para um lead específico. REQUER CONFIRMAÇÃO.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lead_name": {
-                        "type": "string",
-                        "description": "Nome do lead que receberá o follow-up"
-                    },
-                    "message": {
-                        "type": "string",
-                        "description": "Mensagem personalizada para enviar. Se não informada, usa mensagem padrão de follow-up."
-                    }
+                    "lead_name": {"type": "string", "description": "Nome do lead"},
+                    "message": {"type": "string", "description": "Mensagem personalizada (opcional)"}
                 },
                 "required": ["lead_name"]
             }
@@ -178,18 +248,12 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "action_make_call",
-            "description": "Dispara uma ligação de IA (ElevenLabs Voice) para um lead sobre um curso/produto específico. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "description": "Dispara uma ligação de IA para um lead. REQUER CONFIRMAÇÃO.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lead_name": {
-                        "type": "string",
-                        "description": "Nome do lead para ligar"
-                    },
-                    "course": {
-                        "type": "string",
-                        "description": "Nome do curso ou produto sobre o qual ligar"
-                    }
+                    "lead_name": {"type": "string", "description": "Nome do lead para ligar"},
+                    "course": {"type": "string", "description": "Assunto/produto sobre o qual ligar (opcional)"}
                 },
                 "required": ["lead_name"]
             }
@@ -199,18 +263,12 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "action_move_pipeline",
-            "description": "Move um lead para uma coluna específica do pipeline/Kanban. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "description": "Move um lead para uma coluna específica do pipeline/Kanban. REQUER CONFIRMAÇÃO.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lead_name": {
-                        "type": "string",
-                        "description": "Nome do lead a ser movido"
-                    },
-                    "target_stage": {
-                        "type": "string",
-                        "description": "Coluna de destino (ex: novo, em_contato, qualificado, em_matricula, matriculado, perdido)"
-                    }
+                    "lead_name": {"type": "string", "description": "Nome do lead"},
+                    "target_stage": {"type": "string", "description": "Coluna de destino"}
                 },
                 "required": ["lead_name", "target_stage"]
             }
@@ -220,31 +278,15 @@ JARVIS_TOOLS = [
         "type": "function",
         "function": {
             "name": "action_schedule",
-            "description": "Agenda uma reunião ou ligação com um lead para uma data e hora específica. REQUER CONFIRMAÇÃO do usuário antes de executar.",
+            "description": "Agenda uma reunião ou ligação com um lead. REQUER CONFIRMAÇÃO.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lead_name": {
-                        "type": "string",
-                        "description": "Nome do lead"
-                    },
-                    "date": {
-                        "type": "string",
-                        "description": "Data no formato YYYY-MM-DD (ex: 2026-03-20)"
-                    },
-                    "time": {
-                        "type": "string",
-                        "description": "Hora no formato HH:MM (ex: 14:30)"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["voice_ai", "consultant"],
-                        "description": "Tipo: voice_ai (ligação IA) ou consultant (consultora humana)"
-                    },
-                    "course": {
-                        "type": "string",
-                        "description": "Curso/produto relacionado ao agendamento"
-                    }
+                    "lead_name": {"type": "string", "description": "Nome do lead"},
+                    "date": {"type": "string", "description": "Data formato YYYY-MM-DD"},
+                    "time": {"type": "string", "description": "Hora formato HH:MM"},
+                    "type": {"type": "string", "enum": ["voice_ai", "consultant"], "description": "Tipo do agendamento"},
+                    "course": {"type": "string", "description": "Produto/assunto (opcional)"}
                 },
                 "required": ["lead_name", "date", "time"]
             }

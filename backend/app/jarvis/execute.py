@@ -10,6 +10,7 @@ from app.models import (
     Contact, Message, Channel, Tenant,
     FinancialEntry, LeadAgentContext,
     AIConversationSummary, Schedule,
+    Task, LandingPage, FormSubmission, User,
 )
 from app.voice_ai.models import AICall
 
@@ -26,7 +27,13 @@ def _get_cutoff(period: str) -> datetime:
     return now - timedelta(days=1)
 
 
-async def execute_tool(name: str, args: dict, tenant_id: int, db: AsyncSession) -> dict:
+async def execute_tool(
+    name: str,
+    args: dict,
+    tenant_id: int,
+    db: AsyncSession,
+    user_id: int | None = None,
+) -> dict:
     """Executa a tool pelo nome e retorna os dados."""
     handlers = {
         "get_leads_summary": get_leads_summary,
@@ -38,10 +45,18 @@ async def execute_tool(name: str, args: dict, tenant_id: int, db: AsyncSession) 
         "get_goal_progress": get_goal_progress,
         "get_contact_details": get_contact_details,
         "get_contact_conversations": get_contact_conversations,
+        "get_upcoming_schedules": get_upcoming_schedules,
+        "get_my_tasks": get_my_tasks,
+        "get_form_submissions_summary": get_form_submissions_summary,
+        "get_landing_page_performance": get_landing_page_performance,
     }
     handler = handlers.get(name)
     if not handler:
         return {"error": f"Tool '{name}' não encontrada"}
+
+    # get_my_tasks precisa do user_id para filtrar "minhas"
+    if name == "get_my_tasks":
+        return await handler(args, tenant_id, user_id, db)
     return await handler(args, tenant_id, db)
 
 
@@ -422,4 +437,206 @@ async def get_goal_progress(args: dict, tenant_id: int, db: AsyncSession) -> dic
         "enrollments_needed_to_goal": enrollments_needed,
         "leads_this_month": leads_this_month,
         "leads_goal": lead_goal,
+    }
+
+
+# ============================================================
+# 10. PRÓXIMOS AGENDAMENTOS (schedules)
+# ============================================================
+async def get_upcoming_schedules(args: dict, tenant_id: int, db: AsyncSession) -> dict:
+    days = int(args.get("days") or 7)
+    status_filter = args.get("status", "pending")
+
+    now = datetime.utcnow()
+    cutoff = now + timedelta(days=days)
+
+    query = (
+        select(Schedule)
+        .where(Schedule.tenant_id == tenant_id)
+        .where(Schedule.scheduled_at >= now)
+        .where(Schedule.scheduled_at <= cutoff)
+    )
+    if status_filter != "all":
+        query = query.where(Schedule.status == status_filter)
+    query = query.order_by(Schedule.scheduled_at.asc()).limit(20)
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+
+    schedules = [
+        {
+            "contact_name": s.contact_name or "Sem nome",
+            "phone": s.phone,
+            "date": s.scheduled_date,
+            "time": s.scheduled_time,
+            "type": s.type,
+            "course": s.course or "",
+            "status": s.status,
+            "notes": s.notes or "",
+        }
+        for s in rows
+    ]
+
+    return {
+        "window_days": days,
+        "total": len(schedules),
+        "schedules": schedules,
+    }
+
+
+# ============================================================
+# 11. MINHAS TAREFAS (tasks do usuário logado)
+# ============================================================
+async def get_my_tasks(args: dict, tenant_id: int, user_id: int | None, db: AsyncSession) -> dict:
+    if not user_id:
+        return {"error": "user_id não disponível no contexto"}
+
+    status_filter = args.get("status", "pending")
+    due_filter = args.get("due_filter", "all")
+
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+    week_str = (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    query = (
+        select(Task)
+        .where(Task.tenant_id == tenant_id)
+        .where(Task.assigned_to == user_id)
+    )
+    if status_filter != "all":
+        query = query.where(Task.status == status_filter)
+
+    if due_filter == "today":
+        query = query.where(Task.due_date == today_str)
+    elif due_filter == "overdue":
+        query = query.where(Task.due_date < today_str).where(Task.status == "pending")
+    elif due_filter == "week":
+        query = query.where(Task.due_date >= today_str).where(Task.due_date <= week_str)
+
+    query = query.order_by(Task.due_date.asc(), Task.due_time.asc().nullslast()).limit(30)
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+
+    tasks = [
+        {
+            "title": t.title,
+            "description": (t.description or "")[:200],
+            "type": t.type,
+            "priority": t.priority,
+            "due_date": t.due_date,
+            "due_time": t.due_time or "",
+            "status": t.status,
+        }
+        for t in rows
+    ]
+
+    return {
+        "status_filter": status_filter,
+        "due_filter": due_filter,
+        "total": len(tasks),
+        "tasks": tasks,
+    }
+
+
+# ============================================================
+# 12. RESUMO DE FORM SUBMISSIONS (leads de LP)
+# ============================================================
+async def get_form_submissions_summary(args: dict, tenant_id: int, db: AsyncSession) -> dict:
+    period = args.get("period", "week")
+    group_by = args.get("group_by", "none")
+    cutoff = _get_cutoff(period)
+
+    total_result = await db.execute(
+        select(func.count(FormSubmission.id))
+        .where(FormSubmission.tenant_id == tenant_id)
+        .where(FormSubmission.created_at >= cutoff)
+    )
+    total = total_result.scalar() or 0
+
+    breakdown = []
+    if group_by == "utm_source":
+        res = await db.execute(
+            select(FormSubmission.utm_source, func.count(FormSubmission.id))
+            .where(FormSubmission.tenant_id == tenant_id)
+            .where(FormSubmission.created_at >= cutoff)
+            .group_by(FormSubmission.utm_source)
+        )
+        breakdown = [{"key": (r[0] or "sem_utm"), "count": r[1]} for r in res.all()]
+    elif group_by == "utm_campaign":
+        res = await db.execute(
+            select(FormSubmission.utm_campaign, func.count(FormSubmission.id))
+            .where(FormSubmission.tenant_id == tenant_id)
+            .where(FormSubmission.created_at >= cutoff)
+            .group_by(FormSubmission.utm_campaign)
+        )
+        breakdown = [{"key": (r[0] or "sem_utm"), "count": r[1]} for r in res.all()]
+    elif group_by == "utm_medium":
+        res = await db.execute(
+            select(FormSubmission.utm_medium, func.count(FormSubmission.id))
+            .where(FormSubmission.tenant_id == tenant_id)
+            .where(FormSubmission.created_at >= cutoff)
+            .group_by(FormSubmission.utm_medium)
+        )
+        breakdown = [{"key": (r[0] or "sem_utm"), "count": r[1]} for r in res.all()]
+    elif group_by == "landing_page":
+        res = await db.execute(
+            select(LandingPage.title, func.count(FormSubmission.id))
+            .join(LandingPage, FormSubmission.landing_page_id == LandingPage.id)
+            .where(FormSubmission.tenant_id == tenant_id)
+            .where(FormSubmission.created_at >= cutoff)
+            .group_by(LandingPage.title)
+        )
+        breakdown = [{"key": r[0], "count": r[1]} for r in res.all()]
+
+    return {
+        "period": period,
+        "total_submissions": total,
+        "group_by": group_by,
+        "breakdown": breakdown,
+    }
+
+
+# ============================================================
+# 13. PERFORMANCE DE LANDING PAGES
+# ============================================================
+async def get_landing_page_performance(args: dict, tenant_id: int, db: AsyncSession) -> dict:
+    period = args.get("period", "month")
+
+    if period == "all":
+        cutoff = datetime(2000, 1, 1)
+    else:
+        cutoff = _get_cutoff(period)
+
+    res = await db.execute(
+        select(
+            LandingPage.id,
+            LandingPage.title,
+            LandingPage.slug,
+            LandingPage.is_active,
+            func.count(FormSubmission.id).label("submissions"),
+        )
+        .outerjoin(
+            FormSubmission,
+            (FormSubmission.landing_page_id == LandingPage.id)
+            & (FormSubmission.created_at >= cutoff),
+        )
+        .where(LandingPage.tenant_id == tenant_id)
+        .group_by(LandingPage.id, LandingPage.title, LandingPage.slug, LandingPage.is_active)
+        .order_by(func.count(FormSubmission.id).desc())
+    )
+
+    pages = [
+        {
+            "title": r.title,
+            "slug": r.slug,
+            "is_active": bool(r.is_active),
+            "submissions": int(r.submissions or 0),
+        }
+        for r in res.all()
+    ]
+
+    return {
+        "period": period,
+        "total_pages": len(pages),
+        "pages": pages,
     }

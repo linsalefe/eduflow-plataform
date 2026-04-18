@@ -22,6 +22,7 @@ from app.auth import get_current_user, get_tenant_id
 from app.database import get_db
 from app.models import User
 from app.jarvis.tools import JARVIS_TOOLS
+from app.jarvis.filters import get_available_tools
 from app.jarvis.execute import execute_tool
 from app.jarvis.actions import prepare_action, execute_action
 from app.jarvis.prompts import build_system_prompt
@@ -73,7 +74,12 @@ async def jarvis_query(
         # 1. Montar system prompt
         system_prompt = await build_system_prompt(tenant_id, db)
 
-        # 2. Chamar GPT-4o com tools
+        # 2. Filtrar tools disponíveis para este tenant (plano/features)
+        available_tools = await get_available_tools(tenant_id, db)
+        if not available_tools:
+            raise HTTPException(status_code=403, detail="Nenhuma tool disponível para este tenant")
+
+        # 3. Chamar GPT-4o com tools filtradas
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": body.text},
@@ -82,12 +88,12 @@ async def jarvis_query(
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
-            tools=JARVIS_TOOLS,
+            tools=available_tools,
             tool_choice="auto",
         )
 
-        # 3. Processar — pode ser query ou action
-        result = await _process_response(response, messages, tenant_id, db)
+        # 4. Processar — pode ser query ou action
+        result = await _process_response(response, messages, tenant_id, db, user_id=user.id, available_tools=available_tools)
 
         return result
 
@@ -137,6 +143,8 @@ async def _process_response(
     messages: list,
     tenant_id: int,
     db: AsyncSession,
+    user_id: int | None = None,
+    available_tools: list | None = None,
     max_iterations: int = 5,
 ) -> dict:
     """Processa resposta do GPT-4o. Se for action, retorna pending_action."""
@@ -204,7 +212,7 @@ async def _process_response(
                 args = {}
 
             logger.info(f"[Jarvis] Tool call: {tc.function.name}({args})")
-            result = await execute_tool(tc.function.name, args, tenant_id, db)
+            result = await execute_tool(tc.function.name, args, tenant_id, db, user_id=user_id)
 
             messages.append({
                 "role": "tool",
@@ -216,7 +224,7 @@ async def _process_response(
         response = await openai_client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
-            tools=JARVIS_TOOLS,
+            tools=available_tools or JARVIS_TOOLS,
         )
 
     text = "Desculpe, não consegui processar sua pergunta."
