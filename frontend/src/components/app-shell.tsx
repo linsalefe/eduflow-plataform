@@ -60,6 +60,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import NotificationBell from './NotificationBell';
 import CommandPalette from './CommandPalette';
+import { JarvisButton } from '@/components/jarvis/jarvis-button';
 
 /* ============================================================
    FEATURE MAP — rota → feature flag
@@ -524,6 +525,9 @@ function AppShellInner({ children, fullWidth = false }: AppShellProps) {
 
       {/* Command Palette */}
       <CommandPalette />
+
+      {/* Jarvis — assistente de voz disponível em todas as páginas */}
+      <JarvisButton />
     </>
   );
 }
