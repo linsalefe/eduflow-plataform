@@ -42,11 +42,13 @@ async def create_instance(instance_name: str) -> dict:
                     "enabled": True,
                     "url": f"{EDUFLOW_WEBHOOK_URL}/{instance_name}",
                     "webhookByEvents": False,
-                    "webhookBase64": False,
+                    "webhookBase64": True,
                     "events": [
                         "MESSAGES_UPSERT",
                         "CONNECTION_UPDATE",
                         "QRCODE_UPDATED",
+                        "MESSAGES_UPDATE",
+                        "SEND_MESSAGE",
                     ],
                 }
             },

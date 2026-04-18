@@ -21,6 +21,7 @@ import { KPICard } from '@/components/dashboard/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardSkeleton } from '@/components/skeletons/dashboard-skeleton';
 import { JarvisButton } from '@/components/jarvis/jarvis-button';
+import { WhatsNewModal } from '@/components/dashboard/whats-new-modal';
 
 interface Stats {
   total_contacts: number;
@@ -93,6 +94,7 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
+      <WhatsNewModal />
       <div className="space-y-4 lg:space-y-6 max-w-7xl mx-auto pb-6" data-density="high">
         {/* Greeting */}
         <GreetingHeader />

@@ -1,6 +1,7 @@
 'use client';
 
-import { Phone, MessageCircle, Clock, Sparkles, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, MessageCircle, Clock, Sparkles, ArrowRight, Pencil } from 'lucide-react';
 import { Lead } from './kanban-card';
 import {
   Sheet,
@@ -12,6 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import api from '@/lib/api';
 
 interface KanbanColumn {
   key: string;
@@ -34,6 +36,7 @@ interface LeadDetailSheetProps {
   pipelines?: PipelineOption[];
   activePipelineId?: number;
   onMoveToPipeline?: (waId: string, pipelineId: number) => void;
+  onUpdate?: (lead: Lead) => void;
 }
 
 const formatDate = (d: string) =>
@@ -96,7 +99,10 @@ function FunnelProgress({
   );
 }
 
-export function LeadDetailSheet({ lead, columns, onClose, onMove, pipelines, activePipelineId, onMoveToPipeline }: LeadDetailSheetProps) {
+export function LeadDetailSheet({ lead, columns, onClose, onMove, pipelines, activePipelineId, onMoveToPipeline, onUpdate }: LeadDetailSheetProps) {
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState('');
+
   if (!lead) return null;
 
   const currentCol = columns.find((c) => c.key === lead.lead_status);
@@ -209,16 +215,67 @@ export function LeadDetailSheet({ lead, columns, onClose, onMove, pipelines, act
           )}
 
           {/* Notes */}
-          {lead.notes && (
-            <div>
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 Observações
               </p>
+              {!editingNotes && lead.notes && (
+                <button
+                  onClick={() => { setNotesValue(lead.notes || ''); setEditingNotes(true); }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {editingNotes ? (
+              <div className="space-y-2">
+                <textarea
+                  value={notesValue}
+                  onChange={(e) => setNotesValue(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Adicione observações sobre este lead..."
+                  className="text-[13px] text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border/50 leading-relaxed w-full resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await api.patch(`/api/contacts/${lead.wa_id}`, { notes: notesValue });
+                        const updatedLead = { ...lead, notes: notesValue };
+                        if (onUpdate) {
+                          onUpdate(updatedLead);
+                        }
+                        lead.notes = notesValue;
+                        setEditingNotes(false);
+                      } catch (err) {
+                        console.error('Failed to save notes:', err);
+                      }
+                    }}
+                  >
+                    Salvar
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditingNotes(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            ) : lead.notes ? (
               <p className="text-[13px] text-muted-foreground bg-muted/50 rounded-lg px-4 py-3 border border-border/50 leading-relaxed">
                 {lead.notes}
               </p>
-            </div>
-          )}
+            ) : (
+              <button
+                onClick={() => { setNotesValue(''); setEditingNotes(true); }}
+                className="text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                + Adicionar observação
+              </button>
+            )}
+          </div>
 
           {/* Move to */}
           <div>
