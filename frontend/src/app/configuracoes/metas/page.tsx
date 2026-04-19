@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
-export default function MetasPage() {
+export function MetasContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,6 @@ export default function MetasPage() {
   if (!user) return null;
 
   return (
-    <AppShell>
       <div className="max-w-2xl mx-auto py-8 px-4">
 
         {/* Header */}
@@ -162,6 +161,13 @@ export default function MetasPage() {
           </div>
         )}
       </div>
+  );
+}
+
+export default function MetasPage() {
+  return (
+    <AppShell>
+      <MetasContent />
     </AppShell>
   );
 }

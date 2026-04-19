@@ -79,7 +79,7 @@ function isToday(dateStr: string): boolean {
   return dateStr === new Date().toISOString().split('T')[0];
 }
 
-export default function TarefasPage() {
+export function TarefasContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({ today: 0, overdue: 0, completed_week: 0, total_pending: 0 });
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -253,16 +253,14 @@ export default function TarefasPage() {
 
   if (loading) {
     return (
-      <AppShell>
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      </AppShell>
     );
   }
 
   return (
-    <AppShell>
+    <>
       <div className="flex-1 bg-background min-h-screen">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
@@ -582,6 +580,14 @@ export default function TarefasPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
+    </>
+  );
+}
+
+export default function TarefasPage() {
+  return (
+    <AppShell>
+      <TarefasContent />
     </AppShell>
   );
 }

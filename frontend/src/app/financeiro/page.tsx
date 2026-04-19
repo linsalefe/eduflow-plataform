@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   DollarSign, TrendingUp, Users, BookOpen,
   Plus, Trash2, Loader2, Calendar, X,
 } from 'lucide-react';
 import AppShell from '@/components/app-shell';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MetasContent } from '../configuracoes/metas/page';
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -81,7 +84,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-export default function FinanceiroPage() {
+export function FinanceiroContent() {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
@@ -166,7 +169,7 @@ export default function FinanceiroPage() {
   );
 
   return (
-    <AppShell>
+    <>
       <div className="max-w-7xl mx-auto space-y-6 pb-10" data-density="medium">
         <PageHeader
           title="Financeiro"
@@ -454,6 +457,64 @@ export default function FinanceiroPage() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
+    </>
+  );
+}
+
+const FINANCEIRO_TABS = [
+  { value: 'financeiro', label: 'Lançamentos' },
+  { value: 'metas', label: 'Metas' },
+];
+
+function FinanceiroInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = searchParams.get('tab') || FINANCEIRO_TABS[0].value;
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto pb-6">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-medium text-foreground">Financeiro</h1>
+        <p className="text-[13px] text-muted-foreground mt-1">
+          Lançamentos e metas mensais
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-5">
+          {FINANCEIRO_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="financeiro" className="mt-0">
+          <FinanceiroContent />
+        </TabsContent>
+
+        <TabsContent value="metas" className="mt-0">
+          <MetasContent />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+export default function FinanceiroPage() {
+  return (
+    <AppShell>
+      <Suspense fallback={<div className="p-4">Carregando...</div>}>
+        <FinanceiroInner />
+      </Suspense>
     </AppShell>
   );
 }

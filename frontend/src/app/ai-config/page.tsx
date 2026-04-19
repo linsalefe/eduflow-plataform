@@ -31,7 +31,7 @@ interface DocumentInfo {
   created_at: string | null;
 }
 
-export default function AIConfigPage() {
+export function AIConfigContent() {
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [activeChannel, setActiveChannel] = useState<ChannelInfo | null>(null);
   const [showChannelMenu, setShowChannelMenu] = useState(false);
@@ -190,7 +190,6 @@ export default function AIConfigPage() {
   const totalChunks = documents.reduce((sum, d) => sum + d.chunks, 0);
 
   return (
-    <AppShell>
       <div className="flex-1 bg-background overflow-y-auto">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
 
@@ -626,6 +625,13 @@ export default function AIConfigPage() {
           )}
         </div>
       </div>
+  );
+}
+
+export default function AIConfigPage() {
+  return (
+    <AppShell>
+      <AIConfigContent />
     </AppShell>
   );
 }

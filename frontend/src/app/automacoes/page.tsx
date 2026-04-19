@@ -82,7 +82,7 @@ interface Webhook {
 
 const emptyStep = (): Step => ({ step_order: 1, delay_minutes: 60, delay_unit: 'hours', message: '' });
 
-export default function AutomacoesPage() {
+export function AutomacoesContent() {
   const [activeTab, setActiveTab] = useState<'fluxos' | 'webhooks'>('fluxos');
 
   // Fluxos
@@ -374,7 +374,7 @@ export default function AutomacoesPage() {
   if (!user) return null;
 
   return (
-    <AppShell>
+    <>
       <div className="space-y-6 max-w-4xl mx-auto pb-10">
 
         {/* Header */}
@@ -760,6 +760,14 @@ export default function AutomacoesPage() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export default function AutomacoesPage() {
+  return (
+    <AppShell>
+      <AutomacoesContent />
     </AppShell>
   );
 }

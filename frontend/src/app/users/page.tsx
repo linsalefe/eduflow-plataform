@@ -17,7 +17,7 @@ interface UserInfo {
   created_at: string | null;
 }
 
-export default function UsersPage() {
+export function UsersContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserInfo[]>([]);
@@ -96,7 +96,7 @@ export default function UsersPage() {
   const adminCount = users.filter(u => u.role === 'admin').length;
 
   return (
-    <AppShell>
+    <>
       <div className="space-y-4 lg:space-y-6 max-w-4xl mx-auto h-full overflow-y-auto pb-6">
 
         {/* Header */}
@@ -322,6 +322,14 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+export default function UsersPage() {
+  return (
+    <AppShell>
+      <UsersContent />
     </AppShell>
   );
 }

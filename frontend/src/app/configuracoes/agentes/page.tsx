@@ -57,7 +57,7 @@ interface AgentMessages {
   briefing: { prompt: string };
 }
 
-export default function AgentesPage() {
+export function AgentesContent() {
   const [planFlags, setPlanFlags] = useState<Record<string, boolean>>({});
   const [agentFlags, setAgentFlags] = useState<Record<string, boolean>>({});
   const [kanbanColumns, setKanbanColumns] = useState<KanbanColumn[]>([]);
@@ -151,11 +151,9 @@ export default function AgentesPage() {
 
   if (loading) {
     return (
-      <AppShell>
         <div className="p-6 flex items-center justify-center h-64">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
-      </AppShell>
     );
   }
 
@@ -433,5 +431,13 @@ export default function AgentesPage() {
     </div>
   );
 
-  return <AppShell>{content}</AppShell>;
+  return <>{content}</>;
+}
+
+export default function AgentesPage() {
+  return (
+    <AppShell>
+      <AgentesContent />
+    </AppShell>
+  );
 }

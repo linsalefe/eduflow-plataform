@@ -185,7 +185,7 @@ function formatDuration(seconds: number | null): string {
 // MAIN PAGE
 // ============================================================
 
-export default function VoiceAIPage() {
+export function VoiceAIContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -259,7 +259,6 @@ export default function VoiceAIPage() {
   if (authLoading || !user) return null;
 
   return (
-    <AppShell>
       <div className="max-w-7xl mx-auto space-y-6 pb-10" data-density="medium">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -327,6 +326,13 @@ export default function VoiceAIPage() {
           </SheetContent>
         </Sheet>
       </div>
+  );
+}
+
+export default function VoiceAIPage() {
+  return (
+    <AppShell>
+      <VoiceAIContent />
     </AppShell>
   );
 }

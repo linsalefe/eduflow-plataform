@@ -1,8 +1,11 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
-import AppShell from "@/components/app-shell";;
+import AppShell from "@/components/app-shell";
 import ConfirmModal from '@/components/ConfirmModal';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { TarefasContent } from '../tarefas/page';
 import { Calendar, Clock, Phone, User, GraduationCap, Plus, X, ChevronLeft, ChevronRight, Bot, UserCheck, Trash2, Edit3, Check, Ban } from 'lucide-react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
@@ -39,7 +42,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-export default function AgendaPage() {
+export function AgendaContent() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [stats, setStats] = useState<Stats>({ pending: 0, today: 0, completed: 0, cancelled: 0 });
   const [loading, setLoading] = useState(true);
@@ -203,7 +206,7 @@ export default function AgendaPage() {
   const selectedDaySchedules = selectedDate ? getSchedulesForDate(selectedDate) : [];
 
   return (
-    <AppShell>
+    <>
       <div className="px-4 lg:px-6 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -455,6 +458,64 @@ export default function AgendaPage() {
           onCancel={() => setConfirmAction(null)}
         />
       )}
+    </>
+  );
+}
+
+const AGENDA_TABS = [
+  { value: 'agenda', label: 'Agenda' },
+  { value: 'tarefas', label: 'Tarefas' },
+];
+
+function AgendaInner() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = searchParams.get('tab') || AGENDA_TABS[0].value;
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', value);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto pb-6">
+      <div className="mb-5">
+        <h1 className="text-[22px] font-medium text-foreground">Agenda</h1>
+        <p className="text-[13px] text-muted-foreground mt-1">
+          Reuniões, ligações e tarefas
+        </p>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="mb-5">
+          {AGENDA_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <TabsContent value="agenda" className="mt-0">
+          <AgendaContent />
+        </TabsContent>
+
+        <TabsContent value="tarefas" className="mt-0">
+          <TarefasContent />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+export default function AgendaPage() {
+  return (
+    <AppShell>
+      <Suspense fallback={<div className="p-4">Carregando...</div>}>
+        <AgendaInner />
+      </Suspense>
     </AppShell>
   );
 }
