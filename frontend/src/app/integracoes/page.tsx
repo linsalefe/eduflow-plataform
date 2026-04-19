@@ -47,7 +47,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   sendgrid: <Mail className="h-6 w-6 text-blue-400" />,
 };
 
-export default function IntegracoesPage() {
+export function IntegracoesContent() {
   const [toolkits, setToolkits] = useState<ToolkitInfo[]>([]);
   const [connections, setConnections] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
@@ -95,7 +95,6 @@ export default function IntegracoesPage() {
   };
 
   return (
-    <AppShell>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <PageHeader
@@ -176,6 +175,13 @@ export default function IntegracoesPage() {
           </div>
         )}
       </div>
+  );
+}
+
+export default function IntegracoesPage() {
+  return (
+    <AppShell>
+      <IntegracoesContent />
     </AppShell>
   );
 }

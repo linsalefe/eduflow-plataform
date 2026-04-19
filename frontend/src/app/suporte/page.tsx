@@ -716,7 +716,7 @@ function formatContent(text: string) {
   });
 }
 
-export default function SuportePage() {
+export function SuporteContent() {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -748,7 +748,6 @@ export default function SuportePage() {
   const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
 
   return (
-    <AppShell>
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -931,6 +930,13 @@ export default function SuportePage() {
           )}
         </div>
       </div>
+  );
+}
+
+export default function SuportePage() {
+  return (
+    <AppShell>
+      <SuporteContent />
     </AppShell>
   );
 }

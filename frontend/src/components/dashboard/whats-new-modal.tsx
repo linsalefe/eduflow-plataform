@@ -1,38 +1,47 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Video, Pencil, GitBranch, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Sparkles, LayoutDashboard, Menu, GitBranch, Mic, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-const STORAGE_KEY = 'eduflow_whats_new_v1';
+const STORAGE_KEY = 'eduflow_whats_new_v2';
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
 const slides = [
   {
-    icon: Video,
-    title: 'Envie Vídeos pelo WhatsApp',
+    icon: Menu,
+    title: 'Menu reorganizado',
     description:
-      'Agora você pode enviar e receber vídeos diretamente pelas conversas. Os vídeos são armazenados por 24h com thumbnail automático para economizar espaço.',
+      'Reorganizamos a lateral para ficar mais simples. Funções parecidas agora estão agrupadas — Marketing, Configurações e Automação & IA ganham páginas dedicadas com abas internas.',
     badge: 'NOVO',
-    badgeClass: 'bg-green-100 text-green-700',
-    iconClass: 'bg-green-100 text-green-600',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    iconClass: 'bg-blue-100 text-blue-600',
   },
   {
-    icon: Pencil,
-    title: 'Edite Notas na Pipeline',
+    icon: LayoutDashboard,
+    title: 'Dashboard mais direto',
     description:
-      'Clique em qualquer lead na pipeline e edite as observações diretamente. Sem precisar sair da página — rápido e prático.',
+      'O funil de vendas virou o destaque principal do dashboard. Veja quantos leads estão em cada etapa, seus últimos contatos e a origem deles sem precisar rolar a tela.',
     badge: 'NOVO',
     badgeClass: 'bg-blue-100 text-blue-700',
     iconClass: 'bg-blue-100 text-blue-600',
   },
   {
     icon: GitBranch,
-    title: 'Funis de Vendas com IA',
+    title: 'Pipeline mais limpo',
     description:
-      'Crie funis personalizados para cada área: comercial, financeiro, suporte. Vincule canais e agentes de IA específicos para cada funil com automações independentes.',
+      'Cards mais diretos, colunas sem ruído visual e seletor de funil redesenhado. Tudo pensado para você encontrar seus leads mais rápido.',
     badge: 'NOVO',
-    badgeClass: 'bg-purple-100 text-purple-700',
-    iconClass: 'bg-purple-100 text-purple-600',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    iconClass: 'bg-blue-100 text-blue-600',
+  },
+  {
+    icon: Mic,
+    title: 'Jarvis está sempre com você',
+    description:
+      'O assistente de voz agora está disponível em todas as páginas. Pergunte "quais meus leads quentes?", "tarefas de hoje?" ou "próximas reuniões?" de qualquer lugar.',
+    badge: 'NOVO',
+    badgeClass: 'bg-blue-100 text-blue-700',
+    iconClass: 'bg-blue-100 text-blue-600',
   },
 ];
 
@@ -97,7 +106,6 @@ export function WhatsNewModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Close button */}
         <button
           onClick={close}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -105,14 +113,12 @@ export function WhatsNewModal() {
           <X className="w-5 h-5" />
         </button>
 
-        {/* Header */}
         <div className="flex items-center gap-2 px-6 pt-6 pb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
           <h2 className="text-lg font-bold text-gray-900">Novidades do EduFlow</h2>
         </div>
 
-        {/* Slide content */}
-        <div className="px-6 py-6 min-h-[220px] flex items-center">
+        <div className="px-6 py-6 min-h-[240px] flex items-center">
           <div
             className={`w-full transition-all duration-200 ease-in-out ${
               animating
@@ -135,7 +141,6 @@ export function WhatsNewModal() {
           </div>
         </div>
 
-        {/* Dots */}
         <div className="flex justify-center gap-2 pb-4">
           {slides.map((_, i) => (
             <button
@@ -148,7 +153,6 @@ export function WhatsNewModal() {
           ))}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between px-6 pb-6">
           <button
             onClick={dismiss}

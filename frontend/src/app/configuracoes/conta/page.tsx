@@ -74,7 +74,7 @@ function formatDate(iso: string) {
 
 /* ── Component ────────────────────────────────────────────── */
 
-export default function ContaPage() {
+export function ContaContent() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
@@ -259,7 +259,7 @@ export default function ContaPage() {
   /* ── Render ────────────────────────────────────────────── */
 
   return (
-    <AppShell>
+    <>
       <div className="max-w-3xl mx-auto space-y-6 pb-8">
         <div>
           <h1 className="text-xl lg:text-2xl font-semibold text-foreground">Minha Conta</h1>
@@ -580,6 +580,14 @@ export default function ContaPage() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export default function ContaPage() {
+  return (
+    <AppShell>
+      <ContaContent />
     </AppShell>
   );
 }

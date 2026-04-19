@@ -102,7 +102,7 @@ const daysOptions = [
 
 /* ── Component ────────────────────────────────────────────── */
 
-export default function RelatoriosPage() {
+export function RelatoriosContent() {
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [kanban, setKanban] = useState<KanbanStats | null>(null);
@@ -179,7 +179,6 @@ export default function RelatoriosPage() {
   /* ── Render ───────────────────────────────────────────── */
 
   return (
-    <AppShell>
       <div className="max-w-6xl mx-auto space-y-8 pb-8">
         {/* Header */}
         <div>
@@ -445,6 +444,13 @@ export default function RelatoriosPage() {
           </div>
         </div>
       </div>
+  );
+}
+
+export default function RelatoriosPage() {
+  return (
+    <AppShell>
+      <RelatoriosContent />
     </AppShell>
   );
 }

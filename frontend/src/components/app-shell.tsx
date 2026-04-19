@@ -36,6 +36,7 @@ import {
   Moon,
   Sun,
   UserCircle,
+  Settings,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -70,21 +71,25 @@ const featureMap: Record<string, string> = {
   '/conversations': 'conversas',
   '/pipeline': 'pipeline',
   '/contatos': 'contatos',
+  '/canais': 'canais',
+  '/agenda': 'agenda',
+  '/tarefas': 'tarefas',
   '/financeiro': 'financeiro',
-  '/dashboard-roi': 'campanhas',
+  '/configuracoes/metas': 'metas',
+  '/marketing': 'landing_pages',
   '/landing-pages': 'landing_pages',
   '/relatorios': 'relatorios',
-  '/users': 'usuarios',
+  '/dashboard-roi': 'campanhas',
   '/automacoes': 'automacoes',
-  '/tarefas': 'tarefas',
-  '/configuracoes/metas': 'dashboard',
-  '/ai-config': 'ai_whatsapp',
   '/voice-ai': 'voice_ai',
   '/voice-inbound': 'voice_inbound',
-  '/agenda': 'agenda',
-  '/canais': 'conversas',
-  '/integracoes': 'conversas',
+  '/ai-config': 'ai_whatsapp',
   '/configuracoes/agentes': 'agentes_ia',
+  '/users': 'usuarios',
+  '/integracoes': 'integracoes',
+  '/suporte': 'suporte',
+  '/configuracoes': 'configuracoes',
+  '/configuracoes/conta': 'configuracoes',
 };
 
 /* ============================================================
@@ -92,60 +97,19 @@ const featureMap: Record<string, string> = {
    ============================================================ */
 const menuGroups = [
   {
-    label: 'Principal',
+    label: '',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard,
-        color: 'text-blue-600', bg: 'bg-blue-500/10' },
-      { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true,
-        color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-      { href: '/pipeline', label: 'Pipeline', icon: GitBranch,
-        color: 'text-violet-600', bg: 'bg-violet-500/10' },
-      { href: '/contatos', label: 'Contatos', icon: Users,
-        color: 'text-amber-600', bg: 'bg-amber-500/10' },
-      { href: '/financeiro', label: 'Financeiro', icon: DollarSign,
-        color: 'text-emerald-600', bg: 'bg-emerald-500/10' },
-    ],
-  },
-  {
-    label: 'Marketing',
-    items: [
-      { href: '/dashboard-roi', label: 'Campanhas', icon: BarChart3,
-        color: 'text-rose-600', bg: 'bg-rose-500/10' },
-      { href: '/landing-pages', label: 'Landing Pages', icon: FileText,
-        color: 'text-sky-600', bg: 'bg-sky-500/10' },
-      { href: '/relatorios', label: 'Relatórios', icon: Download,
-        color: 'text-slate-600', bg: 'bg-slate-500/10' },
-    ],
-  },
-  {
-    label: 'Configurações',
-    items: [
-      { href: '/configuracoes/conta', label: 'Minha Conta', icon: UserCircle,
-        color: 'text-blue-600', bg: 'bg-blue-500/10' },
-      { href: '/users', label: 'Usuários', icon: Users,
-        color: 'text-gray-600', bg: 'bg-gray-500/10' },
-      { href: '/automacoes', label: 'Automações', icon: Zap,
-        color: 'text-amber-600', bg: 'bg-amber-500/10' },
-      { href: '/tarefas', label: 'Tarefas', icon: Target, hasTaskBadge: true,
-        color: 'text-orange-600', bg: 'bg-orange-500/10' },
-      { href: '/configuracoes/metas', label: 'Metas', icon: TrendingUp,
-        color: 'text-primary', bg: 'bg-primary/10' },
-      { href: '/voice-ai', label: 'Voice AI', icon: PhoneCall,
-        color: 'text-indigo-600', bg: 'bg-indigo-500/10' },
-      { href: '/voice-inbound', label: 'Atendimento IA', icon: PhoneIncoming,
-        color: 'text-emerald-600', bg: 'bg-emerald-500/10' },  
-      { href: '/agenda', label: 'Agenda', icon: Calendar,
-        color: 'text-teal-600', bg: 'bg-teal-500/10' },
-      { href: '/canais', label: 'Canais', icon: Radio,
-        color: 'text-cyan-600', bg: 'bg-cyan-500/10' },
-      { href: '/integracoes', label: 'Integrações', icon: Puzzle,
-        color: 'text-pink-600', bg: 'bg-pink-500/10' },
-      { href: '/ai-config', label: 'Config. IA', icon: Sparkles,
-        color: 'text-purple-600', bg: 'bg-purple-500/10' },
-      { href: '/configuracoes/agentes', label: 'Agentes IA', icon: Bot,
-        color: 'text-fuchsia-600', bg: 'bg-fuchsia-500/10' },
-      { href: '/suporte', label: 'Central de Ajuda', icon: BookOpen,
-        color: 'text-blue-600', bg: 'bg-blue-500/10' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/conversations', label: 'Conversas', icon: MessageCircle, hasBadge: true },
+      { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
+      { href: '/contatos', label: 'Contatos', icon: Users },
+      { href: '/canais', label: 'Canais', icon: Radio },
+      { href: '/agenda', label: 'Agenda', icon: Calendar },
+      { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
+      { href: '/marketing', label: 'Marketing', icon: BarChart3 },
+      { href: '/automacoes', label: 'Automação e IA', icon: Sparkles },
+      { href: '/users', label: 'Equipe', icon: UserCircle },
+      { href: '/configuracoes', label: 'Configurações', icon: Settings },
     ],
   },
 ];
@@ -158,23 +122,25 @@ const pageTitles: Record<string, string> = {
   '/conversations': 'Conversas',
   '/pipeline': 'Pipeline',
   '/contatos': 'Contatos',
+  '/canais': 'Canais',
+  '/agenda': 'Agenda',
+  '/tarefas': 'Tarefas',
   '/financeiro': 'Financeiro',
-  '/dashboard-roi': 'Campanhas',
+  '/configuracoes/metas': 'Metas Mensais',
+  '/marketing': 'Marketing',
   '/landing-pages': 'Landing Pages',
   '/relatorios': 'Relatórios',
-  '/users': 'Usuários',
+  '/dashboard-roi': 'Campanhas',
   '/automacoes': 'Automações',
-  '/voice-inbound': 'Atendimento por Voz',
-  '/tarefas': 'Tarefas',
-  '/configuracoes/metas': 'Metas Mensais',
   '/voice-ai': 'Voice AI',
-  '/agenda': 'Agenda',
-  '/canais': 'Canais',
+  '/voice-inbound': 'Atendimento por Voz',
   '/ai-config': 'Config. IA',
   '/configuracoes/agentes': 'Agentes IA',
+  '/users': 'Equipe',
   '/integracoes': 'Integrações',
-  '/configuracoes/conta': 'Minha Conta',
   '/suporte': 'Central de Ajuda',
+  '/configuracoes': 'Configurações',
+  '/configuracoes/conta': 'Minha Conta',
   '/admin': 'Painel Admin',
 };
 
@@ -282,10 +248,12 @@ function SidebarNavContent({
           if (visibleItems.length === 0) return null;
 
           return (
-            <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground sidebar-group-label-line">
-                {group.label}
-              </SidebarGroupLabel>
+            <SidebarGroup key={group.label || '_main'}>
+              {group.label && (
+                <SidebarGroupLabel className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground sidebar-group-label-line">
+                  {group.label}
+                </SidebarGroupLabel>
+              )}
               <SidebarMenu>
                 {visibleItems.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -293,8 +261,8 @@ function SidebarNavContent({
                   const showBadge = (item as any).hasBadge && unreadCount > 0;
                   const showTaskBadge = (item as any).hasTaskBadge && taskCount > 0;
 
-                  const itemColor = (item as any).color || 'text-muted-foreground';
-                  const itemBg = (item as any).bg || 'bg-muted/50';
+                  const itemColor = 'text-blue-600';
+                  const itemBg = 'bg-blue-500/10';
 
                   return (
                     <SidebarMenuItem key={item.href}>

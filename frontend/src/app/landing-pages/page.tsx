@@ -217,7 +217,7 @@ const iconComponents: Record<string, any> = {
 // COMPONENTE PRINCIPAL
 // ═══════════════════════════════════════════
 
-export default function LandingPagesPage() {
+export function LandingPagesContent() {
   const [pages, setPages] = useState<LandingPage[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -414,7 +414,7 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
 
   if (editorMode === 'list') {
     return (
-      <AppShell>
+      <>
         <div className="p-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -477,7 +477,7 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
           )}
         </div>
         <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel="Remover" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
-      </AppShell>
+      </>
     );
   }
 
@@ -486,7 +486,7 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
   // ═══════════════════════════════════════════
 
   return (
-    <AppShell>
+    <>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600;700&family=Raleway:wght@400;600;700&family=Lora:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;700&family=Bitter:wght@400;700&family=Space+Grotesk:wght@400;600;700&family=Merriweather:wght@400;700;900&display=swap" rel="stylesheet" />
       <div className="h-[calc(100vh-64px)] flex flex-col">
         {/* Top bar */}
@@ -757,6 +757,14 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
         </div>
       </div>
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel="Remover" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
+    </>
+  );
+}
+
+export default function LandingPagesPage() {
+  return (
+    <AppShell>
+      <LandingPagesContent />
     </AppShell>
   );
 }
