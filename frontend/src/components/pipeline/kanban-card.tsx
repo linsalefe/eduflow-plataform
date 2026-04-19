@@ -81,35 +81,18 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 ${
+      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 bg-card border border-border/60 ${
         isDragging
           ? 'opacity-90 scale-[0.97] shadow-xl shadow-black/15 rotate-[1.5deg]'
-          : 'hover:shadow-lg hover:-translate-y-0.5'
+          : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
-      style={{
-        background: 'rgba(255, 255, 255, 0.7)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: `1px solid ${hexToRgba(color, 0.15)}`,
-      }}
     >
-      {/* Top accent gradient */}
-      <div
-        className="absolute top-0 left-3 right-3 h-[2px] rounded-full"
-        style={{
-          background: `linear-gradient(90deg, ${color}, ${hexToRgba(color, 0.3)})`,
-        }}
-      />
-
       <div className="p-3 space-y-2.5">
         {/* Row 1: Avatar + Name + Time */}
         <div className="flex items-center gap-2.5">
           <div
-            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold"
-            style={{
-              background: `linear-gradient(135deg, ${hexToRgba(color, 0.2)}, ${hexToRgba(color, 0.08)})`,
-              color,
-            }}
+            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-medium"
+            style={{ background: '#E6F1FB', color: '#0C447C' }}
           >
             {initials}
           </div>
@@ -126,14 +109,11 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
           </div>
           {lead.ai_active && (
             <div
-              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg"
-              style={{
-                background: 'linear-gradient(135deg, rgba(147, 51, 234, 0.12), rgba(147, 51, 234, 0.04))',
-              }}
+              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-muted"
               title="IA ativa"
             >
-              <Sparkles className="w-3 h-3 text-purple-500" />
-              <span className="text-[10px] font-semibold text-purple-500">IA</span>
+              <Sparkles className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] font-medium text-muted-foreground">IA</span>
             </div>
           )}
         </div>

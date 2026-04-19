@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  MessageSquare, Activity, Clock, Target,
-  TrendingUp, TrendingDown, Users,
-} from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 import AppShell from '@/components/app-shell';
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
@@ -13,10 +10,9 @@ import { toast } from 'sonner';
 
 import { GreetingHeader } from '@/components/dashboard/greeting-header';
 import { JarvisHeroCard } from '@/components/dashboard/jarvis-hero-card';
-import { StatsOverview } from '@/components/dashboard/stats-overview';
-import { HeroChart } from '@/components/dashboard/hero-chart';
-import { StatusDistribution } from '@/components/dashboard/status-distribution';
-import { AgentPerformance } from '@/components/dashboard/agent-performance';
+import { FunnelHero } from '@/components/dashboard/funnel-hero';
+import { LatestLeadsTable } from '@/components/dashboard/latest-leads-table';
+import { SourceBreakdown } from '@/components/dashboard/source-breakdown';
 import { TagDistribution } from '@/components/dashboard/tag-distribution';
 import { KPICard } from '@/components/dashboard/kpi-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -47,18 +43,25 @@ interface AdvancedStats {
   avg_response_minutes: number | null;
 }
 
-function formatResponseTime(minutes: number | null): string {
-  if (minutes === null) return '—';
-  if (minutes < 1) return '<1 min';
-  if (minutes < 60) return `${Math.round(minutes)} min`;
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+interface Contact {
+  wa_id: string;
+  name: string | null;
+  lead_status?: string | null;
+  channel_id?: number | null;
+  created_at?: string | null;
+}
+
+interface Channel {
+  id: number;
+  name: string;
+  type?: string;
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [advanced, setAdvanced] = useState<AdvancedStats | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -69,20 +72,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user) {
-      loadStats();
-      const interval = setInterval(loadStats, 60000);
+      loadAll();
+      const interval = setInterval(loadAll, 60000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
-  const loadStats = async () => {
+  const loadAll = async () => {
     try {
-      const [res, advRes] = await Promise.all([
+      const [statsRes, advRes, contactsRes, channelsRes] = await Promise.all([
         api.get('/dashboard/stats'),
         api.get('/dashboard/advanced'),
+        api.get('/contacts').catch(() => ({ data: [] })),
+        api.get('/channels').catch(() => ({ data: [] })),
       ]);
-      setStats(res.data);
+      setStats(statsRes.data);
       setAdvanced(advRes.data);
+      setContacts(Array.isArray(contactsRes.data) ? contactsRes.data : []);
+      setChannels(Array.isArray(channelsRes.data) ? channelsRes.data : []);
     } catch {
       toast.error('Erro ao carregar dashboard');
     } finally {
@@ -92,22 +99,43 @@ export default function DashboardPage() {
 
   if (authLoading || !user) return null;
 
+  const channelNameById = new Map(channels.map((c) => [c.id, c.name]));
+
+  const latestLeads = [...contacts]
+    .sort((a, b) => {
+      const da = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const db = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return db - da;
+    })
+    .slice(0, 5)
+    .map((c) => ({
+      wa_id: c.wa_id,
+      name: c.name,
+      lead_status: c.lead_status,
+      created_at: c.created_at,
+      channel_name: c.channel_id ? channelNameById.get(c.channel_id) || 'WhatsApp' : 'WhatsApp',
+    }));
+
+  const sourceMap = new Map<string, number>();
+  for (const c of contacts) {
+    const name = c.channel_id ? channelNameById.get(c.channel_id) || 'Outros' : 'Outros';
+    sourceMap.set(name, (sourceMap.get(name) || 0) + 1);
+  }
+  const sources = Array.from(sourceMap.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   return (
     <AppShell>
       <WhatsNewModal />
-      <div className="space-y-4 lg:space-y-6 max-w-7xl mx-auto pb-6" data-density="high">
-        {/* Greeting */}
+      <div className="space-y-4 lg:space-y-5 max-w-7xl mx-auto pb-6" data-density="high">
         <GreetingHeader />
 
-        {/* Jarvis hero */}
-        <JarvisHeroCard />
-
-        {/* Loading state */}
         {loading || !stats ? (
           <DashboardSkeleton />
         ) : (
           <>
-            {/* Empty state for new accounts */}
             {stats.total_contacts === 0 ? (
               <EmptyState
                 icon={MessageSquare}
@@ -118,94 +146,27 @@ export default function DashboardPage() {
               />
             ) : (
               <>
-                {/* Hero Chart — full width, elemento dominante */}
-                <HeroChart
-                  data={stats.daily_messages}
-                  totalWeek={stats.messages_week}
-                  trendPct={advanced?.trend_pct}
-                />
+                <JarvisHeroCard />
 
-                {/* KPI Cards com stagger animation */}
-                <StatsOverview
+                <FunnelHero
+                  statusCounts={stats.status_counts}
                   totalContacts={stats.total_contacts}
-                  newToday={stats.new_today}
-                  inboundToday={stats.inbound_today}
-                  outboundToday={stats.outbound_today}
                 />
 
-                {/* Status + Tags */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
-                  <StatusDistribution
-                    statusCounts={stats.status_counts}
-                    totalContacts={stats.total_contacts}
-                  />
-                  {advanced && <TagDistribution tags={advanced.tags} />}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <KPICard label="Total de contatos" value={stats.total_contacts} index={0} />
+                  <KPICard label="Novos hoje" value={stats.new_today} index={1} />
+                  <KPICard label="Recebidas hoje" value={stats.inbound_today} index={2} />
+                  <KPICard label="Enviadas hoje" value={stats.outbound_today} index={3} />
                 </div>
 
-                {/* Advanced metrics */}
-                {advanced && (
-                  <>
-                    {/* KPI Row: Conversion + Response Time + Trend */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
-                      <KPICard
-                        label="Taxa de Conversão"
-                        value={`${advanced.conversion_rate}%`}
-                        icon={Target}
-                        trend={advanced.conversion_rate > 0 ? 'up' : 'neutral'}
-                        previousValue={`${advanced.converted} de ${advanced.total}`}
-                        index={0}
-                      />
-                      <KPICard
-                        label="Tempo Médio de Resposta"
-                        value={formatResponseTime(advanced.avg_response_minutes)}
-                        icon={Clock}
-                        index={1}
-                      />
-                      <KPICard
-                        label="Novos Leads (semana)"
-                        value={advanced.new_this_week}
-                        icon={advanced.trend_pct >= 0 ? TrendingUp : TrendingDown}
-                        trend={advanced.trend_pct >= 0 ? 'up' : 'down'}
-                        trendValue={`${advanced.trend_pct >= 0 ? '+' : ''}${advanced.trend_pct}%`}
-                        previousValue={`${advanced.new_last_week} sem. passada`}
-                        index={2}
-                      />
-                    </div>
+                <LatestLeadsTable leads={latestLeads} />
 
-                    {/* Agents */}
-                    <AgentPerformance
-                      agents={advanced.agents}
-                      unassignedLeads={advanced.unassigned_leads}
-                    />
-                  </>
-                )}
-
-                {/* Summary footer */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-                  <KPICard
-                    label="Mensagens hoje"
-                    value={stats.messages_today}
-                    icon={MessageSquare}
-                    index={0}
-                  />
-                  <KPICard
-                    label="Convertidos"
-                    value={stats.status_counts['convertido'] || 0}
-                    icon={Users}
-                    index={1}
-                  />
-                  <KPICard
-                    label="Em Negociação"
-                    value={stats.status_counts['negociando'] || 0}
-                    icon={TrendingUp}
-                    index={2}
-                  />
-                  <KPICard
-                    label="Qualificados"
-                    value={stats.status_counts['qualificado'] || 0}
-                    icon={Activity}
-                    index={3}
-                  />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+                  <SourceBreakdown sources={sources} />
+                  {advanced && advanced.tags && advanced.tags.length > 0 && (
+                    <TagDistribution tags={advanced.tags} />
+                  )}
                 </div>
               </>
             )}

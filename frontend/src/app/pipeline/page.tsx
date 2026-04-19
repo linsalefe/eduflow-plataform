@@ -367,41 +367,6 @@ export default function PipelinePage() {
             </div>
           )}
 
-          {/* Stats pills */}
-          <motion.div
-            className="flex gap-2 mt-3 overflow-x-auto pb-1"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
-          >
-            {columns.map((col) => {
-              const count = getLeadsByStatus(col.key).length;
-              return (
-                <div
-                  key={col.key}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg flex-shrink-0 border transition-colors"
-                  style={{
-                    backgroundColor: `${col.color}0a`,
-                    borderColor: `${col.color}20`,
-                  }}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: col.color }}
-                  />
-                  <span className="text-[12px] font-medium tabular-nums text-foreground">
-                    {col.label}
-                  </span>
-                  <span
-                    className="text-[12px] font-bold tabular-nums"
-                    style={{ color: col.color }}
-                  >
-                    {count}
-                  </span>
-                </div>
-              );
-            })}
-          </motion.div>
         </div>
 
         {/* Board */}

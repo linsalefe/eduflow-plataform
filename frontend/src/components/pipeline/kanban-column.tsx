@@ -44,37 +44,19 @@ export function KanbanColumn({
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
     >
-      {/* Column Header - glass */}
-      <div
-        className="px-3.5 py-2.5 rounded-xl mb-2"
-        style={{
-          background: `linear-gradient(135deg, ${hexToRgba(color, 0.1)}, ${hexToRgba(color, 0.04)})`,
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          border: `1px solid ${hexToRgba(color, 0.15)}`,
-        }}
-      >
+      {/* Column Header */}
+      <div className="px-3.5 py-2.5 rounded-xl mb-2 bg-muted/50 border border-border/40">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="h-6 w-6 rounded-lg flex items-center justify-center"
-              style={{
-                background: `linear-gradient(135deg, ${hexToRgba(color, 0.25)}, ${hexToRgba(color, 0.1)})`,
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" style={{ color }} />
-            </div>
-            <span className="text-[13px] font-semibold text-foreground truncate">
+              className="w-[6px] h-[6px] rounded-full flex-shrink-0"
+              style={{ backgroundColor: color }}
+            />
+            <span className="text-[12px] font-medium text-foreground truncate">
               {label}
             </span>
           </div>
-          <span
-            className="text-[12px] font-bold px-2 py-0.5 rounded-lg tabular-nums min-w-[28px] text-center"
-            style={{
-              color,
-              background: `linear-gradient(135deg, ${hexToRgba(color, 0.15)}, ${hexToRgba(color, 0.06)})`,
-            }}
-          >
+          <span className="text-[11px] text-muted-foreground tabular-nums">
             {leads.length}
           </span>
         </div>
