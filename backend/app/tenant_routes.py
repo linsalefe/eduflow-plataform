@@ -7,10 +7,21 @@ from sqlalchemy import select, func
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db
-from app.models import Tenant, User, Contact, Channel, TokenUsage
+from app.models import Tenant, User, Contact, Channel, TokenUsage, Pipeline
 from sqlalchemy import select, func, and_
 from datetime import datetime, timedelta
 from app.auth import get_current_user, get_tenant_id, hash_password
+
+# ============================================================
+# HIERARQUIA DE FEATURES — usado para cascata on/off
+# ============================================================
+FEATURE_HIERARCHY: dict[str, list[str]] = {
+    "agenda": ["tarefas"],
+    "financeiro": ["metas"],
+    "configuracoes": ["integracoes", "suporte"],
+}
+
+PROTECTED_FEATURES: set[str] = {"configuracoes"}
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
 
@@ -227,20 +238,49 @@ async def update_features(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_superadmin),
 ):
+    """
+    Atualiza features do tenant com regras:
+    - Features em PROTECTED_FEATURES não podem ser desligadas
+    - Ao desligar uma feature pai em FEATURE_HIERARCHY, todas as filhas
+      também são desligadas (cascata)
+    """
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
 
+    for key, value in data.features.items():
+        if value is False and key in PROTECTED_FEATURES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Feature '{key}' não pode ser desligada",
+            )
+
     current = dict(tenant.features or {})
-    current.update(data.features)
+    updates = dict(data.features)
+
+    for key, value in list(updates.items()):
+        if value is False and key in FEATURE_HIERARCHY:
+            for child in FEATURE_HIERARCHY[key]:
+                updates[child] = False
+
+    current.update(updates)
     tenant.features = current
 
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(tenant, "features")
 
     await db.commit()
-    return {"message": "Features atualizadas", "features": tenant.features}
+    return {
+        "message": "Features atualizadas",
+        "features": tenant.features,
+        "cascaded": [
+            child
+            for parent, children in FEATURE_HIERARCHY.items()
+            if data.features.get(parent) is False
+            for child in children
+        ],
+    }
 
 
 @router.patch("/tenants/{tenant_id}/toggle")
@@ -379,6 +419,15 @@ async def get_kanban_columns(
     db: AsyncSession = Depends(get_db),
     tenant_id: int = Depends(get_tenant_id),
 ):
+    # Try to get columns from default pipeline first
+    pipeline_result = await db.execute(
+        select(Pipeline).where(Pipeline.tenant_id == tenant_id, Pipeline.is_default == True)
+    )
+    default_pipeline = pipeline_result.scalar_one_or_none()
+    if default_pipeline and default_pipeline.columns:
+        return default_pipeline.columns
+
+    # Fallback to tenant.kanban_columns
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if not tenant:
@@ -408,8 +457,19 @@ async def update_kanban_columns(
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
 
     from sqlalchemy.orm.attributes import flag_modified
+
+    # Save to tenant.kanban_columns for backward compatibility
     tenant.kanban_columns = data
     flag_modified(tenant, "kanban_columns")
+
+    # Also save to default pipeline
+    pipeline_result = await db.execute(
+        select(Pipeline).where(Pipeline.tenant_id == tenant_id, Pipeline.is_default == True)
+    )
+    default_pipeline = pipeline_result.scalar_one_or_none()
+    if default_pipeline:
+        default_pipeline.columns = data
+        flag_modified(default_pipeline, "columns")
 
     await db.commit()
     return {"message": "Colunas atualizadas", "kanban_columns": tenant.kanban_columns}

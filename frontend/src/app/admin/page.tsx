@@ -60,25 +60,77 @@ const AGENT_LABELS: Record<string, string> = {
   briefing: 'Briefing',
 };
 
-const FEATURE_LABELS: Record<string, string> = {
-  dashboard: 'Dashboard',
-  conversas: 'Conversas',
-  pipeline: 'Pipeline',
-  financeiro: 'Financeiro',
-  landing_pages: 'Landing Pages',
-  campanhas: 'Campanhas',
-  relatorios: 'Relatórios',
-  usuarios: 'Usuários',
-  automacoes: 'Automações',
-  tarefas: 'Tarefas',
-  voice_ai: 'Voice AI',
-  ai_whatsapp: 'IA WhatsApp',
-  ai_audio_response: 'Áudio IA (WhatsApp)',
-  voice_inbound: 'Atendimento IA (Voz)',
-  agenda: 'Agenda',
-  contatos: 'Contatos',
-  agentes_ia: 'Agentes IA',
+type FeatureNode = {
+  key: string;
+  label: string;
+  children?: FeatureNode[];
+  protected?: boolean;
+  description?: string;
 };
+
+const FEATURE_TREE: FeatureNode[] = [
+  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'conversas', label: 'Conversas' },
+  { key: 'pipeline', label: 'Pipeline' },
+  { key: 'contatos', label: 'Contatos' },
+  { key: 'canais', label: 'Canais' },
+  {
+    key: 'agenda',
+    label: 'Agenda',
+    children: [{ key: 'tarefas', label: 'Tarefas' }],
+  },
+  {
+    key: 'financeiro',
+    label: 'Financeiro',
+    children: [{ key: 'metas', label: 'Metas' }],
+  },
+  {
+    key: '_marketing',
+    label: 'Marketing',
+    description: 'Aparece se qualquer sub estiver ativa',
+    children: [
+      { key: 'landing_pages', label: 'Landing Pages' },
+      { key: 'relatorios', label: 'Relatórios' },
+      { key: 'campanhas', label: 'Campanhas' },
+    ],
+  },
+  {
+    key: '_automacao_ia',
+    label: 'Automação e IA',
+    description: 'Aparece se qualquer sub estiver ativa',
+    children: [
+      { key: 'automacoes', label: 'Automações' },
+      { key: 'voice_ai', label: 'Voice AI (outbound)' },
+      { key: 'voice_inbound', label: 'Atendimento IA (inbound)' },
+      { key: 'ai_whatsapp', label: 'IA WhatsApp' },
+      { key: 'ai_audio_response', label: 'Áudio IA (resposta)' },
+      { key: 'agentes_ia', label: 'Agentes IA' },
+    ],
+  },
+  { key: 'usuarios', label: 'Equipe' },
+  {
+    key: 'configuracoes',
+    label: 'Configurações',
+    protected: true,
+    description: 'Sempre ativa — não pode ser desligada',
+    children: [
+      { key: 'integracoes', label: 'Integrações' },
+      { key: 'suporte', label: 'Central de Ajuda' },
+    ],
+  },
+];
+
+const FEATURE_LABELS: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  const walk = (nodes: FeatureNode[]) => {
+    for (const n of nodes) {
+      if (!n.key.startsWith('_')) map[n.key] = n.label;
+      if (n.children) walk(n.children);
+    }
+  };
+  walk(FEATURE_TREE);
+  return map;
+})();
 
 const PLAN_COLORS: Record<string, string> = {
   basic: 'bg-gray-500/20 text-gray-300',
@@ -98,6 +150,71 @@ function formatTokens(n: number) {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
   if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
   return String(n);
+}
+
+function FeatureTreeEditor({
+  tenant,
+  onToggle,
+}: {
+  tenant: Tenant;
+  onToggle: (key: string, next: boolean) => void;
+}) {
+  const isEnabled = (key: string) => tenant.features?.[key] !== false;
+
+  const aggregateActive = (children: FeatureNode[]): boolean =>
+    children.some((c) => isEnabled(c.key));
+
+  const renderNode = (node: FeatureNode, depth: number) => {
+    const isAggregateRoot = node.key.startsWith('_');
+    const enabled = isAggregateRoot
+      ? aggregateActive(node.children || [])
+      : isEnabled(node.key);
+
+    const canToggle = !isAggregateRoot && !node.protected;
+
+    return (
+      <div key={node.key} style={{ marginLeft: depth * 16 }}>
+        <div className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-white/5 transition-colors">
+          <div className="flex flex-col">
+            <span className={`text-sm ${isAggregateRoot ? 'text-gray-400 italic' : 'text-white'}`}>
+              {depth > 0 && <span className="text-gray-500 mr-2">&mdash;</span>}
+              {node.label}
+              {node.protected && (
+                <span className="ml-2 text-[10px] text-emerald-400 uppercase tracking-wider">sempre</span>
+              )}
+              {isAggregateRoot && (
+                <span className="ml-2 text-[10px] text-gray-500 uppercase tracking-wider">agregado</span>
+              )}
+            </span>
+            {node.description && (
+              <span className="text-[11px] text-gray-500">{node.description}</span>
+            )}
+          </div>
+          <button
+            onClick={() => canToggle && onToggle(node.key, !enabled)}
+            disabled={!canToggle}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              enabled ? 'bg-blue-600' : 'bg-gray-600'
+            } ${!canToggle ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            aria-label={`Toggle ${node.label}`}
+          >
+            <span
+              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                enabled ? 'translate-x-5' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        {node.children && node.children.length > 0 && (
+          <div className="border-l border-white/10 ml-4 pl-2 mt-1">
+            {node.children.map((c) => renderNode(c, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return <div className="space-y-1">{FEATURE_TREE.map((n) => renderNode(n, 0))}</div>;
 }
 
 export default function AdminPage() {
@@ -372,25 +489,10 @@ export default function AdminPage() {
                           <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
                             <Settings2 className="w-4 h-4" /> Módulos Ativos
                           </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {Object.entries(FEATURE_LABELS).map(([key, label]) => {
-                              const enabled = tenant.features?.[key] !== false;
-                              return (
-                                <button
-                                  key={key}
-                                  onClick={() => toggleFeature(tenant.id, key, enabled)}
-                                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                                    enabled
-                                      ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
-                                      : 'bg-white/[0.02] text-gray-600 border border-white/[0.04]'
-                                  }`}
-                                >
-                                  {enabled ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <FeatureTreeEditor
+                            tenant={tenant}
+                            onToggle={(key, next) => toggleFeature(tenant.id, key, !next)}
+                          />
                         </div>
 
                         <div>
