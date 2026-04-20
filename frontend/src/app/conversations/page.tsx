@@ -32,6 +32,8 @@ import dynamic from 'next/dynamic';
 import AppShell from "@/components/app-shell";
 import ActivityTimeline from '@/components/ActivityTimeline';
 import { ConversationsProvider, useConversations } from '@/components/conversations/conversations-provider';
+import { MemoryPanel } from '@/components/ai-lab/memory-panel';
+import { useAuth } from '@/contexts/auth-context';
 import { Suspense, useState } from 'react';
 import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig } from '@/lib/inbox-constants';
 
@@ -72,6 +74,17 @@ function ConversationsContent() {
     messagesEndRef, emojiPickerRef, attachMenuRef, fileInputRef, imageInputRef, chatContainerRef,
     getStatusIcon,
   } = useConversations();
+
+  const { hasFeature } = useAuth();
+
+  const handleMemoryUpdate = (newMemory: any, newUpdatedAt: string | null) => {
+    if (!selectedContact) return;
+    setSelectedContact({
+      ...selectedContact,
+      ai_memory: newMemory,
+      ai_memory_updated_at: newUpdatedAt,
+    });
+  };
 
   const [showCRMMobile, setShowCRMMobile] = useState(false);
 
@@ -960,6 +973,16 @@ function ConversationsContent() {
                           </div>
                         )}
                       </div>
+
+                      {/* Memória da IA */}
+                      {hasFeature('ai_lead_memory') && (
+                        <MemoryPanel
+                          waId={selectedContact.wa_id}
+                          memory={selectedContact.ai_memory}
+                          updatedAt={selectedContact.ai_memory_updated_at || null}
+                          onUpdate={handleMemoryUpdate}
+                        />
+                      )}
 
                       {/* Notes */}
                       <div>

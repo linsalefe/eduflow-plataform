@@ -20,6 +20,13 @@ export interface ExactLeadResult {
   stage: string | null;
 }
 
+export interface AIMemory {
+  personal_facts?: string[];
+  preferences?: string[];
+  objections?: string[];
+  journey_context?: string;
+}
+
 export interface Contact {
   wa_id: string;
   name: string;
@@ -35,6 +42,9 @@ export interface Contact {
   created_at: string | null;
   channel_id: number | null;
   assigned_to: number | null;
+  profile_picture_url?: string | null;
+  ai_memory?: AIMemory | null;
+  ai_memory_updated_at?: string | null;
 }
 
 export interface TeamUser {

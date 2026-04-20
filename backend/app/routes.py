@@ -59,6 +59,13 @@ class UpdateContactRequest(BaseModel):
     pipeline_id: Optional[int] = None
 
 
+class UpdateAIMemoryRequest(BaseModel):
+    personal_facts: list[str] = []
+    preferences: list[str] = []
+    objections: list[str] = []
+    journey_context: str = ""
+
+
 class TagRequest(BaseModel):
     name: str
     color: str = "blue"
@@ -743,6 +750,8 @@ async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id:
         "ai_active": contact.ai_active or False,
         "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
         "total_messages": msg_count.scalar(),
+        "ai_memory": contact.ai_memory if isinstance(contact.ai_memory, dict) else {},
+        "ai_memory_updated_at": contact.ai_memory_updated_at.isoformat() if contact.ai_memory_updated_at else None,
         "created_at": contact.created_at.isoformat() if contact.created_at else None,
     }
 
@@ -808,6 +817,59 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
 
     await db.commit()
     return {"status": "updated"}
+
+
+@router.put("/contacts/{wa_id}/ai-memory")
+async def update_contact_ai_memory(
+    wa_id: str,
+    req: UpdateAIMemoryRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    """Edição manual da memória do lead. Apenas admin pode editar."""
+    from sqlalchemy.orm.attributes import flag_modified
+    from datetime import datetime, timezone, timedelta
+
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas admins podem editar a memória da IA")
+
+    result = await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contato não encontrado")
+
+    def clean_list(items: list[str], max_items: int = 10) -> list[str]:
+        out = []
+        for it in items:
+            if isinstance(it, str) and it.strip():
+                out.append(it.strip()[:200])
+            if len(out) >= max_items:
+                break
+        return out
+
+    new_memory = {
+        "personal_facts": clean_list(req.personal_facts),
+        "preferences": clean_list(req.preferences),
+        "objections": clean_list(req.objections),
+        "journey_context": (req.journey_context or "").strip()[:500],
+    }
+
+    contact.ai_memory = new_memory
+    flag_modified(contact, "ai_memory")
+    SP_TZ = timezone(timedelta(hours=-3))
+    contact.ai_memory_updated_at = datetime.now(SP_TZ)
+
+    await db.commit()
+    await db.refresh(contact)
+
+    return {
+        "wa_id": contact.wa_id,
+        "ai_memory": contact.ai_memory,
+        "ai_memory_updated_at": contact.ai_memory_updated_at.isoformat() if contact.ai_memory_updated_at else None,
+    }
 
 
 @router.post("/contacts/{wa_id}/tags/{tag_id}")
