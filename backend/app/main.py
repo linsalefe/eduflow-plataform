@@ -28,6 +28,7 @@ from app.landing_routes import public_router as landing_public_router
 from app.export_routes import router as export_router
 from app.task_routes import router as task_router
 from app.automation_routes import router as automation_router
+from app.chatbot.routes import router as chatbot_router
 from app.voice_ai_elevenlabs.agent_tools_routes import router as agent_tools_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
@@ -246,6 +247,7 @@ app.include_router(composio_router)
 app.include_router(stripe_router)
 app.include_router(pipeline_router)
 app.include_router(ai_lab_router)
+app.include_router(chatbot_router)
 
 @app.get("/webhook")
 async def verify_webhook(
