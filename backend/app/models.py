@@ -2,6 +2,8 @@ from sqlalchemy import Column, String, Text, DateTime, BigInteger, Integer, Bool
 from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Float, Text, ForeignKey, Table, Numeric
 from app.database import Base
+from sqlalchemy.dialects.postgresql import JSONB
+from pgvector.sqlalchemy import Vector
 
 
 contact_tags = Table(
@@ -559,4 +561,39 @@ class TokenUsage(Base):
     prompt_tokens = Column(Integer, default=0)
     completion_tokens = Column(Integer, default=0)
     total_tokens = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class AIFeedback(Base):
+    """
+    Feedback do cliente sobre respostas da IA no Laboratório do Agente.
+    rating='up'   -> aprovação simples
+    rating='down' -> rejeição com motivo opcional (reason)
+    rating='edit' -> correção do cliente (corrected_response). Gera embedding.
+    """
+    __tablename__ = "ai_feedback"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message_id = Column(
+        BigInteger,
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    contact_wa_id = Column(String(100), nullable=False, index=True)
+    rating = Column(String(10), nullable=False)  # 'up' | 'down' | 'edit'
+    reason = Column(String(50), nullable=True)
+    corrected_response = Column(Text, nullable=True)
+    context_snippet = Column(JSONB, nullable=True)
+    context_embedding = Column(Vector(1536), nullable=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())

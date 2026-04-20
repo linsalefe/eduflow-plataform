@@ -21,6 +21,7 @@ MarkupSafe==3.0.3
 numpy
 openai==2.17.0
 passlib==1.7.4
+pgvector==0.4.2
 psycopg2-binary==2.9.11
 pydantic==2.12.5
 pydantic_core==2.41.5
