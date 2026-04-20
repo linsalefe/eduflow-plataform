@@ -465,6 +465,28 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 if not text:
                     continue
 
+                # === Chatbot Engine — roteamento por modo operacional do canal ===
+                op_mode = (getattr(channel, "operation_mode", "ai") or "ai") if channel else "ai"
+
+                if op_mode == "chatbot":
+                    try:
+                        from app.chatbot.engine import handle_inbound_message as chatbot_handle
+                        await chatbot_handle(
+                            message_text=text,
+                            contact_wa_id=phone,
+                            contact_name=sender_name,
+                            channel=channel,
+                            tenant_id=tenant_id,
+                            db=db,
+                        )
+                    except Exception as e:
+                        print(f"❌ Erro chatbot engine: {e}")
+                    continue
+
+                if op_mode == "none":
+                    continue
+
+                # === Modo 'ai' (default) — lógica original ===
                 # Verificar se IA está ativa para este contato
                 contact_check = await db.execute(
                     select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
