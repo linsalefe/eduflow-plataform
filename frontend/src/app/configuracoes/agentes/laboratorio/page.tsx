@@ -43,13 +43,13 @@ type FilterType = 'all' | 'unreviewed' | 'reviewed' | 'edits';
 
 const FILTERS: Array<{ value: FilterType; label: string }> = [
   { value: 'all', label: 'Todas' },
-  { value: 'unreviewed', label: 'Nao revisadas' },
+  { value: 'unreviewed', label: 'Não revisadas' },
   { value: 'reviewed', label: 'Revisadas' },
-  { value: 'edits', label: 'Com correcoes' },
+  { value: 'edits', label: 'Com correções' },
 ];
 
 // ── Content component ───────────────────────────────────
-function LabListContent() {
+export function LabListContent() {
   const { user } = useAuth();
   const router = useRouter();
 
@@ -72,7 +72,7 @@ function LabListContent() {
         const res = await api.get('/ai-lab/stats');
         setStats(res.data);
       } catch {
-        toast.error('Erro ao carregar estatisticas do laboratorio');
+        toast.error('Erro ao carregar estatísticas do laboratório');
       } finally {
         setLoadingStats(false);
       }
@@ -109,7 +109,7 @@ function LabListContent() {
           <FlaskConical className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Laboratorio do agente</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Laboratório do agente</h1>
           <p className="text-sm text-gray-500">
             Revise as respostas da IA e ensine ela a responder melhor
           </p>
@@ -119,13 +119,13 @@ function LabListContent() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Total de avaliacoes"
+          label="Total de avaliações"
           value={loadingStats ? null : stats?.total_feedback ?? 0}
         />
         <StatCard
-          label="Aprovacoes"
+          label="Aprovações"
           value={loadingStats ? null : stats?.up ?? 0}
-          hint={stats && stats.total_feedback > 0 ? `${Math.round(stats.approval_rate * 100)}% de aprovacao` : undefined}
+          hint={stats && stats.total_feedback > 0 ? `${Math.round(stats.approval_rate * 100)}% de aprovação` : undefined}
           accent="green"
           icon={<ThumbsUp className="w-3.5 h-3.5" />}
         />
@@ -136,7 +136,7 @@ function LabListContent() {
           icon={<ThumbsDown className="w-3.5 h-3.5" />}
         />
         <StatCard
-          label="Correcoes"
+          label="Correções"
           value={loadingStats ? null : stats?.edit ?? 0}
           hint={stats && stats.eligible_for_fewshot > 0 ? `${stats.eligible_for_fewshot} treinando a IA` : undefined}
           accent="blue"
@@ -170,10 +170,10 @@ function LabListContent() {
         ) : conversations.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
-            title="Nenhuma conversa nesta visao"
+            title="Nenhuma conversa nesta visão"
             description={
               filter === 'all'
-                ? 'Assim que a IA conversar com leads, as conversas aparecerao aqui para revisao.'
+                ? 'Assim que a IA conversar com leads, as conversas aparecerão aqui para revisão.'
                 : 'Troque o filtro acima para ver outras conversas.'
             }
           />
@@ -255,7 +255,7 @@ function ConversationRow({ conversation: c }: { conversation: ConversationItem }
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {c.feedback_total === 0 ? (
             <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-500">
-              nao revisada
+              não revisada
             </span>
           ) : (
             <>
