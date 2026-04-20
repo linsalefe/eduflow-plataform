@@ -396,6 +396,7 @@ class Tenant(Base):
         "voice_inbound": False,
         "ai_audio_response": False,
         "agenda": True,
+        "ai_lead_memory": False,
     })
 
     agent_plan_flags = Column(JSON, default={
