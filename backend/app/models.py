@@ -59,6 +59,8 @@ class Contact(Base):
     is_group = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    ai_memory = Column(JSONB, nullable=True, server_default='{}')
+    ai_memory_updated_at = Column(DateTime(timezone=True), nullable=True)
 
     messages = relationship("Message", back_populates="contact")
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
