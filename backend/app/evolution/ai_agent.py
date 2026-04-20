@@ -7,6 +7,7 @@ import os
 import json
 import re
 import uuid
+import asyncio
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -14,6 +15,12 @@ from app.models import Contact, Message, AIConfig, Channel, Tenant, TokenUsage
 from app.evolution.client import send_text, send_audio
 from app.elevenlabs.client import text_to_audio_base64
 from app.ai_engine import search_knowledge
+from app.database import async_session
+from app.ai_lab.memory import (
+    format_memory_for_prompt,
+    update_lead_memory,
+    tenant_has_memory_enabled,
+)
 from app.ai_lab.few_shot import (
     get_relevant_examples,
     format_examples_for_prompt,
@@ -123,6 +130,50 @@ async def _build_fewshot_block(
         return ""
 
 
+async def _build_memory_block(
+    tenant_id: int | None,
+    contact: Contact | None,
+    db: AsyncSession,
+) -> str:
+    """
+    Monta o bloco de memória persistente do lead pra injetar no system_prompt.
+    Best-effort: qualquer erro => retorna "" e o agente segue sem memória.
+    """
+    if not tenant_id or not contact:
+        return ""
+
+    try:
+        if not await tenant_has_memory_enabled(tenant_id, db):
+            return ""
+
+        memory = contact.ai_memory if isinstance(contact.ai_memory, dict) else {}
+        block = format_memory_for_prompt(memory)
+        if block:
+            facts = memory.get("personal_facts", []) or []
+            objs = memory.get("objections", []) or []
+            print(
+                f"🧠 [memory] tenant={tenant_id} contact={contact.id} "
+                f"facts={len(facts)} objections={len(objs)}"
+            )
+        return block
+    except Exception as e:
+        print(f"⚠️ [memory] erro ao montar bloco: {e}")
+        return ""
+
+
+async def _update_lead_memory_bg(contact_id: int) -> None:
+    """
+    Wrapper que roda `update_lead_memory` numa sessão nova.
+    Rodado via asyncio.create_task após o commit da resposta do agente.
+    Best-effort: engole qualquer exceção.
+    """
+    try:
+        async with async_session() as bg_db:
+            await update_lead_memory(contact_id, bg_db)
+    except Exception as e:
+        print(f"⚠️ [memory] erro em background update_lead_memory: {e}")
+
+
 async def process_message(
     wa_id: str,
     user_message: str,
@@ -229,11 +280,14 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
   "action": "continue/trigger_call/schedule_call/end"
 }}"""
 
+    # ── Memória persistente do lead ───────────────────────────────────────────
+    memory_block = await _build_memory_block(tenant_id, contact, db)
+
     # ── Few-shot do Laboratório do Agente ─────────────────────────────────────
     fewshot_block = await _build_fewshot_block(tenant_id, history, user_message, db)
 
     messages = [
-        {"role": "system", "content": system_prompt + lead_info + rag_context + fewshot_block + FORMAT_RULES},
+        {"role": "system", "content": system_prompt + lead_info + rag_context + memory_block + fewshot_block + FORMAT_RULES},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
@@ -368,6 +422,13 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
                 contact.notes = json.dumps(existing_notes, ensure_ascii=False)
 
             await db.commit()
+
+            # Memória do lead: extração em background (best-effort, não bloqueia resposta)
+            if tenant_id and contact:
+                try:
+                    asyncio.create_task(_update_lead_memory_bg(contact.id))
+                except Exception as e:
+                    print(f"⚠️ [memory] falha ao agendar background task: {e}")
 
         return {
             "message": ai_message,
