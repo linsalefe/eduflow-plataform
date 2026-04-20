@@ -14,6 +14,10 @@ from app.models import Contact, Message, AIConfig, Channel, Tenant, TokenUsage
 from app.evolution.client import send_text, send_audio
 from app.elevenlabs.client import text_to_audio_base64
 from app.ai_engine import search_knowledge
+from app.ai_lab.few_shot import (
+    get_relevant_examples,
+    format_examples_for_prompt,
+)
 from datetime import datetime, timezone, timedelta
 
 SP_TZ = timezone(timedelta(hours=-3))
@@ -64,6 +68,59 @@ async def get_conversation_history(wa_id: str, db: AsyncSession, limit: int = 20
         history.append({"role": role, "content": msg.content})
 
     return history
+
+
+async def _build_fewshot_block(
+    tenant_id: int | None,
+    history: list[dict],
+    user_message: str,
+    db: AsyncSession,
+) -> str:
+    """
+    Monta o bloco de exemplos few-shot para injetar no system_prompt.
+    Best-effort: qualquer erro => retorna "" e o agente segue sem few-shot.
+    """
+    if not tenant_id:
+        return ""
+
+    # Contexto insuficiente gera embedding ruim. Pula.
+    if not history or len(history) < 2:
+        return ""
+
+    try:
+        # últimas 5 msgs do histórico + msg atual do lead
+        current_context = history[-5:] + [{"role": "user", "content": user_message}]
+        examples = await get_relevant_examples(
+            tenant_id=tenant_id,
+            current_context=current_context,
+            db=db,
+        )
+        if not examples:
+            return ""
+
+        # Log custo do embedding (text-embedding-3-small ~ N tokens/input)
+        try:
+            approx_tokens = sum(
+                len(m.get("content", "") or "") // 4 for m in current_context
+            )
+            token_record = TokenUsage(
+                tenant_id=tenant_id,
+                source="few_shot_embedding",
+                model="text-embedding-3-small",
+                prompt_tokens=approx_tokens,
+                completion_tokens=0,
+                total_tokens=approx_tokens,
+            )
+            db.add(token_record)
+        except Exception as e:
+            print(f"⚠️ [few_shot] Falha ao logar token_usage: {e}")
+
+        block = format_examples_for_prompt(examples)
+        print(f"🧪 [few_shot] tenant={tenant_id} injetou {len(examples)} exemplo(s), ~{len(block)} chars")
+        return block
+    except Exception as e:
+        print(f"⚠️ [few_shot] erro ao montar bloco: {e}")
+        return ""
 
 
 async def process_message(
@@ -172,8 +229,11 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
   "action": "continue/trigger_call/schedule_call/end"
 }}"""
 
+    # ── Few-shot do Laboratório do Agente ─────────────────────────────────────
+    fewshot_block = await _build_fewshot_block(tenant_id, history, user_message, db)
+
     messages = [
-        {"role": "system", "content": system_prompt + lead_info + rag_context + FORMAT_RULES},
+        {"role": "system", "content": system_prompt + lead_info + rag_context + fewshot_block + FORMAT_RULES},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": user_message})
