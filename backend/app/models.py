@@ -35,6 +35,8 @@ class Channel(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
     default_pipeline_id = Column(Integer, ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True)
+    operation_mode = Column(String(20), nullable=False, default="ai")  # ai | chatbot | none
+    active_chatbot_flow_id = Column(Integer, ForeignKey("chatbot_flows.id", ondelete="SET NULL"), nullable=True)
 
     tenant = relationship("Tenant", back_populates="channels")
     contacts = relationship("Contact", back_populates="channel")
@@ -397,6 +399,7 @@ class Tenant(Base):
         "ai_audio_response": False,
         "agenda": True,
         "ai_lead_memory": False,
+        "chatbot": False,
     })
 
     agent_plan_flags = Column(JSON, default={
@@ -600,3 +603,50 @@ class AIFeedback(Base):
         nullable=True,
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ============================================================
+# Chatbot Visual — Fluxos e Sessões
+# ============================================================
+class ChatbotFlow(Base):
+    __tablename__ = "chatbot_flows"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    # Rascunho em edição (o editor visual salva aqui)
+    graph = Column(JSONB, nullable=False, server_default='{"nodes":[],"edges":[]}')
+
+    # Snapshot ativo (o runtime executa isto — só atualiza ao publicar)
+    is_published = Column(Boolean, nullable=False, default=False)
+    published_graph = Column(JSONB, nullable=True)
+
+    version = Column(Integer, nullable=False, default=1)
+    created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ChatbotSession(Base):
+    __tablename__ = "chatbot_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    flow_id = Column(Integer, ForeignKey("chatbot_flows.id", ondelete="CASCADE"), nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
+    contact_wa_id = Column(String(100), nullable=False, index=True)
+
+    # ID do nó corrente dentro do grafo (IDs do React Flow são strings)
+    current_node_id = Column(String(100), nullable=True)
+
+    # Variáveis capturadas durante o fluxo: {"nome": "João", "cpf": "..."}
+    variables = Column(JSONB, nullable=False, server_default='{}')
+
+    status = Column(String(20), nullable=False, default="active")  # active | completed | timeout | cancelled
+    started_at = Column(DateTime, server_default=func.now())
+    last_interaction_at = Column(DateTime, server_default=func.now())
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
