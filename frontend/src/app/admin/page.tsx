@@ -68,6 +68,13 @@ type FeatureNode = {
   description?: string;
 };
 
+/**
+ * Features opt-in estritas: começam DESLIGADAS por default
+ * e só ficam ligadas se explicitamente setadas como `true` no banco.
+ * Corrige o default-on comum às outras features legadas.
+ */
+const OPT_IN_FEATURES = new Set<string>(['chatbot']);
+
 const FEATURE_TREE: FeatureNode[] = [
   { key: 'dashboard', label: 'Dashboard' },
   { key: 'conversas', label: 'Conversas' },
@@ -161,7 +168,14 @@ function FeatureTreeEditor({
   tenant: Tenant;
   onToggle: (key: string, next: boolean) => void;
 }) {
-  const isEnabled = (key: string) => tenant.features?.[key] !== false;
+  const isEnabled = (key: string) => {
+    // Features opt-in estritas: só ligadas se === true explicitamente
+    if (OPT_IN_FEATURES.has(key)) {
+      return tenant.features?.[key] === true;
+    }
+    // Legacy: ligadas se não forem explicitamente `false`
+    return tenant.features?.[key] !== false;
+  };
 
   const aggregateActive = (children: FeatureNode[]): boolean =>
     children.some((c) => isEnabled(c.key));
