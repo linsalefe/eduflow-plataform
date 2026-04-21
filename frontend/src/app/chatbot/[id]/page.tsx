@@ -40,6 +40,7 @@ interface Flow {
   name: string;
   description: string | null;
   graph: { nodes: Node[]; edges: Edge[] };
+  published_graph: { nodes: Node[]; edges: Edge[] } | null;
   is_published: boolean;
   version: number;
 }
@@ -81,6 +82,24 @@ function EditorInner({ flowId }: { flowId: number }) {
   const [activeChannel, setActiveChannel] = useState<ChannelStatus | null>(null);
 
   const [simulatorOpen, setSimulatorOpen] = useState(false);
+
+  // Detecta se há alterações não publicadas (graph atual != published_graph)
+  const hasUnpublishedChanges = useMemo(() => {
+    if (!flow?.is_published) return false;
+    if (!flow?.published_graph) return true;
+    const canonize = (g: any) =>
+      JSON.stringify({
+        nodes: (g?.nodes || []).map((n: any) => ({
+          id: n.id, type: n.type, data: n.data, position: n.position,
+        })),
+        edges: (g?.edges || []).map((e: any) => ({
+          source: e.source, target: e.target,
+          sourceHandle: e.sourceHandle ?? null,
+          targetHandle: e.targetHandle ?? null,
+        })),
+      });
+    return canonize({ nodes, edges }) !== canonize(flow.published_graph);
+  }, [flow?.is_published, flow?.published_graph, nodes, edges]);
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanCol[]>([]);
   const [users, setUsers] = useState<UserOpt[]>([]);
@@ -269,11 +288,11 @@ function EditorInner({ flowId }: { flowId: number }) {
   // ── beforeunload ──────────────────────────────────────
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty) { e.preventDefault(); }
+      if (isDirty || hasUnpublishedChanges) { e.preventDefault(); }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  }, [isDirty, hasUnpublishedChanges]);
 
   // ── Auto-layout horizontal ─────────────────────────────
   const autoLayout = useCallback(() => {
@@ -384,7 +403,12 @@ function EditorInner({ flowId }: { flowId: number }) {
         active_chatbot_flow_id: flow.id,
         force: true,
       });
-      setFlow((f) => (f ? { ...f, is_published: true, version: f.version + 1 } : f));
+      setFlow((f) => (f ? {
+        ...f,
+        is_published: true,
+        version: f.version + 1,
+        published_graph: { nodes, edges },
+      } : f));
       setActiveChannel({
         ...chosen,
         current_mode: 'chatbot',
@@ -468,6 +492,15 @@ function EditorInner({ flowId }: { flowId: number }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Publicado &middot; v{flow.version}
               </span>
+              {hasUnpublishedChanges && (
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 px-2 py-1 rounded-full bg-amber-500/15 border border-amber-500/30"
+                  title="Suas alterações estão salvas, mas o bot continua rodando a versão publicada. Clique em Publicar para aplicar."
+                >
+                  <CircleAlert className="w-3 h-3" />
+                  Alterações não publicadas
+                </span>
+              )}
               {activeChannel ? (
                 <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium text-foreground px-2 py-1 rounded-full bg-muted">
                   <Radio className="w-3 h-3 text-primary" />
