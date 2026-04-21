@@ -8,6 +8,12 @@ import { toast } from 'sonner';
 import AppShell from "@/components/app-shell";;
 import ConfirmModal from '@/components/ConfirmModal';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/auth-context';
+import {
+  ChannelModeSelector,
+  type ChannelModeState,
+  type PublishedFlow,
+} from '@/components/chatbot/channel-mode-selector';
 
 interface ChannelItem {
   id: number;
@@ -48,6 +54,12 @@ export default function ChannelsPage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const [pipelines, setPipelines] = useState<{id: number; name: string; is_default: boolean}[]>([]);
 
+  // ── Chatbot mode (opt-in feature) ──────────────────────
+  const { user } = useAuth();
+  const chatbotEnabled = user?.features?.chatbot === true;
+  const [modeMap, setModeMap] = useState<Record<number, ChannelModeState>>({});
+  const [publishedFlows, setPublishedFlows] = useState<PublishedFlow[]>([]);
+
   const loadChannels = async () => {
     try {
       const res = await api.get('/channels');
@@ -63,6 +75,34 @@ export default function ChannelsPage() {
     loadChannels();
     api.get('/pipelines').then(res => setPipelines(res.data)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!chatbotEnabled) return;
+    (async () => {
+      try {
+        const [modesRes, flowsRes] = await Promise.all([
+          api.get('/chatbot/channels'),
+          api.get('/chatbot/flows'),
+        ]);
+        const map: Record<number, ChannelModeState> = {};
+        (modesRes.data || []).forEach((c: any) => {
+          map[c.id] = {
+            operation_mode: c.operation_mode || 'ai',
+            active_chatbot_flow_id: c.active_chatbot_flow_id || null,
+            active_chatbot_flow_name: c.active_chatbot_flow_name || null,
+          };
+        });
+        setModeMap(map);
+        setPublishedFlows(
+          (flowsRes.data || [])
+            .filter((f: any) => f.is_published)
+            .map((f: any) => ({ id: f.id, name: f.name }))
+        );
+      } catch {
+        // Silencioso
+      }
+    })();
+  }, [chatbotEnabled]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -381,6 +421,19 @@ export default function ChannelsPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Modo de operação (Chatbot / IA / Nenhum) */}
+                {chatbotEnabled && modeMap[ch.id] && (
+                  <ChannelModeSelector
+                    channelId={ch.id}
+                    channelName={ch.name}
+                    mode={modeMap[ch.id]}
+                    publishedFlows={publishedFlows}
+                    onChange={(next) =>
+                      setModeMap((m) => ({ ...m, [ch.id]: next }))
+                    }
+                  />
+                )}
               </div>
             ))}
           </div>
