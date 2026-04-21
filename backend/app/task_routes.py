@@ -182,7 +182,8 @@ async def create_task(
         await log_activity(
             db, req.contact_wa_id, "task_created",
             f"Tarefa criada: {req.title}",
-            f'{{"task_id": {task.id}, "priority": "{req.priority}"}}'
+            f'{{"task_id": {task.id}, "priority": "{req.priority}"}}',
+            tenant_id=tenant_id
         )
 
     await db.commit()
@@ -233,7 +234,8 @@ async def complete_task(
         await log_activity(
             db, task.contact_wa_id, "task_completed",
             f"Tarefa concluída: {task.title}",
-            f'{{"task_id": {task.id}}}'
+            f'{{"task_id": {task.id}}}',
+            tenant_id=task.tenant_id
         )
 
     await db.commit()
