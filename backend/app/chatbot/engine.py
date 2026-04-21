@@ -460,6 +460,67 @@ async def _execute_node(
 
         return next_node, False
 
+    if nt == "webhook_out":
+        import httpx
+        import json as _json
+        import asyncio as _asyncio
+
+        url_raw = data.get("url") or ""
+        event_name = (data.get("event_name") or "chatbot_event").strip()
+        payload_mode = data.get("payload_mode") or "auto"
+        custom_payload_raw = data.get("custom_payload") or ""
+        headers_list = data.get("headers") or []
+
+        url = interpolate(url_raw, session.variables or {}, contact).strip()
+
+        if not url:
+            print(f"⚠️ Chatbot webhook_out: URL vazia, pulando")
+            return find_next_node(graph, node["id"]), False
+
+        # Monta payload
+        if payload_mode == "custom" and custom_payload_raw.strip():
+            interpolated_body = interpolate(custom_payload_raw, session.variables or {}, contact)
+            try:
+                payload = _json.loads(interpolated_body)
+            except _json.JSONDecodeError:
+                print(f"⚠️ Chatbot webhook_out: JSON customizado inválido após interpolação, seguindo sem enviar")
+                return find_next_node(graph, node["id"]), False
+        else:
+            payload = {
+                "event": event_name,
+                "session_id": session.id,
+                "flow_id": session.flow_id,
+                "channel_id": session.channel_id,
+                "tenant_id": session.tenant_id,
+                "contact": {
+                    "name": contact.name if contact else None,
+                    "wa_id": session.contact_wa_id,
+                },
+                "variables": dict(session.variables or {}),
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Monta headers
+        wh_headers: Dict[str, str] = {"Content-Type": "application/json"}
+        for h in headers_list:
+            k = (h.get("key") or "").strip()
+            v = interpolate(h.get("value") or "", session.variables or {}, contact)
+            if k:
+                wh_headers[k] = v
+
+        # Fire-and-forget: dispara em background, não espera
+        async def _fire(u: str, hdrs: Dict[str, str], body: Any, ev: str, sess_id: int):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post(u, json=body, headers=hdrs)
+                    print(f"📤 Webhook out [{ev}] session={sess_id} → {u[:80]} = {resp.status_code}")
+            except Exception as e:
+                print(f"⚠️ Webhook out [{ev}] session={sess_id} falhou: {e}")
+
+        _asyncio.create_task(_fire(url, wh_headers, payload, event_name, session.id))
+
+        return find_next_node(graph, node["id"]), False
+
     if nt == "delay":
         # Grava resume e pausa a sessão (scheduler acorda depois)
         amount = data.get("amount")

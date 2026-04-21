@@ -4,7 +4,7 @@
 
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay' | 'http_request';
+  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay' | 'http_request' | 'webhook_out';
 
 export interface FlowNode {
   id: string;
@@ -320,6 +320,18 @@ function executeNode(
         },
       };
       return [s, findNextNode(graph, node.id, 'success'), false];
+    }
+
+    case 'webhook_out': {
+      const url = interpolate(data.url || '', s.variables, contact);
+      const ev = data.event_name || 'chatbot_event';
+      s = pushBubble(s, {
+        kind: 'system',
+        text: `Webhook "${ev}" → ${url || '(URL vazia)'} — simulado (fire-and-forget)`,
+        systemIcon: '📤',
+        ts: now(),
+      });
+      return [s, findNextNode(graph, node.id), false];
     }
 
     case 'end':

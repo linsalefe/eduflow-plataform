@@ -60,6 +60,7 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
         {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} pipelines={pipelines} />}
         {kind === 'delay' && <DelayForm data={data} update={update} />}
         {kind === 'http_request' && <HttpRequestForm data={data} update={update} />}
+        {kind === 'webhook_out' && <WebhookOutForm data={data} update={update} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -498,6 +499,144 @@ function HttpRequestForm({ data, update }: { data: any; update: (p: any) => void
           <br />
           <span className="text-rose-600 dark:text-rose-400 font-medium">Erro</span>:
           4xx, 5xx, timeout ou falha de rede.
+        </p>
+      </div>
+    </>
+  );
+}
+
+
+// ============================================================
+// WEBHOOK OUT
+// ============================================================
+function WebhookOutForm({ data, update }: { data: any; update: (p: any) => void }) {
+  const mode = data.payload_mode || 'auto';
+  const headers: Array<{ key: string; value: string }> = data.headers || [];
+
+  const addHeader = () => update({ headers: [...headers, { key: '', value: '' }] });
+  const updateHeader = (i: number, field: 'key' | 'value', v: string) => {
+    const next = [...headers];
+    next[i] = { ...next[i], [field]: v };
+    update({ headers: next });
+  };
+  const removeHeader = (i: number) => update({ headers: headers.filter((_: any, idx: number) => idx !== i) });
+
+  const autoPreview = JSON.stringify({
+    event: data.event_name || 'chatbot_event',
+    session_id: 123,
+    contact: { name: '{nome}', wa_id: '{telefone}' },
+    variables: { '...': 'variáveis capturadas no fluxo' },
+    timestamp: '2026-04-21T15:30:00Z',
+  }, null, 2);
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="wh-url">URL do endpoint</Label>
+        <Input
+          id="wh-url"
+          value={data.url || ''}
+          onChange={(e) => update({ url: e.target.value })}
+          placeholder="https://seu-servidor.com/webhook"
+          className="font-mono text-xs"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="wh-event">Nome do evento</Label>
+        <Input
+          id="wh-event"
+          value={data.event_name || ''}
+          onChange={(e) => update({ event_name: e.target.value.replace(/\s+/g, '_') })}
+          placeholder="lead_pediu_boleto"
+          className="font-mono text-xs"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Identifica esse evento no lado do cliente. Use snake_case.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Payload</Label>
+        <Select value={mode} onValueChange={(v) => update({ payload_mode: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="auto">Automático (recomendado)</SelectItem>
+            <SelectItem value="custom">Customizado</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {mode === 'auto' ? (
+        <div className="space-y-2">
+          <Label className="text-[11px] text-muted-foreground">Preview do JSON que será enviado</Label>
+          <pre className="text-[10px] bg-muted/50 border border-border rounded-md p-2 overflow-x-auto font-mono max-h-[200px] overflow-y-auto">
+{autoPreview}
+          </pre>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="wh-custom">JSON customizado</Label>
+          <Textarea
+            id="wh-custom"
+            value={data.custom_payload || ''}
+            onChange={(e) => update({ custom_payload: e.target.value })}
+            placeholder={'{"cliente":"{nome}","telefone":"{telefone}","cpf":"{cpf}"}'}
+            rows={6}
+            className="font-mono text-xs resize-none"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Variáveis funcionam aqui. JSON deve ser válido depois da interpolação.
+          </p>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Headers adicionais</Label>
+          <Button size="sm" variant="ghost" onClick={addHeader} className="h-7 px-2 text-xs">
+            <Plus className="w-3 h-3 mr-1" /> Adicionar
+          </Button>
+        </div>
+        {headers.length === 0 && (
+          <p className="text-[11px] text-muted-foreground italic">
+            Nenhum header — Content-Type: application/json já vai por padrão
+          </p>
+        )}
+        <div className="space-y-1.5">
+          {headers.map((h: any, i: number) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Input
+                value={h.key}
+                onChange={(e) => updateHeader(i, 'key', e.target.value)}
+                placeholder="X-API-Key"
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Input
+                value={h.value}
+                onChange={(e) => updateHeader(i, 'value', e.target.value)}
+                placeholder="abc123..."
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => removeHeader(i)}
+                className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-muted/50 border border-border p-3 text-[11px] text-muted-foreground leading-relaxed">
+        <p className="font-medium text-foreground mb-1">Fire-and-forget</p>
+        <p>
+          O fluxo continua imediatamente, sem esperar resposta. Se o endpoint falhar,
+          o erro é registrado no log do servidor e o fluxo <strong>não é interrompido</strong>.
+          Para tratar erro no fluxo, use <strong>HTTP Request</strong>.
         </p>
       </div>
     </>

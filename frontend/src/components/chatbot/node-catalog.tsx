@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
   Zap, MessageSquare, MousePointerClick, TextCursorInput,
-  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe,
+  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe, Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 // ============================================================
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request';
+  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request' | 'webhook_out';
 
 export const NODE_META: Record<NodeKind, {
   label: string;
@@ -111,11 +111,19 @@ export const NODE_META: Record<NodeKind, {
     borderClass: 'border-sky-500/30',
     accentClass: 'bg-sky-500',
   },
+  webhook_out: {
+    label: 'Webhook Out',
+    description: 'Dispara notificação',
+    icon: Send,
+    colorClass: 'bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400',
+    borderClass: 'border-fuchsia-500/30',
+    accentClass: 'bg-fuchsia-500',
+  },
 };
 
 export const PALETTE_ORDER: NodeKind[] = [
   'trigger', 'message', 'buttons', 'input',
-  'condition', 'http_request', 'tag', 'move_stage', 'delay', 'handoff', 'end',
+  'condition', 'http_request', 'webhook_out', 'tag', 'move_stage', 'delay', 'handoff', 'end',
 ];
 
 // ============================================================
@@ -164,6 +172,14 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
         body_mode: 'none',
         body: '',
         response_var_prefix: 'http',
+      };
+    case 'webhook_out':
+      return {
+        url: '',
+        event_name: 'chatbot_event',
+        payload_mode: 'auto',
+        custom_payload: '',
+        headers: [],
       };
   }
 }
@@ -424,6 +440,33 @@ export const HttpRequestNode = memo(({ data, selected }: NodeProps) => {
 });
 HttpRequestNode.displayName = 'HttpRequestNode';
 
+export const WebhookOutNode = memo(({ data, selected }: NodeProps) => {
+  const d = (data || {}) as any;
+  const url = d.url || '';
+  const event = d.event_name || 'chatbot_event';
+  return (
+    <NodeShell kind="webhook_out" selected={selected} minWidth={240}>
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-fuchsia-500')} />
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-400">
+          POST
+        </span>
+        <span className="text-[11px] text-foreground/80 font-mono truncate flex-1">
+          {url || <span className="italic text-muted-foreground">URL não configurada</span>}
+        </span>
+      </div>
+      <div className="text-[10px] text-muted-foreground truncate">
+        evento: <code className="font-mono text-fuchsia-600 dark:text-fuchsia-400">{event}</code>
+      </div>
+      <div className="mt-1.5 text-[10px] text-muted-foreground italic">
+        fire-and-forget
+      </div>
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-fuchsia-500')} />
+    </NodeShell>
+  );
+});
+WebhookOutNode.displayName = 'WebhookOutNode';
+
 // ============================================================
 // nodeTypes para <ReactFlow>
 // ============================================================
@@ -439,6 +482,7 @@ export const nodeTypes = {
   handoff: HandoffNode,
   end: EndNode,
   http_request: HttpRequestNode,
+  webhook_out: WebhookOutNode,
 };
 
 // ============================================================
