@@ -41,6 +41,18 @@ class FlowUpdate(BaseModel):
 class ChannelModeUpdate(BaseModel):
     operation_mode: str = Field(..., pattern="^(ai|chatbot|none)$")
     active_chatbot_flow_id: Optional[int] = None
+    force: bool = False  # True = substitui fluxo/IA em uso sem erro
+
+
+class ChannelConflictInfo(BaseModel):
+    """Usado pelo endpoint /flows/{id}/publish-channel-info."""
+    channel_id: int
+    channel_name: str
+    channel_type: str
+    current_mode: str
+    current_flow_id: Optional[int]
+    current_flow_name: Optional[str]
+    status: str  # free | ai_conflict | other_chatbot | same_chatbot
 
 
 # ============================================================
@@ -375,7 +387,9 @@ async def update_channel_mode(
         raise HTTPException(404, "Canal não encontrado")
 
     previous_mode = channel.operation_mode
+    previous_flow_id = channel.active_chatbot_flow_id
 
+    # Validações específicas de cada modo
     if data.operation_mode == "chatbot":
         if not data.active_chatbot_flow_id:
             raise HTTPException(400, "active_chatbot_flow_id é obrigatório no modo chatbot")
@@ -390,6 +404,38 @@ async def update_channel_mode(
             raise HTTPException(404, "Fluxo não encontrado")
         if not flow.is_published:
             raise HTTPException(400, "Fluxo precisa estar publicado antes de ativar no canal")
+
+        # Regra: 1 fluxo → 1 canal. Se este fluxo já está ativo noutro canal,
+        # desvincula o outro canal (só com force=true pra evitar surpresas).
+        other_ch_res = await db.execute(
+            select(Channel).where(
+                Channel.tenant_id == tenant_id,
+                Channel.active_chatbot_flow_id == data.active_chatbot_flow_id,
+                Channel.id != channel.id,
+            )
+        )
+        other_channels = other_ch_res.scalars().all()
+        if other_channels and not data.force:
+            names = ", ".join(c.name for c in other_channels)
+            raise HTTPException(
+                409,
+                f"Este fluxo já está ativo em outro canal ({names}). "
+                f"Use force=true para mover."
+            )
+        for oc in other_channels:
+            oc.operation_mode = "none"
+            oc.active_chatbot_flow_id = None
+            # cancela sessões do canal desvinculado
+            sres = await db.execute(
+                select(ChatbotSession).where(
+                    ChatbotSession.channel_id == oc.id,
+                    ChatbotSession.status == "active",
+                )
+            )
+            for s in sres.scalars().all():
+                s.status = "cancelled"
+                s.completed_at = datetime.utcnow()
+                s.updated_at = datetime.utcnow()
 
     channel.operation_mode = data.operation_mode
     if data.operation_mode == "chatbot":
@@ -517,3 +563,79 @@ async def cancel_session(
     session.updated_at = datetime.utcnow()
     await db.commit()
     return {"message": "Sessão cancelada", "id": session_id}
+
+
+# ============================================================
+# Channels com info de conflito — usado no Dialog de Publicar
+# ============================================================
+@router.get("/flows/{flow_id}/channels-status")
+async def list_channels_for_publish(
+    flow_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    """
+    Lista canais do tenant com info do status de cada um em relação ao
+    fluxo informado. Usado pelo diálogo "Publicar em qual canal?" do editor.
+
+    status:
+      - free            → canal sem chatbot/IA (modo 'none')
+      - ai_conflict     → canal em modo 'ai' (IA ativa)
+      - other_chatbot   → canal tem outro chatbot ativo
+      - same_chatbot    → canal já tem ESTE chatbot ativo
+    """
+    await ensure_chatbot_feature(tenant_id, db)
+
+    # Valida fluxo
+    flow_res = await db.execute(
+        select(ChatbotFlow).where(
+            ChatbotFlow.id == flow_id,
+            ChatbotFlow.tenant_id == tenant_id,
+        )
+    )
+    if not flow_res.scalar_one_or_none():
+        raise HTTPException(404, "Fluxo não encontrado")
+
+    # Canais do tenant
+    ch_res = await db.execute(
+        select(Channel)
+        .where(Channel.tenant_id == tenant_id)
+        .order_by(Channel.id)
+    )
+    channels = ch_res.scalars().all()
+
+    # Mapa de nomes dos fluxos ativos
+    flow_ids = {c.active_chatbot_flow_id for c in channels if c.active_chatbot_flow_id}
+    flow_map: Dict[int, ChatbotFlow] = {}
+    if flow_ids:
+        fres = await db.execute(select(ChatbotFlow).where(ChatbotFlow.id.in_(flow_ids)))
+        flow_map = {f.id: f for f in fres.scalars().all()}
+
+    out = []
+    for c in channels:
+        mode = c.operation_mode or "ai"
+        if mode == "ai":
+            status = "ai_conflict"
+        elif mode == "chatbot":
+            if c.active_chatbot_flow_id == flow_id:
+                status = "same_chatbot"
+            else:
+                status = "other_chatbot"
+        else:
+            status = "free"  # mode == 'none'
+
+        out.append({
+            "channel_id": c.id,
+            "channel_name": c.name,
+            "channel_type": c.type,
+            "current_mode": mode,
+            "current_flow_id": c.active_chatbot_flow_id,
+            "current_flow_name": (
+                flow_map[c.active_chatbot_flow_id].name
+                if c.active_chatbot_flow_id and c.active_chatbot_flow_id in flow_map
+                else None
+            ),
+            "status": status,
+        })
+    return out

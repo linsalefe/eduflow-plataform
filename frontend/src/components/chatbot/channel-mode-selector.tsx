@@ -74,6 +74,32 @@ export function ChannelModeSelector({
       return;
     }
 
+    // Confirmações de exclusividade (só ao TROCAR de modo)
+    const currentMode = mode.operation_mode;
+    if (currentMode !== nextMode) {
+      if (currentMode === 'ai' && nextMode === 'chatbot') {
+        const ok = confirm(
+          `O canal "${channelName}" está com o Agente de IA ativo. `
+          + `Ativar um Chatbot vai DESATIVAR a IA neste canal. Continuar?`
+        );
+        if (!ok) return;
+      } else if (currentMode === 'chatbot' && nextMode === 'ai') {
+        const flowName = mode.active_chatbot_flow_name || 'atual';
+        const ok = confirm(
+          `O canal "${channelName}" tem o chatbot "${flowName}" rodando. `
+          + `Ativar a IA aqui vai DESATIVAR o chatbot e cancelar as sessões em andamento. Continuar?`
+        );
+        if (!ok) return;
+      } else if (currentMode === 'chatbot' && nextMode === 'none') {
+        const flowName = mode.active_chatbot_flow_name || 'atual';
+        const ok = confirm(
+          `Desativar o chatbot "${flowName}" em "${channelName}" `
+          + `vai cancelar as sessões em andamento. Continuar?`
+        );
+        if (!ok) return;
+      }
+    }
+
     let finalFlowId: number | null = null;
     if (nextMode === 'chatbot') {
       finalFlowId = flowId ?? mode.active_chatbot_flow_id ?? publishedFlows[0]?.id ?? null;
@@ -85,6 +111,7 @@ export function ChannelModeSelector({
       const res = await api.put(`/chatbot/channels/${channelId}/mode`, {
         operation_mode: nextMode,
         active_chatbot_flow_id: nextMode === 'chatbot' ? finalFlowId : null,
+        force: true,  // sempre força (a confirmação já foi visual)
       });
       const chosenFlow = publishedFlows.find((f) => f.id === finalFlowId);
       onChange({

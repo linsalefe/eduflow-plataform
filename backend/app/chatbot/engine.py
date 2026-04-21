@@ -272,8 +272,14 @@ async def _execute_node(
 
     if nt == "move_stage":
         stage = (data.get("stage") or "").strip()
+        pipeline_id = data.get("pipeline_id")
         if stage and contact:
             contact.lead_status = stage
+            if pipeline_id:
+                try:
+                    contact.pipeline_id = int(pipeline_id)
+                except (ValueError, TypeError):
+                    pass
         return find_next_node(graph, node["id"]), False
 
     if nt == "handoff":
@@ -307,8 +313,14 @@ async def _execute_node(
             db.add(task)
 
         stage = (data.get("stage") or "").strip()
+        pipeline_id = data.get("pipeline_id")
         if stage and contact:
             contact.lead_status = stage
+            if pipeline_id:
+                try:
+                    contact.pipeline_id = int(pipeline_id)
+                except (ValueError, TypeError):
+                    pass
 
         return None, False
 

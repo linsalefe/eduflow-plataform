@@ -14,7 +14,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft, Loader2, CheckCircle2, CircleAlert, Rocket, Pause,
+  Radio, Sparkles, Workflow, AlertTriangle, CheckCircle,
 } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
@@ -24,7 +30,7 @@ import {
   nodeTypes, createDefaultNodeData, type NodeKind, NodePalette,
 } from '@/components/chatbot/node-catalog';
 import {
-  NodeInspector, type KanbanCol, type UserOpt,
+  NodeInspector, type KanbanCol, type UserOpt, type PipelineOpt,
 } from '@/components/chatbot/node-inspector';
 
 interface Flow {
@@ -34,6 +40,16 @@ interface Flow {
   graph: { nodes: Node[]; edges: Edge[] };
   is_published: boolean;
   version: number;
+}
+
+interface ChannelStatus {
+  channel_id: number;
+  channel_name: string;
+  channel_type: string;
+  current_mode: 'ai' | 'chatbot' | 'none';
+  current_flow_id: number | null;
+  current_flow_name: string | null;
+  status: 'free' | 'ai_conflict' | 'other_chatbot' | 'same_chatbot';
 }
 
 const AUTOSAVE_DELAY_MS = 1500;
@@ -55,8 +71,16 @@ function EditorInner({ flowId }: { flowId: number }) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [publishing, setPublishing] = useState(false);
 
+  // Publish-to-Channel
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [channelStatuses, setChannelStatuses] = useState<ChannelStatus[]>([]);
+  const [loadingChannels, setLoadingChannels] = useState(false);
+  const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
+  const [activeChannel, setActiveChannel] = useState<ChannelStatus | null>(null);
+
   const [kanbanColumns, setKanbanColumns] = useState<KanbanCol[]>([]);
   const [users, setUsers] = useState<UserOpt[]>([]);
+  const [pipelines, setPipelines] = useState<PipelineOpt[]>([]);
 
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,10 +90,11 @@ function EditorInner({ flowId }: { flowId: number }) {
   useEffect(() => {
     (async () => {
       try {
-        const [flowRes, kbRes, usersRes] = await Promise.all([
+        const [flowRes, kbRes, usersRes, pipelinesRes] = await Promise.all([
           api.get(`/chatbot/flows/${flowId}`),
           api.get('/tenant/kanban-columns').catch(() => ({ data: [] })),
           api.get('/users/list').catch(() => ({ data: [] })),
+          api.get('/pipelines').catch(() => ({ data: [] })),
         ]);
 
         const f: Flow = flowRes.data;
@@ -93,6 +118,17 @@ function EditorInner({ flowId }: { flowId: number }) {
         setEdges(initialEdges);
         setKanbanColumns(Array.isArray(kbRes.data) ? kbRes.data : []);
         setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+        setPipelines(Array.isArray(pipelinesRes.data) ? pipelinesRes.data : []);
+
+        // Identifica canal ativo atual (pra badge no top bar)
+        try {
+          const stsRes = await api.get(`/chatbot/flows/${flowId}/channels-status`);
+          const statuses: ChannelStatus[] = stsRes.data || [];
+          const active = statuses.find((s) => s.status === 'same_chatbot') || null;
+          setActiveChannel(active);
+        } catch {
+          // silencioso — não bloqueia o editor
+        }
       } catch (err: unknown) {
         const e = err as { response?: { status?: number } };
         if (e.response?.status === 403) {
@@ -234,16 +270,70 @@ function EditorInner({ flowId }: { flowId: number }) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  // ── Publish / Unpublish ───────────────────────────────
-  const handlePublish = async () => {
+  // ── Publicar: abre diálogo de seleção de canal ──────────
+  const openPublishDialog = async () => {
     if (!flow) return;
+    setPublishDialogOpen(true);
+    setSelectedChannelId(null);
+    setLoadingChannels(true);
+    try {
+      const res = await api.get(`/chatbot/flows/${flow.id}/channels-status`);
+      const statuses: ChannelStatus[] = res.data || [];
+      setChannelStatuses(statuses);
+      // Pré-seleciona se já houver canal com este fluxo
+      const same = statuses.find((s) => s.status === 'same_chatbot');
+      if (same) setSelectedChannelId(same.channel_id);
+    } catch {
+      toast.error('Erro ao carregar canais');
+    } finally {
+      setLoadingChannels(false);
+    }
+  };
+
+  const confirmPublish = async () => {
+    if (!flow || !selectedChannelId) return;
+    const chosen = channelStatuses.find((c) => c.channel_id === selectedChannelId);
+    if (!chosen) return;
+
+    // Confirmação extra pra casos de conflito
+    if (chosen.status === 'ai_conflict') {
+      const ok = confirm(
+        `O canal "${chosen.channel_name}" está com o Agente de IA ativo. `
+        + `Publicar o chatbot aqui vai DESATIVAR a IA neste canal. Continuar?`
+      );
+      if (!ok) return;
+    } else if (chosen.status === 'other_chatbot') {
+      const ok = confirm(
+        `O canal "${chosen.channel_name}" já tem o chatbot `
+        + `"${chosen.current_flow_name}" rodando. `
+        + `Publicar aqui vai SUBSTITUIR o fluxo anterior. Continuar?`
+      );
+      if (!ok) return;
+    }
+
     setPublishing(true);
     try {
+      // 1. Salvar rascunho
       if (saveTimer.current) clearTimeout(saveTimer.current);
       await saveDraft();
+      // 2. Publicar o fluxo (valida trigger)
       await api.post(`/chatbot/flows/${flow.id}/publish`);
+      // 3. Ativar no canal escolhido (force=true substitui o que estiver lá)
+      await api.put(`/chatbot/channels/${selectedChannelId}/mode`, {
+        operation_mode: 'chatbot',
+        active_chatbot_flow_id: flow.id,
+        force: true,
+      });
       setFlow((f) => (f ? { ...f, is_published: true, version: f.version + 1 } : f));
-      toast.success('Chatbot publicado!');
+      setActiveChannel({
+        ...chosen,
+        current_mode: 'chatbot',
+        current_flow_id: flow.id,
+        current_flow_name: flow.name,
+        status: 'same_chatbot',
+      });
+      setPublishDialogOpen(false);
+      toast.success(`Chatbot publicado em "${chosen.channel_name}"!`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       toast.error(e.response?.data?.detail || 'Erro ao publicar');
@@ -298,12 +388,26 @@ function EditorInner({ flowId }: { flowId: number }) {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Publicado &middot; v{flow.version}
               </span>
+              {activeChannel ? (
+                <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium text-foreground px-2 py-1 rounded-full bg-muted">
+                  <Radio className="w-3 h-3 text-primary" />
+                  {activeChannel.channel_name}
+                </span>
+              ) : (
+                <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 px-2 py-1 rounded-full bg-amber-500/10">
+                  <AlertTriangle className="w-3 h-3" />
+                  Não ativado em nenhum canal
+                </span>
+              )}
+              <Button variant="outline" size="sm" onClick={openPublishDialog} disabled={publishing}>
+                Trocar canal
+              </Button>
               <Button variant="outline" size="sm" onClick={handleUnpublish} disabled={publishing}>
                 {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Pause className="w-4 h-4 mr-1" /> Despublicar</>}
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={handlePublish} disabled={publishing} className="gap-1.5">
+            <Button size="sm" onClick={openPublishDialog} disabled={publishing} className="gap-1.5">
               {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Rocket className="w-4 h-4" /> Publicar</>}
             </Button>
           )}
@@ -364,9 +468,63 @@ function EditorInner({ flowId }: { flowId: number }) {
             onDelete={deleteSelectedNode}
             kanbanColumns={kanbanColumns}
             users={users}
+            pipelines={pipelines}
           />
         )}
       </div>
+
+      {/* Dialog: publicar em qual canal */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Rocket className="w-5 h-5 text-primary" />
+              Publicar chatbot em qual canal?
+            </DialogTitle>
+            <DialogDescription>
+              Escolha o canal onde este chatbot vai responder automaticamente.
+              Um chatbot fica ativo em apenas um canal por vez.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loadingChannels ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            </div>
+          ) : channelStatuses.length === 0 ? (
+            <div className="text-center py-8 px-4">
+              <Radio className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Nenhum canal encontrado. Crie um canal em <strong>/canais</strong> primeiro.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[380px] overflow-y-auto py-2">
+              {channelStatuses.map((ch) => (
+                <ChannelRadioCard
+                  key={ch.channel_id}
+                  channel={ch}
+                  selected={selectedChannelId === ch.channel_id}
+                  onSelect={() => setSelectedChannelId(ch.channel_id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPublishDialogOpen(false)} disabled={publishing}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={confirmPublish}
+              disabled={publishing || !selectedChannelId}
+              className="gap-1.5"
+            >
+              {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Rocket className="w-4 h-4" /> Publicar aqui</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -378,6 +536,93 @@ function SaveStatus({ saving, dirty, lastSaved }: { saving: boolean; dirty: bool
   return null;
 }
 
+// ============================================================
+// Card de canal no diálogo de publicar
+// ============================================================
+function ChannelRadioCard({
+  channel, selected, onSelect,
+}: {
+  channel: ChannelStatus;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const statusBadge = {
+    free: {
+      label: 'Livre',
+      classes: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20',
+      icon: CheckCircle,
+    },
+    ai_conflict: {
+      label: 'Agente de IA ativo',
+      classes: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20',
+      icon: Sparkles,
+    },
+    other_chatbot: {
+      label: `Chatbot: ${channel.current_flow_name || 'outro'}`,
+      classes: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
+      icon: Workflow,
+    },
+    same_chatbot: {
+      label: 'Este chatbot já está ativo',
+      classes: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20',
+      icon: CheckCircle2,
+    },
+  }[channel.status];
+
+  const StatusIcon = statusBadge.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'w-full text-left rounded-lg border-2 p-3 transition-all flex items-start gap-3',
+        selected
+          ? 'border-primary bg-primary/5 shadow-sm'
+          : 'border-border hover:border-primary/40 hover:bg-muted/30',
+      )}
+    >
+      <div className={cn(
+        'w-4 h-4 rounded-full border-2 mt-0.5 flex-shrink-0 flex items-center justify-center',
+        selected ? 'border-primary' : 'border-muted-foreground/40',
+      )}>
+        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <Radio className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <span className="font-medium text-sm text-foreground truncate">{channel.channel_name}</span>
+          <span className="text-[10px] uppercase text-muted-foreground font-semibold">
+            {channel.channel_type}
+          </span>
+        </div>
+        <div className={cn(
+          'inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border',
+          statusBadge.classes,
+        )}>
+          <StatusIcon className="w-3 h-3" />
+          {statusBadge.label}
+        </div>
+        {channel.status === 'ai_conflict' && (
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Publicar aqui vai <strong>desativar o Agente de IA</strong> neste canal.
+          </p>
+        )}
+        {channel.status === 'other_chatbot' && (
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Publicar aqui vai <strong>substituir o chatbot atual</strong>.
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
+
+// ============================================================
+// Default export — wrap in provider
+// ============================================================
 export default function ChatbotEditorPage() {
   const params = useParams();
   const router = useRouter();

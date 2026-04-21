@@ -13,16 +13,23 @@ import { NODE_META, type NodeKind } from './node-catalog';
 
 export interface KanbanCol { key: string; label: string; }
 export interface UserOpt { id: number; name: string; }
+export interface PipelineOpt {
+  id: number;
+  name: string;
+  is_default: boolean;
+  columns: KanbanCol[];
+}
 
 interface InspectorProps {
   node: Node;
   onChange: (newData: Record<string, any>) => void;
   onDelete: () => void;
-  kanbanColumns: KanbanCol[];
+  kanbanColumns: KanbanCol[];  // fallback/compat
   users: UserOpt[];
+  pipelines: PipelineOpt[];
 }
 
-export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users }: InspectorProps) {
+export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, pipelines }: InspectorProps) {
   const kind = (node.type || 'message') as NodeKind;
   const meta = NODE_META[kind];
   const data = (node.data || {}) as Record<string, any>;
@@ -49,8 +56,8 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users }
         {kind === 'input' && <InputForm data={data} update={update} />}
         {kind === 'condition' && <ConditionForm data={data} update={update} />}
         {kind === 'tag' && <TagForm data={data} update={update} />}
-        {kind === 'move_stage' && <StageForm data={data} update={update} kanbanColumns={kanbanColumns} />}
-        {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} />}
+        {kind === 'move_stage' && <StageForm data={data} update={update} kanbanColumns={kanbanColumns} pipelines={pipelines} />}
+        {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} pipelines={pipelines} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -234,23 +241,18 @@ function TagForm({ data, update }: { data: any; update: (p: any) => void }) {
   );
 }
 
-function StageForm({ data, update, kanbanColumns }: { data: any; update: (p: any) => void; kanbanColumns: KanbanCol[] }) {
-  return (
-    <div className="space-y-2">
-      <Label>Mover para a coluna</Label>
-      {kanbanColumns.length > 0 ? (
-        <Select value={data.stage || ''} onValueChange={(v) => update({ stage: v })}>
-          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-          <SelectContent>{kanbanColumns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}</SelectContent>
-        </Select>
-      ) : (
-        <Input value={data.stage || ''} onChange={(e) => update({ stage: e.target.value })} placeholder="ex: em_contato" />
-      )}
-    </div>
-  );
+// ============================================================
+// MOVE STAGE — cascata Pipeline → Estágio
+// ============================================================
+function StageForm({
+  data, update, kanbanColumns, pipelines,
+}: { data: any; update: (p: any) => void; kanbanColumns: KanbanCol[]; pipelines: PipelineOpt[] }) {
+  return <PipelineStageCascade data={data} update={update} pipelines={pipelines} fallbackColumns={kanbanColumns} />;
 }
 
-function HandoffForm({ data, update, kanbanColumns, users }: { data: any; update: (p: any) => void; kanbanColumns: KanbanCol[]; users: UserOpt[] }) {
+function HandoffForm({
+  data, update, kanbanColumns, users, pipelines,
+}: { data: any; update: (p: any) => void; kanbanColumns: KanbanCol[]; users: UserOpt[]; pipelines: PipelineOpt[] }) {
   return (
     <>
       <div className="space-y-2">
@@ -281,19 +283,119 @@ function HandoffForm({ data, update, kanbanColumns, users }: { data: any; update
         </Select>
       </div>
       <div className="space-y-2">
-        <Label>Mover contato para (opcional)</Label>
-        {kanbanColumns.length > 0 ? (
-          <Select value={data.stage || ''} onValueChange={(v) => update({ stage: v })}>
-            <SelectTrigger><SelectValue placeholder="Não mover" /></SelectTrigger>
+        <Label>Mover o contato para (opcional)</Label>
+        <PipelineStageCascade
+          data={data}
+          update={update}
+          pipelines={pipelines}
+          fallbackColumns={kanbanColumns}
+          allowNone
+        />
+      </div>
+    </>
+  );
+}
+
+
+// ============================================================
+// Componente reusável: Pipeline + Stage em cascata
+// ============================================================
+function PipelineStageCascade({
+  data, update, pipelines, fallbackColumns, allowNone = false,
+}: {
+  data: any;
+  update: (p: any) => void;
+  pipelines: PipelineOpt[];
+  fallbackColumns: KanbanCol[];
+  allowNone?: boolean;
+}) {
+  // Determina pipeline selecionado (ou default)
+  const selectedPipelineId: number | null = data.pipeline_id
+    ? Number(data.pipeline_id)
+    : null;
+
+  const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId) || null;
+
+  // Colunas disponíveis: do pipeline escolhido, OU do default se nenhum escolhido, OU fallback
+  const columns: KanbanCol[] =
+    selectedPipeline?.columns?.length
+      ? selectedPipeline.columns
+      : pipelines.find((p) => p.is_default)?.columns || fallbackColumns;
+
+  const hasPipelines = pipelines.length > 0;
+  const multiplePipelines = pipelines.length > 1;
+
+  const handlePipelineChange = (v: string) => {
+    if (v === '__default__') {
+      // Voltar pro default = remove pipeline_id e limpa stage
+      const next = { ...data };
+      delete next.pipeline_id;
+      next.stage = allowNone ? '' : next.stage;
+      update(next);
+      return;
+    }
+    const pid = Number(v);
+    update({ ...data, pipeline_id: pid, stage: '' }); // limpa stage ao trocar pipeline
+  };
+
+  const handleStageChange = (v: string) => {
+    if (v === '__none__') {
+      update({ ...data, stage: '' });
+      return;
+    }
+    update({ ...data, stage: v });
+  };
+
+  return (
+    <div className="space-y-2">
+      {multiplePipelines && (
+        <div className="space-y-1.5">
+          <Label className="text-[11px] text-muted-foreground">Pipeline</Label>
+          <Select
+            value={selectedPipelineId ? String(selectedPipelineId) : '__default__'}
+            onValueChange={handlePipelineChange}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none__">Não mover</SelectItem>
-              {kanbanColumns.map((c) => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
+              <SelectItem value="__default__">Pipeline do contato (atual)</SelectItem>
+              {pipelines.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.name}{p.is_default ? ' (padrão)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <Label className="text-[11px] text-muted-foreground">
+          {multiplePipelines ? 'Estágio' : 'Mover para'}
+        </Label>
+        {columns.length > 0 ? (
+          <Select
+            value={data.stage || (allowNone ? '__none__' : '')}
+            onValueChange={handleStageChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={allowNone ? 'Não mover' : 'Selecione...'} />
+            </SelectTrigger>
+            <SelectContent>
+              {allowNone && <SelectItem value="__none__">Não mover</SelectItem>}
+              {columns.map((c) => (
+                <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         ) : (
-          <Input value={data.stage || ''} onChange={(e) => update({ stage: e.target.value })} placeholder="ex: atendimento_humano" />
+          <Input
+            value={data.stage || ''}
+            onChange={(e) => update({ ...data, stage: e.target.value })}
+            placeholder={hasPipelines ? 'Selecione um pipeline primeiro' : 'ex: em_contato'}
+            disabled={multiplePipelines && !selectedPipeline}
+          />
         )}
       </div>
-    </>
+    </div>
   );
 }
