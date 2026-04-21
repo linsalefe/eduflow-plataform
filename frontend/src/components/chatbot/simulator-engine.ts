@@ -4,7 +4,7 @@
 
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay';
+  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay' | 'http_request';
 
 export interface FlowNode {
   id: string;
@@ -298,6 +298,28 @@ function executeNode(
         systemIcon: '⏰', ts: now(),
       });
       return [s, findNextNode(graph, node.id), false];
+    }
+
+    case 'http_request': {
+      const method = (data.method || 'GET').toUpperCase();
+      const url = interpolate(data.url || '', s.variables, contact);
+      s = pushBubble(s, {
+        kind: 'system',
+        text: `HTTP ${method} ${url || '(URL vazia)'} — simulado (segue branch "success")`,
+        systemIcon: '🌐',
+        ts: now(),
+      });
+      const prefix = (data.response_var_prefix || 'http').trim() || 'http';
+      s = {
+        ...s,
+        variables: {
+          ...s.variables,
+          [`${prefix}_status`]: '200',
+          [`${prefix}_ok`]: 'true',
+          [`${prefix}_response_raw`]: '{"simulated":true}',
+        },
+      };
+      return [s, findNextNode(graph, node.id, 'success'), false];
     }
 
     case 'end':

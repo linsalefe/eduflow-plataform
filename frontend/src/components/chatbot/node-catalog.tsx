@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
   Zap, MessageSquare, MousePointerClick, TextCursorInput,
-  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer,
+  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 // ============================================================
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end';
+  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request';
 
 export const NODE_META: Record<NodeKind, {
   label: string;
@@ -103,11 +103,19 @@ export const NODE_META: Record<NodeKind, {
     borderClass: 'border-gray-500/30',
     accentClass: 'bg-gray-500',
   },
+  http_request: {
+    label: 'HTTP Request',
+    description: 'Chama uma API',
+    icon: Globe,
+    colorClass: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+    borderClass: 'border-sky-500/30',
+    accentClass: 'bg-sky-500',
+  },
 };
 
 export const PALETTE_ORDER: NodeKind[] = [
   'trigger', 'message', 'buttons', 'input',
-  'condition', 'tag', 'move_stage', 'delay', 'handoff', 'end',
+  'condition', 'http_request', 'tag', 'move_stage', 'delay', 'handoff', 'end',
 ];
 
 // ============================================================
@@ -148,6 +156,15 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
       };
     case 'end':
       return {};
+    case 'http_request':
+      return {
+        method: 'GET',
+        url: '',
+        headers: [],
+        body_mode: 'none',
+        body: '',
+        response_var_prefix: 'http',
+      };
   }
 }
 
@@ -374,6 +391,39 @@ export const EndNode = memo(({ selected }: NodeProps) => {
 });
 EndNode.displayName = 'EndNode';
 
+export const HttpRequestNode = memo(({ data, selected }: NodeProps) => {
+  const d = (data || {}) as any;
+  const method = (d.method || 'GET').toUpperCase();
+  const url = d.url || '';
+  const methodColor: Record<string, string> = {
+    GET: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+    POST: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+    PUT: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    PATCH: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+    DELETE: 'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  };
+  return (
+    <NodeShell kind="http_request" selected={selected} minWidth={260}>
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-sky-500')} />
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded', methodColor[method] || 'bg-muted text-foreground')}>
+          {method}
+        </span>
+        <span className="text-[11px] text-foreground/80 font-mono truncate flex-1">
+          {url || <span className="italic text-muted-foreground">URL não configurada</span>}
+        </span>
+      </div>
+      <div className="flex items-center justify-between mt-2 text-[10px] font-medium">
+        <span className="text-emerald-600 dark:text-emerald-400">Sucesso</span>
+        <span className="text-rose-600 dark:text-rose-400">Erro</span>
+      </div>
+      <Handle id="success" type="source" position={Position.Right} className={cn(HANDLE_CLASS, '!bg-emerald-500')} style={{ top: '40%', right: -7 }} />
+      <Handle id="error" type="source" position={Position.Right} className={cn(HANDLE_CLASS, '!bg-rose-500')} style={{ top: '74%', right: -7 }} />
+    </NodeShell>
+  );
+});
+HttpRequestNode.displayName = 'HttpRequestNode';
+
 // ============================================================
 // nodeTypes para <ReactFlow>
 // ============================================================
@@ -388,6 +438,7 @@ export const nodeTypes = {
   delay: DelayNode,
   handoff: HandoffNode,
   end: EndNode,
+  http_request: HttpRequestNode,
 };
 
 // ============================================================

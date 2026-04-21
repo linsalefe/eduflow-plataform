@@ -85,18 +85,42 @@ def find_trigger_node(graph: dict, text: str) -> Optional[dict]:
 # Interpolação de variáveis
 # ============================================================
 def interpolate(template: str, variables: Dict[str, Any], contact: Optional[Contact] = None) -> str:
+    """Interpola {var} e {var.path.nested} no texto."""
     if not template:
         return ""
-    merged: Dict[str, str] = {}
+    import re as _re
+
+    merged: Dict[str, Any] = {}
     if contact is not None:
         merged["nome"] = contact.name or ""
         merged["telefone"] = contact.wa_id or ""
     for k, v in (variables or {}).items():
-        merged[str(k)] = str(v)
-    result = template
-    for key, val in merged.items():
-        result = result.replace("{" + key + "}", val)
-    return result
+        merged[str(k)] = v
+
+    def resolve(path: str) -> str:
+        parts = path.split(".")
+        head = parts[0]
+        if head not in merged:
+            return "{" + path + "}"  # mantém literal se não achou
+        cur: Any = merged[head]
+        for p in parts[1:]:
+            if isinstance(cur, dict) and p in cur:
+                cur = cur[p]
+            elif isinstance(cur, list):
+                try:
+                    cur = cur[int(p)]
+                except (ValueError, IndexError):
+                    return "{" + path + "}"
+            else:
+                return "{" + path + "}"
+        if cur is None:
+            return ""
+        if isinstance(cur, (dict, list)):
+            import json as _json
+            return _json.dumps(cur, ensure_ascii=False)
+        return str(cur)
+
+    return _re.sub(r"\{([a-zA-Z_][\w\.]*)\}", lambda m: resolve(m.group(1)), template)
 
 
 # ============================================================
@@ -323,6 +347,118 @@ async def _execute_node(
                     pass
 
         return None, False
+
+    if nt == "http_request":
+        import httpx
+        import json as _json
+        import asyncio as _asyncio
+
+        url_raw = data.get("url") or ""
+        method = (data.get("method") or "GET").upper()
+        headers_list = data.get("headers") or []
+        body_mode = data.get("body_mode") or "none"
+        body_raw = data.get("body") or ""
+        prefix = (data.get("response_var_prefix") or "http").strip() or "http"
+
+        # Interpola URL, headers e body com variáveis da sessão
+        url = interpolate(url_raw, session.variables or {}, contact).strip()
+        req_headers: Dict[str, str] = {}
+        for h in headers_list:
+            k = (h.get("key") or "").strip()
+            v = interpolate(h.get("value") or "", session.variables or {}, contact)
+            if k:
+                req_headers[k] = v
+
+        request_body = None
+        json_body = None
+        if body_mode == "json" and body_raw.strip():
+            interpolated_body = interpolate(body_raw, session.variables or {}, contact)
+            try:
+                json_body = _json.loads(interpolated_body)
+            except _json.JSONDecodeError:
+                new_vars = dict(session.variables or {})
+                new_vars[f"{prefix}_status"] = 0
+                new_vars[f"{prefix}_ok"] = "false"
+                new_vars[f"{prefix}_response_raw"] = ""
+                new_vars["_last_error"] = "JSON body inválido"
+                session.variables = new_vars
+                flag_modified(session, "variables")
+                await db.commit()
+                next_err = find_next_node(graph, node["id"], source_handle="error")
+                if next_err:
+                    return next_err, False
+                return None, False
+        elif body_mode == "text" and body_raw.strip():
+            request_body = interpolate(body_raw, session.variables or {}, contact)
+
+        status_code = 0
+        response_text = ""
+        error_message: Optional[str] = None
+        parsed_json: Optional[Any] = None
+
+        async def _do_request():
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                return await client.request(
+                    method=method,
+                    url=url,
+                    headers=req_headers or None,
+                    json=json_body,
+                    content=request_body.encode("utf-8") if request_body else None,
+                )
+
+        last_exc: Optional[Exception] = None
+        for attempt in range(2):  # 1 tentativa + 1 retry
+            try:
+                resp = await _do_request()
+                status_code = resp.status_code
+                response_text = resp.text[:5000] if resp.text else ""
+                ctype = (resp.headers.get("content-type") or "").lower()
+                if "application/json" in ctype:
+                    try:
+                        parsed_json = resp.json()
+                    except Exception:
+                        parsed_json = None
+                last_exc = None
+                break
+            except (httpx.ConnectError, httpx.TimeoutException) as e:
+                last_exc = e
+                if attempt < 1:
+                    await _asyncio.sleep(0.5)
+                    continue
+            except Exception as e:
+                last_exc = e
+                break
+
+        if last_exc is not None:
+            error_message = str(last_exc)[:300]
+
+        new_vars = dict(session.variables or {})
+        new_vars[f"{prefix}_status"] = status_code
+        new_vars[f"{prefix}_ok"] = "true" if 200 <= status_code < 300 else "false"
+        new_vars[f"{prefix}_response_raw"] = response_text
+        if parsed_json is not None:
+            new_vars[f"{prefix}_response"] = parsed_json
+        if error_message:
+            new_vars["_last_error"] = error_message
+
+        session.variables = new_vars
+        flag_modified(session, "variables")
+        await db.commit()
+
+        print(f"🌐 Chatbot HTTP {method} {url[:80]} → {status_code} (ok={new_vars[f'{prefix}_ok']})")
+
+        is_success = 200 <= status_code < 300 and not error_message
+        handle = "success" if is_success else "error"
+        next_node = find_next_node(graph, node["id"], source_handle=handle)
+
+        if next_node is None and handle == "error":
+            print(f"⚠️ Chatbot: nó http_request falhou e sem aresta 'error' — encerrando sessão")
+            session.status = "cancelled"
+            session.completed_at = datetime.utcnow()
+            await db.commit()
+            return None, False
+
+        return next_node, False
 
     if nt == "delay":
         # Grava resume e pausa a sessão (scheduler acorda depois)

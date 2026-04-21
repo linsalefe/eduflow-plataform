@@ -21,6 +21,7 @@ const SOURCE_COLOR: Record<NodeKind, string> = {
   delay: '#eab308',
   handoff: '#f97316',
   end: '#6b7280',
+  http_request: '#0ea5e9',
 };
 
 function CustomEdge(props: EdgeProps) {
@@ -63,6 +64,20 @@ function CustomEdge(props: EdgeProps) {
         </span>
       );
     } else if (sourceHandleId === 'false') {
+      label = (
+        <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-sm">
+          <XIcon className="w-3 h-3" strokeWidth={3} />
+        </span>
+      );
+    }
+  } else if (sourceNode?.type === 'http_request' && sourceHandleId) {
+    if (sourceHandleId === 'success') {
+      label = (
+        <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+          <Check className="w-3 h-3" strokeWidth={3} />
+        </span>
+      );
+    } else if (sourceHandleId === 'error') {
       label = (
         <span className="w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-sm">
           <XIcon className="w-3 h-3" strokeWidth={3} />

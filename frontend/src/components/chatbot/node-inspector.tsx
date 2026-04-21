@@ -59,6 +59,7 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
         {kind === 'move_stage' && <StageForm data={data} update={update} kanbanColumns={kanbanColumns} pipelines={pipelines} />}
         {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} pipelines={pipelines} />}
         {kind === 'delay' && <DelayForm data={data} update={update} />}
+        {kind === 'http_request' && <HttpRequestForm data={data} update={update} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -342,6 +343,161 @@ function DelayForm({ data, update }: { data: any; update: (p: any) => void }) {
         <p>
           O fluxo pausa aqui e retoma automaticamente depois de <strong>{amount} {unitLabel[unit]}</strong>.
           Durante a espera, novas mensagens do contato não avançam o fluxo.
+        </p>
+      </div>
+    </>
+  );
+}
+
+
+// ============================================================
+// HTTP REQUEST
+// ============================================================
+function HttpRequestForm({ data, update }: { data: any; update: (p: any) => void }) {
+  const method = (data.method || 'GET').toUpperCase();
+  const headers: Array<{ key: string; value: string }> = data.headers || [];
+  const bodyMode = data.body_mode || 'none';
+  const prefix = data.response_var_prefix || 'http';
+
+  const addHeader = () => update({ headers: [...headers, { key: '', value: '' }] });
+  const updateHeader = (i: number, field: 'key' | 'value', v: string) => {
+    const next = [...headers];
+    next[i] = { ...next[i], [field]: v };
+    update({ headers: next });
+  };
+  const removeHeader = (i: number) => update({ headers: headers.filter((_: any, idx: number) => idx !== i) });
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label>Método</Label>
+        <Select value={method} onValueChange={(v) => update({ method: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="GET">GET</SelectItem>
+            <SelectItem value="POST">POST</SelectItem>
+            <SelectItem value="PUT">PUT</SelectItem>
+            <SelectItem value="PATCH">PATCH</SelectItem>
+            <SelectItem value="DELETE">DELETE</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="http-url">URL</Label>
+        <Input
+          id="http-url"
+          value={data.url || ''}
+          onChange={(e) => update({ url: e.target.value })}
+          placeholder="https://api.exemplo.com/clientes/{cpf}"
+          className="font-mono text-xs"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Use <code className="bg-muted px-1 py-0.5 rounded">{'{variavel}'}</code> pra interpolar valores capturados.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Headers</Label>
+          <Button size="sm" variant="ghost" onClick={addHeader} className="h-7 px-2 text-xs">
+            <Plus className="w-3 h-3 mr-1" /> Adicionar
+          </Button>
+        </div>
+        {headers.length === 0 && (
+          <p className="text-[11px] text-muted-foreground italic">Nenhum header configurado</p>
+        )}
+        <div className="space-y-1.5">
+          {headers.map((h: any, i: number) => (
+            <div key={i} className="flex items-center gap-1.5">
+              <Input
+                value={h.key}
+                onChange={(e) => updateHeader(i, 'key', e.target.value)}
+                placeholder="Authorization"
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Input
+                value={h.value}
+                onChange={(e) => updateHeader(i, 'value', e.target.value)}
+                placeholder="Bearer abc..."
+                className="h-8 text-xs font-mono flex-1"
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => removeHeader(i)}
+                className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {method !== 'GET' && method !== 'DELETE' && (
+        <>
+          <div className="space-y-2">
+            <Label>Corpo da requisição</Label>
+            <Select value={bodyMode} onValueChange={(v) => update({ body_mode: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem corpo</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+                <SelectItem value="text">Texto / form</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {bodyMode !== 'none' && (
+            <div className="space-y-2">
+              <Label htmlFor="http-body">
+                {bodyMode === 'json' ? 'Corpo JSON' : 'Corpo'}
+              </Label>
+              <Textarea
+                id="http-body"
+                value={data.body || ''}
+                onChange={(e) => update({ body: e.target.value })}
+                placeholder={bodyMode === 'json' ? '{"nome":"{nome}","cpf":"{cpf}"}' : 'chave=valor&outra=teste'}
+                rows={5}
+                className="font-mono text-xs resize-none"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Variáveis funcionam também aqui. JSON deve ser válido depois da interpolação.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="http-prefix">Prefixo das variáveis de resposta</Label>
+        <Input
+          id="http-prefix"
+          value={prefix}
+          onChange={(e) => update({ response_var_prefix: e.target.value.replace(/[^a-zA-Z_]/g, '') })}
+          placeholder="http"
+          className="font-mono text-xs"
+        />
+        <div className="text-[11px] text-muted-foreground leading-relaxed space-y-0.5">
+          <p>Após a execução você pode usar:</p>
+          <ul className="pl-3 space-y-0.5">
+            <li>• <code className="bg-muted px-1 rounded">{`{${prefix}_status}`}</code> — código HTTP</li>
+            <li>• <code className="bg-muted px-1 rounded">{`{${prefix}_ok}`}</code> — &quot;true&quot; se 2xx</li>
+            <li>• <code className="bg-muted px-1 rounded">{`{${prefix}_response_raw}`}</code> — body cru</li>
+            <li>• <code className="bg-muted px-1 rounded">{`{${prefix}_response.campo}`}</code> — acessa JSON</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="rounded-lg bg-muted/50 border border-border p-3 text-[11px] text-muted-foreground leading-relaxed">
+        <p className="font-medium text-foreground mb-1">Dois caminhos de saída</p>
+        <p>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Sucesso</span>:
+          resposta 2xx sem erro de conexão.
+          <br />
+          <span className="text-rose-600 dark:text-rose-400 font-medium">Erro</span>:
+          4xx, 5xx, timeout ou falha de rede.
         </p>
       </div>
     </>
