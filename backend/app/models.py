@@ -563,6 +563,7 @@ class TokenUsage(Base):
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     source = Column(String(50), nullable=False, default="whatsapp_ai")
+    module = Column(String(50), nullable=True, index=True)
     model = Column(String(100), nullable=True)
     prompt_tokens = Column(Integer, default=0)
     completion_tokens = Column(Integer, default=0)

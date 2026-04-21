@@ -459,6 +459,13 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                     text = transcription.text
                                     os.unlink(tmp_path)
                                     print(f"🎙️ Áudio transcrito: {text[:80]}")
+                                    # Log whisper usage (estimate ~16kbps ogg = bytes/2000 seconds)
+                                    try:
+                                        from app.openai_usage import log_whisper_usage
+                                        _dur = max(1, len(audio_bytes) / 2000)
+                                        await log_whisper_usage(db, tenant_id=tenant_id or 0, module="whisper", duration_seconds=_dur)
+                                    except Exception:
+                                        pass
                     except Exception as e:
                         print(f"⚠️ Erro ao transcrever áudio: {e}")
 

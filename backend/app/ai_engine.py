@@ -9,7 +9,8 @@ import tiktoken
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import KnowledgeDocument, AIConfig, Message, AIConversationSummary
+from app.models import KnowledgeDocument, AIConfig, Message, AIConversationSummary, Contact as ContactModel
+from app.openai_usage import log_openai_usage
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -246,6 +247,7 @@ async def generate_ai_response(
 
             max_completion_tokens=max_tokens,
         )
+        await log_openai_usage(db, tenant_id=ai_config.tenant_id, module="rag", model=model, response=response)
         ai_response = response.choices[0].message.content
         if not ai_response:
             messages.append({"role": "assistant", "content": ""})
@@ -255,6 +257,7 @@ async def generate_ai_response(
                 messages=messages,
                 max_completion_tokens=max_tokens,
             )
+            await log_openai_usage(db, tenant_id=ai_config.tenant_id, module="rag", model="gpt-4o-mini", response=retry)
             ai_response = retry.choices[0].message.content or "Desculpe, não consegui processar. Um momento que vou transferir para nossa consultora."
         # Detectar agendamento e criar evento no Google Calendar
         try:
@@ -283,6 +286,10 @@ async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) ->
     if not history:
         return None
 
+    # Resolve tenant_id for usage tracking
+    _c = (await db.execute(select(ContactModel).where(ContactModel.wa_id == contact_wa_id))).scalar_one_or_none()
+    _tid = _c.tenant_id if _c else 0
+
     conversation_text = "\n".join([
         f"{'Lead' if m['role'] == 'user' else 'Atendente'}: {m['content']}"
         for m in history
@@ -302,6 +309,7 @@ async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) ->
             temperature=0.3,
             max_completion_tokens=200,
         )
+        await log_openai_usage(db, tenant_id=_tid, module="summary", model="gpt-4o-mini", response=response)
         ai_response = response.choices[0].message.content
         if not ai_response:
             messages.append({"role": "assistant", "content": ""})
@@ -311,6 +319,7 @@ async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) ->
                 messages=messages,
                 max_completion_tokens=max_tokens,
             )
+            await log_openai_usage(db, tenant_id=_tid, module="summary", model="gpt-4o-mini", response=retry)
             ai_response = retry.choices[0].message.content or "Desculpe, não consegui processar. Um momento que vou transferir para nossa consultora."
         return ai_response
     except Exception as e:
@@ -349,6 +358,10 @@ async def save_annotation_to_exact(contact_wa_id: str, channel_id: int, db: Asyn
     # 4. Gerar resumo com GPT
     conversation_text = "\n".join([f"{m['role']}: {m['content']}" for m in history])
     
+    # Resolve tenant_id from channel
+    _cfg = (await db.execute(select(AIConfig).where(AIConfig.channel_id == channel_id))).scalar_one_or_none()
+    _tid2 = _cfg.tenant_id if _cfg else 0
+
     try:
         response = await client.chat.completions.create(
             model="gpt-4o-mini",
@@ -371,6 +384,7 @@ Seja breve e direto."""},
             ],
             max_completion_tokens=500,
         )
+        await log_openai_usage(db, tenant_id=_tid2, module="annotation", model="gpt-4o-mini", response=response)
         summary = response.choices[0].message.content
     except Exception as e:
         summary = f"�� Atendimento realizado pela IA Nat em {datetime.now().strftime('%d/%m/%Y %H:%M')}. Erro ao gerar resumo: {e}"

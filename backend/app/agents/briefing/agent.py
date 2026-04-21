@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models import Contact, Tenant, Activity
 from app.agents.orchestrator.orchestrator import get_context
+from app.openai_usage import log_openai_usage
 
 
 class BriefingAgent:
@@ -24,7 +25,7 @@ class BriefingAgent:
             return
 
         # Gerar briefing via GPT-4
-        briefing = await self._generate_briefing(lead, ctx)
+        briefing = await self._generate_briefing(lead, ctx, db=db, tenant_id=tenant_id)
 
         # Salvar como nota no contato
         if lead.notes:
@@ -44,7 +45,7 @@ class BriefingAgent:
 
         print(f"✅ Briefing salvo para lead {lead_id}")
 
-    async def _generate_briefing(self, lead, ctx) -> str:
+    async def _generate_briefing(self, lead, ctx, db=None, tenant_id=None) -> str:
         try:
             import openai
             import os
@@ -71,6 +72,8 @@ Responda apenas o briefing, sem introdução."""
                 messages=[{"role": "user", "content": prompt}],
                 max_completion_tokens=300,
             )
+            if db and tenant_id:
+                await log_openai_usage(db, tenant_id=tenant_id, module="briefing", model="gpt-4o", response=response)
             return response.choices[0].message.content
 
         except Exception as e:

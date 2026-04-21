@@ -8,6 +8,8 @@ from typing import Optional
 from openai import AsyncOpenAI
 from app.voice_ai.config import OPENAI_API_KEY, LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS
 from app.voice_ai.fsm import CallSession, State
+from app.openai_usage import log_openai_usage
+from app.database import async_session as _async_session
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
@@ -192,6 +194,11 @@ async def call_llm(session: CallSession, last_utterance: str, rag_snippets: list
             max_completion_tokens=LLM_MAX_TOKENS,
             response_format={"type": "json_object"},
         )
+        try:
+            async with _async_session() as _db:
+                await log_openai_usage(_db, tenant_id=0, module="voice_openai", model=LLM_MODEL, response=response)
+        except Exception:
+            pass
 
         content = response.choices[0].message.content
         if not content:
@@ -338,6 +345,11 @@ Seja breve e direto."""
             temperature=0.3,
             max_completion_tokens=400,
         )
+        try:
+            async with _async_session() as _db:
+                await log_openai_usage(_db, tenant_id=0, module="voice_openai", model="gpt-4o-mini", response=response)
+        except Exception:
+            pass
         return response.choices[0].message.content or "Resumo não disponível"
     except Exception as e:
         return f"Erro ao gerar resumo: {e}"

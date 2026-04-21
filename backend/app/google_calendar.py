@@ -116,10 +116,12 @@ async def get_available_dates(calendar_id: str, days_ahead: int = 5):
 async def detect_and_create_event(ai_response: str, conversation_history: list, lead_name: str, lead_phone: str, lead_course: str):
     """Detecta se houve agendamento na resposta e cria evento no Google Calendar."""
     from openai import AsyncOpenAI
+    from app.openai_usage import log_openai_usage
+    from app.database import async_session as _async_session
     import json
-    
+
     client = AsyncOpenAI()
-    
+
     # Pedir ao GPT para extrair data/hora se houver agendamento
     try:
         extraction = await client.chat.completions.create(
@@ -135,6 +137,11 @@ ou
             max_completion_tokens=100,
         )
         
+        try:
+            async with _async_session() as _db:
+                await log_openai_usage(_db, tenant_id=0, module="calendar", model="gpt-4o-mini", response=extraction)
+        except Exception:
+            pass  # best-effort logging, no tenant context
         result_text = extraction.choices[0].message.content.strip()
         result_text = result_text.replace("```json", "").replace("```", "").strip()
         result = json.loads(result_text)

@@ -191,6 +191,7 @@ async def _log_memory_token_usage(
         token_record = TokenUsage(
             tenant_id=tenant_id,
             source="memory_extraction",
+            module="ai_lab",
             model=MEMORY_MODEL,
             prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0,
             completion_tokens=getattr(usage, "completion_tokens", 0) or 0,

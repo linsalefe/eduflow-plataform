@@ -121,6 +121,8 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
                     temperature=0.3,
                 )
                 summary_text = translation.choices[0].message.content.strip()
+                from app.openai_usage import log_openai_usage
+                await log_openai_usage(db, tenant_id=0, module="voice_elevenlabs", model="gpt-4o-mini", response=translation)
             except Exception as e:
                 print(f"⚠️ Erro ao traduzir resumo: {e}")
 

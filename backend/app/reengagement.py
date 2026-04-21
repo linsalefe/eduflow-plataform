@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.database import async_session
 from app.models import Contact, Tenant, Channel, AIConfig, Message
 from app.evolution.client import send_text
+from app.openai_usage import log_openai_usage
 from openai import AsyncOpenAI
 import os
 
@@ -113,6 +114,7 @@ async def run_reengagement():
                             max_completion_tokens=200,
                             temperature=0.7,
                         )
+                        await log_openai_usage(db, tenant_id=tenant.id, module="reengagement", model="gpt-5-mini", response=gpt_response)
                         message_text = (gpt_response.choices[0].message.content or "").strip()
 
                         if not message_text:

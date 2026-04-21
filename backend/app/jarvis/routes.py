@@ -27,6 +27,7 @@ from app.jarvis.actions import prepare_action, execute_action
 from app.jarvis.prompts import build_system_prompt
 from app.jarvis.filters import get_available_tools
 from app.jarvis import session as jarvis_session
+from app.openai_usage import log_openai_usage
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ async def jarvis_query(
             tools=available_tools,
             tool_choice="auto",
         )
+        await log_openai_usage(db, tenant_id=tenant_id, module="jarvis", model="gpt-4o", response=response)
 
         # 6. Processar — pode ser query ou action
         result = await _process_response(
@@ -262,6 +264,7 @@ async def _process_response(
             messages=messages,
             tools=available_tools or JARVIS_TOOLS,
         )
+        await log_openai_usage(db, tenant_id=tenant_id, module="jarvis", model="gpt-4o", response=response)
 
     text = "Desculpe, nao consegui processar sua pergunta."
     return {

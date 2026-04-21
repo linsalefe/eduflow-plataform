@@ -12,6 +12,7 @@ from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models import Contact, Message, AIConfig, Channel, Tenant, TokenUsage
+from app.openai_usage import log_openai_usage
 from app.evolution.client import send_text, send_audio
 from app.elevenlabs.client import text_to_audio_base64
 from app.ai_engine import search_knowledge
@@ -113,6 +114,7 @@ async def _build_fewshot_block(
             token_record = TokenUsage(
                 tenant_id=tenant_id,
                 source="few_shot_embedding",
+                module="few_shot_embedding",
                 model="text-embedding-3-small",
                 prompt_tokens=approx_tokens,
                 completion_tokens=0,
@@ -318,17 +320,8 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
 
         # Salvar consumo de tokens e debitar crédito
         try:
-            usage = response.usage
-            if usage and tenant_id:
-                token_record = TokenUsage(
-                    tenant_id=tenant_id,
-                    source="whatsapp_ai",
-                    model=response.model,
-                    prompt_tokens=usage.prompt_tokens or 0,
-                    completion_tokens=usage.completion_tokens or 0,
-                    total_tokens=usage.total_tokens or 0,
-                )
-                db.add(token_record)
+            if tenant_id:
+                await log_openai_usage(db, tenant_id=tenant_id, module="whatsapp_ai", model=response.model or model, response=response)
 
             # Debitar 1 crédito por mensagem processada
             if tenant_id:

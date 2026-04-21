@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import AIConfig, KnowledgeDocument, Contact, AIConversationSummary
 from app.ai_engine import generate_embedding, split_into_chunks, count_tokens
 from app.auth import get_current_user, get_tenant_id
+from app.openai_usage import log_openai_usage
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -288,7 +289,8 @@ async def test_chat(req: TestChatRequest, db: AsyncSession = Depends(get_db), te
 
             max_completion_tokens=max_tokens,
         )
-        
+        await log_openai_usage(db, tenant_id=tenant_id, module="ai_routes", model=model, response=response)
+
         ai_response = response.choices[0].message.content
         if not ai_response:
             messages.append({"role": "assistant", "content": ""})
@@ -298,6 +300,7 @@ async def test_chat(req: TestChatRequest, db: AsyncSession = Depends(get_db), te
                 messages=messages,
                 max_completion_tokens=max_tokens,
             )
+            await log_openai_usage(db, tenant_id=tenant_id, module="ai_routes", model="gpt-4o-mini", response=retry)
             ai_response = retry.choices[0].message.content or "Perfeito! Sua reunião está agendada. Lembrando que ao atender no horário agendado você estará elegível para isenção da taxa da matrícula. Abraço! 🌻"
         # Detectar agendamento e criar evento no Google Calendar
         try:

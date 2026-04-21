@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.voice_ai.models import AICall, AICallTurn, AICallQA
+from app.openai_usage import log_openai_usage
 from app.voice_ai.config import OPENAI_API_KEY
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
@@ -81,6 +82,7 @@ DADOS DA CHAMADA:
             response_format={"type": "json_object"},
         )
 
+        await log_openai_usage(db, tenant_id=call.tenant_id, module="voice_qa", model="gpt-4o-mini", response=response)
         content = response.choices[0].message.content
         eval_data = json.loads(content)
 
