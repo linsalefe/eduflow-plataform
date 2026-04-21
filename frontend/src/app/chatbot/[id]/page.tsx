@@ -14,7 +14,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft, Loader2, CheckCircle2, CircleAlert, Rocket, Pause,
-  Radio, Sparkles, Workflow, AlertTriangle, CheckCircle,
+  Radio, Sparkles, Workflow, AlertTriangle, CheckCircle, LayoutGrid,
 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import {
   nodeTypes, createDefaultNodeData, type NodeKind, NodePalette,
 } from '@/components/chatbot/node-catalog';
+import { edgeTypes } from '@/components/chatbot/edge-components';
 import {
   NodeInspector, type KanbanCol, type UserOpt, type PipelineOpt,
 } from '@/components/chatbot/node-inspector';
@@ -107,7 +108,7 @@ function EditorInner({ flowId }: { flowId: number }) {
           initialNodes = [{
             id: `trigger_${Date.now()}`,
             type: 'trigger',
-            position: { x: 260, y: 120 },
+            position: { x: 120, y: 220 },
             data: createDefaultNodeData('trigger'),
           }];
         }
@@ -170,6 +171,7 @@ function EditorInner({ flowId }: { flowId: number }) {
   const onConnect = useCallback((params: Connection) => {
     setEdges((eds) => addEdge({
       ...params,
+      type: 'custom',
       animated: true,
       markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
     }, eds));
@@ -269,6 +271,61 @@ function EditorInner({ flowId }: { flowId: number }) {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
+
+  // ── Auto-layout horizontal ─────────────────────────────
+  const autoLayout = useCallback(() => {
+    const COL_WIDTH = 320;
+    const ROW_HEIGHT = 180;
+    const LEFT = 100;
+    const TOP = 100;
+
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const triggers = nodes.filter((n) => n.type === 'trigger').map((n) => n.id);
+    const starts = triggers.length ? triggers : [nodes[0]?.id].filter(Boolean);
+
+    const level: Record<string, number> = {};
+    starts.forEach((id) => { level[id] = 0; });
+
+    const queue = [...starts];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      const outgoing = edges.filter((e) => e.source === cur);
+      for (const e of outgoing) {
+        if (!nodeIds.has(e.target)) continue;
+        const next = (level[cur] ?? 0) + 1;
+        if (level[e.target] === undefined || level[e.target] < next) {
+          level[e.target] = next;
+          queue.push(e.target);
+        }
+      }
+    }
+
+    // Nodes not reached by BFS get level 0
+    nodes.forEach((n) => { if (level[n.id] === undefined) level[n.id] = 0; });
+
+    const groups: Record<number, string[]> = {};
+    nodes.forEach((n) => {
+      const lv = level[n.id] ?? 0;
+      (groups[lv] = groups[lv] || []).push(n.id);
+    });
+
+    setNodes((nds) =>
+      nds.map((n) => {
+        const lv = level[n.id] ?? 0;
+        const column = groups[lv] || [];
+        const idx = column.indexOf(n.id);
+        return {
+          ...n,
+          position: {
+            x: LEFT + lv * COL_WIDTH,
+            y: TOP + idx * ROW_HEIGHT,
+          },
+        };
+      }),
+    );
+    setIsDirty(true);
+    toast.success('Fluxo reorganizado');
+  }, [nodes, edges, setNodes]);
 
   // ── Publicar: abre diálogo de seleção de canal ──────────
   const openPublishDialog = async () => {
@@ -380,6 +437,16 @@ function EditorInner({ flowId }: { flowId: number }) {
             placeholder="Nome do chatbot"
           />
           <SaveStatus saving={saving} dirty={isDirty} lastSaved={lastSaved} />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={autoLayout}
+            className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
+            title="Organiza os nós em layout horizontal"
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Reorganizar
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           {flow?.is_published ? (
@@ -439,15 +506,17 @@ function EditorInner({ flowId }: { flowId: number }) {
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             defaultEdgeOptions={{
+              type: 'custom',
               animated: true,
-              style: { strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
             }}
             proOptions={{ hideAttribution: true }}
             deleteKeyCode={['Backspace', 'Delete']}
+            connectionLineStyle={{ strokeWidth: 2, stroke: '#6366f1' }}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
             <Controls position="bottom-left" showInteractive={false} />

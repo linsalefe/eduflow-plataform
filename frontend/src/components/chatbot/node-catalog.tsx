@@ -185,7 +185,10 @@ function Preview({ text, placeholder }: { text: string; placeholder: string }) {
   );
 }
 
-const HANDLE_CLASS = '!w-3 !h-3 !border-2 !border-background';
+// Handles laterais — maiores, destacados, com hover
+const HANDLE_CLASS = '!w-3.5 !h-3.5 !border-2 !border-background transition-all hover:!w-[18px] hover:!h-[18px]';
+const HANDLE_LEFT = { left: -7 };
+const HANDLE_RIGHT = { right: -7 };
 
 // ============================================================
 // Componentes de nó
@@ -198,7 +201,7 @@ export const TriggerNode = memo(({ data, selected }: NodeProps) => {
   return (
     <NodeShell kind="trigger" selected={selected}>
       <Preview text={label} placeholder="Configure o gatilho" />
-      <Handle type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-violet-500')} />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-violet-500')} />
     </NodeShell>
   );
 });
@@ -208,9 +211,9 @@ export const MessageNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
     <NodeShell kind="message" selected={selected}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-blue-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-blue-500')} />
       <Preview text={d.text} placeholder="Clique pra escrever a mensagem" />
-      <Handle type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-blue-500')} />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-blue-500')} />
     </NodeShell>
   );
 });
@@ -221,7 +224,7 @@ export const ButtonsNode = memo(({ data, selected }: NodeProps) => {
   const buttons: Array<{ id: string; label: string }> = d.buttons || [];
   return (
     <NodeShell kind="buttons" selected={selected} minWidth={240}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-indigo-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-indigo-500')} />
       <Preview text={d.text} placeholder="Pergunta do menu" />
       <div className="mt-2 space-y-1.5">
         {buttons.length === 0 && (
@@ -238,7 +241,7 @@ export const ButtonsNode = memo(({ data, selected }: NodeProps) => {
               type="source"
               position={Position.Right}
               className={cn(HANDLE_CLASS, '!bg-indigo-500')}
-              style={{ top: '50%', right: -8 }}
+              style={{ top: '50%', right: -7 }}
             />
           </div>
         ))}
@@ -252,14 +255,14 @@ export const InputNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
     <NodeShell kind="input" selected={selected}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-cyan-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-cyan-500')} />
       <Preview text={d.prompt} placeholder="Pergunta para o usuário" />
       {d.variable && (
         <div className="mt-1.5 text-[11px] text-muted-foreground">
           &rarr; guarda em <code className="text-cyan-600 dark:text-cyan-400 font-mono">{`{${d.variable}}`}</code>
         </div>
       )}
-      <Handle type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-cyan-500')} />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-cyan-500')} />
     </NodeShell>
   );
 });
@@ -270,7 +273,7 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
   const opLabel: Record<string, string> = { equals: '=', not_equals: '≠', contains: 'contém' };
   return (
     <NodeShell kind="condition" selected={selected} minWidth={240}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-amber-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-amber-500')} />
       <div className="text-xs text-foreground/80 bg-muted/40 rounded-md px-2 py-1.5 min-h-[28px] font-mono">
         {d.variable ? (
           <>
@@ -286,8 +289,9 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
         <span className="text-emerald-600 dark:text-emerald-400">Verdadeiro</span>
         <span className="text-rose-600 dark:text-rose-400">Falso</span>
       </div>
-      <Handle id="true" type="source" position={Position.Right} className={cn(HANDLE_CLASS, '!bg-emerald-500')} style={{ top: '78%', right: -8 }} />
-      <Handle id="false" type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-rose-500')} />
+      {/* 2 sources verticais à direita */}
+      <Handle id="true" type="source" position={Position.Right} className={cn(HANDLE_CLASS, '!bg-emerald-500')} style={{ top: '38%', right: -7 }} />
+      <Handle id="false" type="source" position={Position.Right} className={cn(HANDLE_CLASS, '!bg-rose-500')} style={{ top: '72%', right: -7 }} />
     </NodeShell>
   );
 });
@@ -297,9 +301,9 @@ export const TagNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
     <NodeShell kind="tag" selected={selected}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-pink-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-pink-500')} />
       <Preview text={d.tag_name ? `${d.tag_name}` : ''} placeholder="Nome da tag" />
-      <Handle type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-pink-500')} />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-pink-500')} />
     </NodeShell>
   );
 });
@@ -309,9 +313,9 @@ export const MoveStageNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
     <NodeShell kind="move_stage" selected={selected}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-teal-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-teal-500')} />
       <Preview text={d.stage ? `→ ${d.stage}` : ''} placeholder="Coluna do Kanban" />
-      <Handle type="source" position={Position.Bottom} className={cn(HANDLE_CLASS, '!bg-teal-500')} />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-teal-500')} />
     </NodeShell>
   );
 });
@@ -321,7 +325,7 @@ export const HandoffNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
     <NodeShell kind="handoff" selected={selected}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-orange-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-orange-500')} />
       <Preview text={d.task_title as string} placeholder="Título da tarefa" />
       <div className="mt-1.5 flex items-center gap-2 text-[10px] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
@@ -338,7 +342,7 @@ HandoffNode.displayName = 'HandoffNode';
 export const EndNode = memo(({ selected }: NodeProps) => {
   return (
     <NodeShell kind="end" selected={selected} minWidth={160}>
-      <Handle type="target" position={Position.Top} className={cn(HANDLE_CLASS, '!bg-gray-500')} />
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-gray-500')} />
       <div className="text-xs text-center text-muted-foreground py-1">Encerra o fluxo</div>
     </NodeShell>
   );
