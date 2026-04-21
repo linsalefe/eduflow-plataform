@@ -14,8 +14,9 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   ArrowLeft, Loader2, CheckCircle2, CircleAlert, Rocket, Pause,
-  Radio, Sparkles, Workflow, AlertTriangle, CheckCircle, LayoutGrid,
+  Radio, Sparkles, Workflow, AlertTriangle, CheckCircle, LayoutGrid, Play,
 } from 'lucide-react';
+import { SimulatorDrawer } from '@/components/chatbot/simulator-drawer';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -78,6 +79,8 @@ function EditorInner({ flowId }: { flowId: number }) {
   const [loadingChannels, setLoadingChannels] = useState(false);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [activeChannel, setActiveChannel] = useState<ChannelStatus | null>(null);
+
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
 
   const [kanbanColumns, setKanbanColumns] = useState<KanbanCol[]>([]);
   const [users, setUsers] = useState<UserOpt[]>([]);
@@ -447,6 +450,16 @@ function EditorInner({ flowId }: { flowId: number }) {
             <LayoutGrid className="w-3.5 h-3.5" />
             Reorganizar
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSimulatorOpen(true)}
+            className="h-8 gap-1.5 border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+            title="Testar o fluxo sem enviar WhatsApp"
+          >
+            <Play className="w-3.5 h-3.5" />
+            Testar
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           {flow?.is_published ? (
@@ -541,6 +554,12 @@ function EditorInner({ flowId }: { flowId: number }) {
           />
         )}
       </div>
+
+      <SimulatorDrawer
+        open={simulatorOpen}
+        onClose={() => setSimulatorOpen(false)}
+        graph={{ nodes, edges }}
+      />
 
       {/* Dialog: publicar em qual canal */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
