@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from dotenv import load_dotenv
 from app.automation_scheduler import start_automation_scheduler
+from app.chatbot.scheduler import start_chatbot_scheduler
 import httpx
 from app.twilio_routes import router as twilio_router
 from datetime import datetime, timezone, timedelta
@@ -197,12 +198,15 @@ async def lifespan(app: FastAPI):
     print("🤖 Automation scheduler iniciado (a cada 15 min)")
     campaign_task = asyncio.create_task(campaign_worker())
     print("📞 Campaign worker iniciado")
+    chatbot_resume_task = asyncio.create_task(start_chatbot_scheduler())
+    print("⏰ Chatbot delay scheduler iniciado (a cada 30s)")
     yield
     task.cancel()
     cleanup_task.cancel()
     scheduler_task.cancel()
     automation_task.cancel()
     campaign_task.cancel()
+    chatbot_resume_task.cancel()
 
 
 app = FastAPI(title="EduFlow API", lifespan=lifespan)

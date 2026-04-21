@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Users, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, Phone, Ban,
+  X, Users, Clock, CheckCircle2, XCircle, Loader2, RefreshCw, Phone, Ban, FastForward,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -15,17 +15,19 @@ interface Session {
   contact_wa_id: string;
   contact_name: string;
   current_node_id: string | null;
-  status: 'active' | 'completed' | 'cancelled' | 'timeout';
+  status: 'active' | 'waiting' | 'completed' | 'cancelled' | 'timeout';
   variables: Record<string, any>;
   started_at: string | null;
   last_interaction_at: string | null;
   completed_at: string | null;
+  next_resume_at: string | null;
 }
 
-type TabKey = 'active' | 'completed' | 'cancelled';
+type TabKey = 'active' | 'waiting' | 'completed' | 'cancelled';
 
 const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
   { key: 'active', label: 'Ativas', icon: Clock, color: 'text-emerald-600 dark:text-emerald-400' },
+  { key: 'waiting', label: 'Aguardando', icon: Clock, color: 'text-amber-600 dark:text-amber-400' },
   { key: 'completed', label: 'Concluídas', icon: CheckCircle2, color: 'text-blue-600 dark:text-blue-400' },
   { key: 'cancelled', label: 'Canceladas', icon: XCircle, color: 'text-gray-500' },
 ];
@@ -68,7 +70,8 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
   }, [open, flowId, fetchSessions]);
 
   useEffect(() => {
-    if (!open || !flowId || tab !== 'active') return;
+    if (!open || !flowId) return;
+    if (tab !== 'active' && tab !== 'waiting') return;
     const iv = setInterval(fetchSessions, 10000);
     return () => clearInterval(iv);
   }, [open, flowId, tab, fetchSessions]);
@@ -91,6 +94,33 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
       const e = err as { response?: { data?: { detail?: string } } };
       toast.error(e.response?.data?.detail || 'Erro ao cancelar');
     }
+  };
+
+  const handleResumeNow = async (session: Session) => {
+    if (!flowId) return;
+    try {
+      await api.post(`/chatbot/flows/${flowId}/sessions/${session.id}/resume-now`);
+      toast.success('Retomada antecipada — vai processar no próximo ciclo');
+      setTimeout(fetchSessions, 1500);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      toast.error(e.response?.data?.detail || 'Erro ao retomar');
+    }
+  };
+
+  const fmtFuture = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      const diff = d.getTime() - Date.now();
+      if (diff < 0) return 'agora';
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'em instantes';
+      if (mins < 60) return `em ${mins} min`;
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return `em ${hours}h`;
+      const days = Math.floor(hours / 24);
+      return `em ${days} dia${days > 1 ? 's' : ''}`;
+    } catch { return 'em breve'; }
   };
 
   const fmt = (iso: string | null) => {
@@ -178,6 +208,7 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {tab === 'active' && 'Nenhuma sessão ativa no momento.'}
+                    {tab === 'waiting' && 'Nenhuma sessão aguardando retomada.'}
                     {tab === 'completed' && 'Nenhuma sessão concluída ainda.'}
                     {tab === 'cancelled' && 'Nenhuma sessão cancelada.'}
                   </p>
@@ -189,8 +220,10 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
                   <SessionItem
                     key={s.id}
                     session={s}
-                    onCancel={tab === 'active' ? () => handleCancel(s) : undefined}
+                    onCancel={tab === 'active' || tab === 'waiting' ? () => handleCancel(s) : undefined}
+                    onResumeNow={tab === 'waiting' ? () => handleResumeNow(s) : undefined}
                     fmt={fmt}
+                    fmtFuture={fmtFuture}
                   />
                 ))}
               </ul>
@@ -209,11 +242,13 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
 }
 
 function SessionItem({
-  session, onCancel, fmt,
+  session, onCancel, onResumeNow, fmt, fmtFuture,
 }: {
   session: Session;
   onCancel?: () => void;
+  onResumeNow?: () => void;
   fmt: (iso: string | null) => string;
+  fmtFuture: (iso: string) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const vars = session.variables || {};
@@ -221,6 +256,7 @@ function SessionItem({
 
   const statusBadge = {
     active: { label: 'Ativa', classes: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    waiting: { label: 'Aguardando', classes: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
     completed: { label: 'Concluída', classes: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
     cancelled: { label: 'Cancelada', classes: 'bg-gray-500/10 text-gray-600 dark:text-gray-400' },
     timeout: { label: 'Timeout', classes: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
@@ -243,12 +279,26 @@ function SessionItem({
             <span>{fmt(session.last_interaction_at)}</span>
           </div>
         </button>
-        {onCancel && (
-          <Button size="icon" variant="ghost" onClick={onCancel} className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0" title="Cancelar sessão">
-            <Ban className="w-3.5 h-3.5" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {onResumeNow && (
+            <Button size="icon" variant="ghost" onClick={onResumeNow} className="h-7 w-7 text-muted-foreground hover:text-primary" title="Retomar agora">
+              <FastForward className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {onCancel && (
+            <Button size="icon" variant="ghost" onClick={onCancel} className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Cancelar sessão">
+              <Ban className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
+
+      {session.status === 'waiting' && session.next_resume_at && (
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+          <Clock className="w-3 h-3" />
+          Retoma {fmtFuture(session.next_resume_at)}
+        </div>
+      )}
 
       {expanded && varEntries.length > 0 && (
         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 pt-3 border-t border-border/50">

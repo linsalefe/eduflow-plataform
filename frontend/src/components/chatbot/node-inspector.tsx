@@ -58,6 +58,7 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
         {kind === 'tag' && <TagForm data={data} update={update} />}
         {kind === 'move_stage' && <StageForm data={data} update={update} kanbanColumns={kanbanColumns} pipelines={pipelines} />}
         {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} pipelines={pipelines} />}
+        {kind === 'delay' && <DelayForm data={data} update={update} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -291,6 +292,57 @@ function HandoffForm({
           fallbackColumns={kanbanColumns}
           allowNone
         />
+      </div>
+    </>
+  );
+}
+
+
+// ============================================================
+// DELAY
+// ============================================================
+function DelayForm({ data, update }: { data: any; update: (p: any) => void }) {
+  const amount = data.amount ?? 1;
+  const unit = data.unit ?? 'minutes';
+
+  const unitLabel: Record<string, string> = {
+    minutes: amount === 1 ? 'minuto' : 'minutos',
+    hours: amount === 1 ? 'hora' : 'horas',
+    days: amount === 1 ? 'dia' : 'dias',
+  };
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label>Aguardar</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            max={999}
+            value={amount}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              update({ amount: isNaN(v) || v < 1 ? 1 : v });
+            }}
+            className="w-24"
+          />
+          <Select value={unit} onValueChange={(v) => update({ unit: v })}>
+            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="minutes">Minutos</SelectItem>
+              <SelectItem value="hours">Horas</SelectItem>
+              <SelectItem value="days">Dias</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="rounded-lg bg-muted/50 border border-border p-3 text-[11px] text-muted-foreground leading-relaxed">
+        <p className="font-medium text-foreground mb-1">Como funciona</p>
+        <p>
+          O fluxo pausa aqui e retoma automaticamente depois de <strong>{amount} {unitLabel[unit]}</strong>.
+          Durante a espera, novas mensagens do contato não avançam o fluxo.
+        </p>
       </div>
     </>
   );

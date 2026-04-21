@@ -644,9 +644,21 @@ class ChatbotSession(Base):
     # Variáveis capturadas durante o fluxo: {"nome": "João", "cpf": "..."}
     variables = Column(JSONB, nullable=False, server_default='{}')
 
-    status = Column(String(20), nullable=False, default="active")  # active | completed | timeout | cancelled
+    status = Column(String(20), nullable=False, default="active")  # active | waiting | completed | timeout | cancelled
     started_at = Column(DateTime, server_default=func.now())
     last_interaction_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class ChatbotScheduledResume(Base):
+    __tablename__ = "chatbot_scheduled_resumes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("chatbot_sessions.id", ondelete="CASCADE"), nullable=False)
+    resume_at = Column(DateTime, nullable=False)
+    node_id = Column(String(100), nullable=False)
+    status = Column(String(20), nullable=False, default="pending")  # pending | processed | cancelled
+    processed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())

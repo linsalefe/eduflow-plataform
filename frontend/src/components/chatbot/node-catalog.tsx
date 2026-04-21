@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
   Zap, MessageSquare, MousePointerClick, TextCursorInput,
-  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag,
+  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 // ============================================================
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'handoff' | 'end';
+  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end';
 
 export const NODE_META: Record<NodeKind, {
   label: string;
@@ -79,6 +79,14 @@ export const NODE_META: Record<NodeKind, {
     borderClass: 'border-teal-500/30',
     accentClass: 'bg-teal-500',
   },
+  delay: {
+    label: 'Espera',
+    description: 'Pausa por tempo',
+    icon: Timer,
+    colorClass: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
+    borderClass: 'border-yellow-500/30',
+    accentClass: 'bg-yellow-500',
+  },
   handoff: {
     label: 'Passar para humano',
     description: 'Cria tarefa + move',
@@ -99,7 +107,7 @@ export const NODE_META: Record<NodeKind, {
 
 export const PALETTE_ORDER: NodeKind[] = [
   'trigger', 'message', 'buttons', 'input',
-  'condition', 'tag', 'move_stage', 'handoff', 'end',
+  'condition', 'tag', 'move_stage', 'delay', 'handoff', 'end',
 ];
 
 // ============================================================
@@ -128,6 +136,8 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
       return { tag_name: '' };
     case 'move_stage':
       return { stage: '' };
+    case 'delay':
+      return { amount: 1, unit: 'minutes' };
     case 'handoff':
       return {
         task_title: 'Atender {nome}',
@@ -321,6 +331,21 @@ export const MoveStageNode = memo(({ data, selected }: NodeProps) => {
 });
 MoveStageNode.displayName = 'MoveStageNode';
 
+export const DelayNode = memo(({ data, selected }: NodeProps) => {
+  const d = data as Record<string, any>;
+  const amount = d.amount ?? 1;
+  const unit = d.unit ?? 'minutes';
+  const unitLabel: Record<string, string> = { minutes: 'min', hours: 'h', days: 'd' };
+  return (
+    <NodeShell kind="delay" selected={selected}>
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-yellow-500')} />
+      <Preview text={`⏳ ${amount} ${unitLabel[unit] || unit}`} placeholder="Configurar tempo" />
+      <Handle type="source" position={Position.Right} style={HANDLE_RIGHT} className={cn(HANDLE_CLASS, '!bg-yellow-500')} />
+    </NodeShell>
+  );
+});
+DelayNode.displayName = 'DelayNode';
+
 export const HandoffNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
   return (
@@ -360,6 +385,7 @@ export const nodeTypes = {
   condition: ConditionNode,
   tag: TagNode,
   move_stage: MoveStageNode,
+  delay: DelayNode,
   handoff: HandoffNode,
   end: EndNode,
 };

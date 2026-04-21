@@ -15,8 +15,8 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.models import (
-    ChatbotFlow, ChatbotSession, Channel, Contact, Message,
-    Task, Tag, User,
+    ChatbotFlow, ChatbotSession, ChatbotScheduledResume,
+    Channel, Contact, Message, Task, Tag, User,
 )
 
 # ============================================================
@@ -325,8 +325,40 @@ async def _execute_node(
         return None, False
 
     if nt == "delay":
-        print(f"⚠️ Chatbot: nó delay ({node.get('id')}) não executado — seguindo")
-        return find_next_node(graph, node["id"]), False
+        # Grava resume e pausa a sessão (scheduler acorda depois)
+        amount = data.get("amount")
+        unit = data.get("unit") or "minutes"
+        try:
+            amount = int(amount) if amount is not None else 1
+        except (ValueError, TypeError):
+            amount = 1
+        if amount < 1:
+            amount = 1
+
+        if unit == "days":
+            delta = timedelta(days=amount)
+        elif unit == "hours":
+            delta = timedelta(hours=amount)
+        else:
+            delta = timedelta(minutes=amount)
+
+        next_node = find_next_node(graph, node["id"])
+        if not next_node:
+            return None, False
+
+        resume = ChatbotScheduledResume(
+            session_id=session.id,
+            resume_at=datetime.utcnow() + delta,
+            node_id=str(next_node["id"]),
+            status="pending",
+        )
+        db.add(resume)
+        session.status = "waiting"
+        session.current_node_id = str(node["id"])
+        session.last_interaction_at = datetime.utcnow()
+        await db.commit()
+        print(f"⏸️ Chatbot: sessão {session.id} aguardando {amount}{unit[0]} (retoma {resume.resume_at.isoformat()})")
+        return None, True
 
     if nt == "end":
         return None, False
@@ -520,3 +552,77 @@ async def handle_inbound_message(
         session.status = "completed"
         session.completed_at = datetime.utcnow()
         await db.commit()
+
+
+# ============================================================
+# Entry point para o scheduler de delays
+# ============================================================
+async def resume_session_from_node(
+    session_id: int,
+    from_node_id: str,
+    db: AsyncSession,
+) -> bool:
+    """
+    Chamado pelo scheduler quando um resume vence.
+    Carrega sessão + fluxo + contato + canal e avança a partir de `from_node_id`.
+    Retorna True se avançou, False se não foi possível.
+    """
+    sres = await db.execute(
+        select(ChatbotSession).where(ChatbotSession.id == session_id)
+    )
+    session = sres.scalar_one_or_none()
+    if not session:
+        print(f"⏰ Resume: sessão {session_id} não existe — ignorando")
+        return False
+
+    if session.status not in ("waiting", "active"):
+        print(f"⏰ Resume: sessão {session_id} em status '{session.status}' — ignorando")
+        return False
+
+    chres = await db.execute(select(Channel).where(Channel.id == session.channel_id))
+    channel = chres.scalar_one_or_none()
+    if not channel or channel.operation_mode != "chatbot":
+        print(f"⏰ Resume: canal {session.channel_id} não está em modo chatbot — cancelando sessão")
+        session.status = "cancelled"
+        session.completed_at = datetime.utcnow()
+        await db.commit()
+        return False
+
+    fres = await db.execute(select(ChatbotFlow).where(ChatbotFlow.id == session.flow_id))
+    flow = fres.scalar_one_or_none()
+    if not flow or not flow.is_published or not flow.published_graph:
+        session.status = "cancelled"
+        session.completed_at = datetime.utcnow()
+        await db.commit()
+        return False
+
+    cres = await db.execute(
+        select(Contact)
+        .options(selectinload(Contact.tags))
+        .where(
+            Contact.wa_id == session.contact_wa_id,
+            Contact.tenant_id == session.tenant_id,
+        )
+    )
+    contact = cres.scalar_one_or_none()
+    if not contact:
+        session.status = "cancelled"
+        session.completed_at = datetime.utcnow()
+        await db.commit()
+        return False
+
+    graph = flow.published_graph or {"nodes": [], "edges": []}
+    node = find_node(graph, from_node_id)
+    if not node:
+        print(f"⏰ Resume: nó {from_node_id} sumiu do grafo — cancelando sessão")
+        session.status = "cancelled"
+        session.completed_at = datetime.utcnow()
+        await db.commit()
+        return False
+
+    session.status = "active"
+    session.last_interaction_at = datetime.utcnow()
+    await db.commit()
+
+    await _advance_from(session, node, graph, channel, contact, db)
+    return True

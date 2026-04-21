@@ -13,7 +13,8 @@ from datetime import datetime
 from app.database import get_db
 from app.auth import get_current_user, get_tenant_id
 from app.models import (
-    ChatbotFlow, ChatbotSession, Channel, Tenant, User, Contact
+    ChatbotFlow, ChatbotSession, Channel, Tenant, User, Contact,
+    ChatbotScheduledResume,
 )
 
 router = APIRouter(prefix="/api/chatbot", tags=["Chatbot"])
@@ -443,22 +444,39 @@ async def update_channel_mode(
     else:
         channel.active_chatbot_flow_id = None
 
-    # Ao sair do modo chatbot, cancelar sessões ativas do canal
-    if previous_mode == "chatbot" and data.operation_mode != "chatbot":
+    # Ao sair do modo chatbot OU trocar de fluxo: cancelar sessões abertas + resumes
+    leaving_chatbot = previous_mode == "chatbot" and data.operation_mode != "chatbot"
+    switching_flow = (
+        previous_mode == "chatbot"
+        and data.operation_mode == "chatbot"
+        and previous_flow_id
+        and previous_flow_id != data.active_chatbot_flow_id
+    )
+    if leaving_chatbot or switching_flow:
         sessions_res = await db.execute(
             select(ChatbotSession).where(
                 ChatbotSession.channel_id == channel_id,
-                ChatbotSession.status == "active",
+                ChatbotSession.status.in_(["active", "waiting"]),
             )
         )
-        cancelled = 0
-        for s in sessions_res.scalars().all():
-            s.status = "cancelled"
-            s.completed_at = datetime.utcnow()
-            s.updated_at = datetime.utcnow()
-            cancelled += 1
-        if cancelled:
-            print(f"chatbot: {cancelled} sessões canceladas no canal {channel_id} (mudança de modo)")
+        cancelled_sessions = sessions_res.scalars().all()
+        if cancelled_sessions:
+            session_ids = [s.id for s in cancelled_sessions]
+            rres = await db.execute(
+                select(ChatbotScheduledResume).where(
+                    ChatbotScheduledResume.session_id.in_(session_ids),
+                    ChatbotScheduledResume.status == "pending",
+                )
+            )
+            now = datetime.utcnow()
+            for r in rres.scalars().all():
+                r.status = "cancelled"
+                r.processed_at = now
+            for s in cancelled_sessions:
+                s.status = "cancelled"
+                s.completed_at = now
+                s.updated_at = now
+            print(f"chatbot: {len(cancelled_sessions)} sessão(ões) + resumes cancelados no canal {channel_id}")
 
     await db.commit()
     await db.refresh(channel)
@@ -496,7 +514,7 @@ async def list_sessions(
 
     q = select(ChatbotSession).where(ChatbotSession.flow_id == flow_id)
     if status != "all":
-        if status not in ("active", "completed", "cancelled", "timeout"):
+        if status not in ("active", "waiting", "completed", "cancelled", "timeout"):
             raise HTTPException(400, "status inválido")
         q = q.where(ChatbotSession.status == status)
 
@@ -516,6 +534,20 @@ async def list_sessions(
     )
     contact_map = {c.wa_id: c for c in contacts_res.scalars().all()}
 
+    # Para sessões em waiting, buscar o resume_at mais próximo
+    next_resume_map: Dict[int, datetime] = {}
+    waiting_ids = [s.id for s in sessions if s.status == "waiting"]
+    if waiting_ids:
+        rres = await db.execute(
+            select(ChatbotScheduledResume).where(
+                ChatbotScheduledResume.session_id.in_(waiting_ids),
+                ChatbotScheduledResume.status == "pending",
+            ).order_by(ChatbotScheduledResume.resume_at)
+        )
+        for r in rres.scalars().all():
+            if r.session_id not in next_resume_map:
+                next_resume_map[r.session_id] = r.resume_at
+
     return [
         {
             "id": s.id,
@@ -529,6 +561,7 @@ async def list_sessions(
             "started_at": s.started_at.isoformat() if s.started_at else None,
             "last_interaction_at": s.last_interaction_at.isoformat() if s.last_interaction_at else None,
             "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+            "next_resume_at": next_resume_map[s.id].isoformat() if s.id in next_resume_map else None,
         }
         for s in sessions
     ]
@@ -555,8 +588,19 @@ async def cancel_session(
     if not session:
         raise HTTPException(404, "Sessão não encontrada")
 
-    if session.status != "active":
+    if session.status not in ("active", "waiting"):
         raise HTTPException(400, f"Sessão já está em status '{session.status}'")
+
+    # Cancelamento em cascata: invalida resumes pendentes
+    resumes_res = await db.execute(
+        select(ChatbotScheduledResume).where(
+            ChatbotScheduledResume.session_id == session_id,
+            ChatbotScheduledResume.status == "pending",
+        )
+    )
+    for r in resumes_res.scalars().all():
+        r.status = "cancelled"
+        r.processed_at = datetime.utcnow()
 
     session.status = "cancelled"
     session.completed_at = datetime.utcnow()
@@ -639,3 +683,42 @@ async def list_channels_for_publish(
             "status": status,
         })
     return out
+
+
+@router.post("/flows/{flow_id}/sessions/{session_id}/resume-now")
+async def resume_session_now(
+    flow_id: int,
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    """Força retomada imediata de uma sessão em 'waiting' — antecipa um resume pendente."""
+    await ensure_chatbot_feature(tenant_id, db)
+
+    sres = await db.execute(
+        select(ChatbotSession).where(
+            ChatbotSession.id == session_id,
+            ChatbotSession.flow_id == flow_id,
+            ChatbotSession.tenant_id == tenant_id,
+        )
+    )
+    session = sres.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Sessão não encontrada")
+    if session.status != "waiting":
+        raise HTTPException(400, f"Sessão não está aguardando (status: {session.status})")
+
+    rres = await db.execute(
+        select(ChatbotScheduledResume).where(
+            ChatbotScheduledResume.session_id == session_id,
+            ChatbotScheduledResume.status == "pending",
+        )
+    )
+    count = 0
+    now = datetime.utcnow()
+    for r in rres.scalars().all():
+        r.resume_at = now
+        count += 1
+    await db.commit()
+    return {"message": f"{count} retomada(s) antecipada(s)", "session_id": session_id}

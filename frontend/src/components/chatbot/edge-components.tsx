@@ -18,6 +18,7 @@ const SOURCE_COLOR: Record<NodeKind, string> = {
   condition: '#f59e0b',
   tag: '#ec4899',
   move_stage: '#14b8a6',
+  delay: '#eab308',
   handoff: '#f97316',
   end: '#6b7280',
 };
