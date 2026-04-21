@@ -117,7 +117,7 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
                         {"role": "system", "content": "Traduza o texto para português brasileiro de forma natural. Retorne apenas o texto traduzido, sem explicações."},
                         {"role": "user", "content": summary_text}
                     ],
-                    max_tokens=500,
+                    max_completion_tokens=500,
                     temperature=0.3,
                 )
                 summary_text = translation.choices[0].message.content.strip()

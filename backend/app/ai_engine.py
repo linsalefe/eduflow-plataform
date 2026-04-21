@@ -300,7 +300,7 @@ async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) ->
                 {"role": "user", "content": conversation_text},
             ],
             temperature=0.3,
-            max_tokens=200,
+            max_completion_tokens=200,
         )
         ai_response = response.choices[0].message.content
         if not ai_response:

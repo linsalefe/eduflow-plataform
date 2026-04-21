@@ -69,7 +69,7 @@ Responda apenas o briefing, sem introdução."""
             response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=300,
+                max_completion_tokens=300,
             )
             return response.choices[0].message.content
 

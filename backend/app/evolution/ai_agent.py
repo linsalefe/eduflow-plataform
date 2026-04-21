@@ -310,7 +310,7 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
             retry_params = {
                 "model": "gpt-4o-mini",
                 "messages": messages,
-                "max_tokens": max_tokens,
+                "max_completion_tokens": max_tokens,
                 "temperature": temperature,
             }
             response = await client.chat.completions.create(**retry_params)

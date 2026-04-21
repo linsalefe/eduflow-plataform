@@ -110,7 +110,7 @@ async def run_reengagement():
                                 {"role": "system", "content": system_prompt},
                                 {"role": "user", "content": f"O lead {lead_name} parou de responder há {int(time_since_last)} minutos. Esta é a tentativa {attempt_index + 1} de {max_attempts} de reengajamento. {instruction} Responda APENAS com o texto da mensagem, sem JSON."},
                             ],
-                            max_tokens=200,
+                            max_completion_tokens=200,
                             temperature=0.7,
                         )
                         message_text = (gpt_response.choices[0].message.content or "").strip()

@@ -77,7 +77,7 @@ DADOS DA CHAMADA:
                 },
             ],
             temperature=0.2,
-            max_tokens=300,
+            max_completion_tokens=300,
             response_format={"type": "json_object"},
         )
 

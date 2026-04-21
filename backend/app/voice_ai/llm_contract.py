@@ -189,7 +189,7 @@ async def call_llm(session: CallSession, last_utterance: str, rag_snippets: list
             model=LLM_MODEL,
             messages=messages,
             temperature=LLM_TEMPERATURE,
-            max_tokens=LLM_MAX_TOKENS,
+            max_completion_tokens=LLM_MAX_TOKENS,
             response_format={"type": "json_object"},
         )
 
@@ -336,7 +336,7 @@ Seja breve e direto."""
                 }
             ],
             temperature=0.3,
-            max_tokens=400,
+            max_completion_tokens=400,
         )
         return response.choices[0].message.content or "Resumo não disponível"
     except Exception as e:
