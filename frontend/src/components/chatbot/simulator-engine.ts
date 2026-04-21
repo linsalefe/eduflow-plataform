@@ -266,7 +266,7 @@ function executeNode(
     }
 
     case 'handoff': {
-      const title = interpolate(data.task_title || 'Atendimento via chatbot', s.variables, contact);
+      const title = interpolate(data.task_title || 'Atendimento via workflow', s.variables, contact);
       const user = data.assigned_to_user_id ? `user #${data.assigned_to_user_id}` : 'sem responsável';
       s = pushBubble(s, {
         kind: 'system', text: `Tarefa criada: "${title}" → ${user}`,

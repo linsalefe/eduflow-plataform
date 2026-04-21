@@ -160,7 +160,7 @@ export function SessionsDrawer({ open, flowId, flowName, onClose }: Props) {
             <div className="flex items-start justify-between p-5 border-b border-border">
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-                  Sessões do chatbot
+                  Sessões do workflow
                 </div>
                 <h2 className="text-lg font-semibold text-foreground truncate">{flowName}</h2>
               </div>

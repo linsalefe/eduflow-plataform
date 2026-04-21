@@ -46,7 +46,7 @@ const MODES: {
   },
   {
     value: 'chatbot',
-    label: 'Chatbot',
+    label: 'Workflow',
     icon: Workflow,
     activeClass: 'bg-white shadow-sm text-indigo-700 dark:text-indigo-300',
     iconColor: 'text-indigo-600 dark:text-indigo-400',
@@ -70,7 +70,7 @@ export function ChannelModeSelector({
     if (saving) return;
 
     if (nextMode === 'chatbot' && !flowId && !hasPublished) {
-      toast.error('Publique um chatbot antes de ativar neste canal');
+      toast.error('Publique um workflow antes de ativar neste canal');
       return;
     }
 
@@ -80,20 +80,20 @@ export function ChannelModeSelector({
       if (currentMode === 'ai' && nextMode === 'chatbot') {
         const ok = confirm(
           `O canal "${channelName}" está com o Agente de IA ativo. `
-          + `Ativar um Chatbot vai DESATIVAR a IA neste canal. Continuar?`
+          + `Ativar um Workflow vai DESATIVAR a IA neste canal. Continuar?`
         );
         if (!ok) return;
       } else if (currentMode === 'chatbot' && nextMode === 'ai') {
         const flowName = mode.active_chatbot_flow_name || 'atual';
         const ok = confirm(
-          `O canal "${channelName}" tem o chatbot "${flowName}" rodando. `
-          + `Ativar a IA aqui vai DESATIVAR o chatbot e cancelar as sessões em andamento. Continuar?`
+          `O canal "${channelName}" tem o workflow "${flowName}" rodando. `
+          + `Ativar a IA aqui vai DESATIVAR o workflow e cancelar as sessões em andamento. Continuar?`
         );
         if (!ok) return;
       } else if (currentMode === 'chatbot' && nextMode === 'none') {
         const flowName = mode.active_chatbot_flow_name || 'atual';
         const ok = confirm(
-          `Desativar o chatbot "${flowName}" em "${channelName}" `
+          `Desativar o workflow "${flowName}" em "${channelName}" `
           + `vai cancelar as sessões em andamento. Continuar?`
         );
         if (!ok) return;
@@ -184,7 +184,7 @@ export function ChannelModeSelector({
                   <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
               </select>
-              <Link href="/chatbot" className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-primary hover:underline">
+              <Link href="/workflows" className="ml-auto inline-flex items-center gap-0.5 text-[11px] text-primary hover:underline">
                 Gerenciar <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
@@ -192,8 +192,8 @@ export function ChannelModeSelector({
             <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30">
               <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="text-[11px] text-amber-800 dark:text-amber-200 leading-snug">
-                Você não tem chatbots publicados.{' '}
-                <Link href="/chatbot" className="font-semibold underline">Criar um agora &rarr;</Link>
+                Você não tem workflows publicados.{' '}
+                <Link href="/workflows" className="font-semibold underline">Criar um agora &rarr;</Link>
               </div>
             </div>
           )}

@@ -88,7 +88,7 @@ const featureMap: Record<string, string> = {
   '/configuracoes/agentes': 'agentes_ia',
   '/users': 'usuarios',
   '/automacao-ia': 'automacoes',
-  '/chatbot': 'chatbot',
+  '/workflows': 'chatbot',
   '/equipe': 'usuarios',
   '/integracoes': 'integracoes',
   '/suporte': 'suporte',
@@ -112,7 +112,7 @@ const menuGroups = [
       { href: '/financeiro', label: 'Financeiro', icon: DollarSign },
       { href: '/marketing', label: 'Marketing', icon: BarChart3 },
       { href: '/automacao-ia', label: 'Automação e IA', icon: Sparkles },
-      { href: '/chatbot', label: 'Chatbot', icon: Workflow },
+      { href: '/workflows', label: 'Workflows', icon: Workflow },
       { href: '/equipe', label: 'Equipe', icon: UserCircle },
       { href: '/configuracoes', label: 'Configurações', icon: Settings },
     ],
@@ -143,7 +143,7 @@ const pageTitles: Record<string, string> = {
   '/configuracoes/agentes': 'Agentes IA',
   '/users': 'Equipe',
   '/automacao-ia': 'Automação e IA',
-  '/chatbot': 'Chatbot',
+  '/workflows': 'Workflows',
   '/equipe': 'Equipe',
   '/integracoes': 'Integrações',
   '/suporte': 'Central de Ajuda',
@@ -251,7 +251,7 @@ function SidebarNavContent({
         {/* Menu groups */}
         {menuGroups.map((group) => {
           const visibleItems = group.items.filter((item) => {
-            if (item.href === '/chatbot') {
+            if (item.href === '/workflows') {
               return user?.features?.chatbot === true;
             }
             return hasFeature(featureMap[item.href] || 'dashboard');

@@ -86,7 +86,7 @@ export function SimulatorDrawer({ open, onClose, graph }: Props) {
                   <div className="text-[10px] uppercase font-semibold tracking-widest text-muted-foreground">
                     Simulador
                   </div>
-                  <div className="text-sm font-semibold truncate">Testar chatbot</div>
+                  <div className="text-sm font-semibold truncate">Testar workflow</div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
