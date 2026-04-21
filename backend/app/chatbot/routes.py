@@ -13,7 +13,7 @@ from datetime import datetime
 from app.database import get_db
 from app.auth import get_current_user, get_tenant_id
 from app.models import (
-    ChatbotFlow, ChatbotSession, Channel, Tenant, User
+    ChatbotFlow, ChatbotSession, Channel, Tenant, User, Contact
 )
 
 router = APIRouter(prefix="/api/chatbot", tags=["Chatbot"])
@@ -423,3 +423,97 @@ async def update_channel_mode(
         "active_chatbot_flow_id": channel.active_chatbot_flow_id,
         "message": "Modo do canal atualizado",
     }
+
+
+# ============================================================
+# Sessões do chatbot (monitoramento)
+# ============================================================
+@router.get("/flows/{flow_id}/sessions")
+async def list_sessions(
+    flow_id: int,
+    status: str = "active",
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    await ensure_chatbot_feature(tenant_id, db)
+
+    flow_res = await db.execute(
+        select(ChatbotFlow).where(
+            ChatbotFlow.id == flow_id,
+            ChatbotFlow.tenant_id == tenant_id,
+        )
+    )
+    if not flow_res.scalar_one_or_none():
+        raise HTTPException(404, "Fluxo não encontrado")
+
+    q = select(ChatbotSession).where(ChatbotSession.flow_id == flow_id)
+    if status != "all":
+        if status not in ("active", "completed", "cancelled", "timeout"):
+            raise HTTPException(400, "status inválido")
+        q = q.where(ChatbotSession.status == status)
+
+    q = q.order_by(ChatbotSession.last_interaction_at.desc()).limit(min(limit, 200))
+    res = await db.execute(q)
+    sessions = res.scalars().all()
+
+    if not sessions:
+        return []
+
+    wa_ids = list({s.contact_wa_id for s in sessions})
+    contacts_res = await db.execute(
+        select(Contact).where(
+            Contact.tenant_id == tenant_id,
+            Contact.wa_id.in_(wa_ids),
+        )
+    )
+    contact_map = {c.wa_id: c for c in contacts_res.scalars().all()}
+
+    return [
+        {
+            "id": s.id,
+            "contact_wa_id": s.contact_wa_id,
+            "contact_name": (contact_map.get(s.contact_wa_id).name
+                             if contact_map.get(s.contact_wa_id) else None) or s.contact_wa_id,
+            "current_node_id": s.current_node_id,
+            "status": s.status,
+            "variables": s.variables or {},
+            "channel_id": s.channel_id,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+            "last_interaction_at": s.last_interaction_at.isoformat() if s.last_interaction_at else None,
+            "completed_at": s.completed_at.isoformat() if s.completed_at else None,
+        }
+        for s in sessions
+    ]
+
+
+@router.delete("/flows/{flow_id}/sessions/{session_id}")
+async def cancel_session(
+    flow_id: int,
+    session_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    await ensure_chatbot_feature(tenant_id, db)
+
+    res = await db.execute(
+        select(ChatbotSession).where(
+            ChatbotSession.id == session_id,
+            ChatbotSession.flow_id == flow_id,
+            ChatbotSession.tenant_id == tenant_id,
+        )
+    )
+    session = res.scalar_one_or_none()
+    if not session:
+        raise HTTPException(404, "Sessão não encontrada")
+
+    if session.status != "active":
+        raise HTTPException(400, f"Sessão já está em status '{session.status}'")
+
+    session.status = "cancelled"
+    session.completed_at = datetime.utcnow()
+    session.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"message": "Sessão cancelada", "id": session_id}

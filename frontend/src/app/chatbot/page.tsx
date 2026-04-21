@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Workflow, MoreVertical, Copy, Pencil, Trash2,
   Play, Pause, Search, Loader2, MessageSquareText, Sparkles,
-  CheckCircle2, FileEdit,
+  CheckCircle2, FileEdit, Users,
 } from 'lucide-react';
+import { SessionsDrawer } from '@/components/chatbot/sessions-drawer';
 import AppShell from '@/components/app-shell';
 import { useAuth } from '@/contexts/auth-context';
 import api from '@/lib/api';
@@ -67,6 +68,8 @@ function ChatbotListContent() {
 
   const [deleteTarget, setDeleteTarget] = useState<Flow | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [sessionsTarget, setSessionsTarget] = useState<Flow | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -273,6 +276,7 @@ function ChatbotListContent() {
                   onDuplicate={() => handleDuplicate(flow)}
                   onTogglePublish={() => handleTogglePublish(flow)}
                   onDelete={() => setDeleteTarget(flow)}
+                  onSessions={() => setSessionsTarget(flow)}
                   formatRelative={formatRelative}
                 />
               </motion.div>
@@ -355,6 +359,13 @@ function ChatbotListContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SessionsDrawer
+        open={!!sessionsTarget}
+        flowId={sessionsTarget?.id ?? null}
+        flowName={sessionsTarget?.name ?? ''}
+        onClose={() => setSessionsTarget(null)}
+      />
     </div>
   );
 }
@@ -383,9 +394,9 @@ function StatCard({ icon, label, value, tone }: {
   );
 }
 
-function FlowCard({ flow, onEdit, onDuplicate, onTogglePublish, onDelete, formatRelative }: {
+function FlowCard({ flow, onEdit, onDuplicate, onTogglePublish, onDelete, onSessions, formatRelative }: {
   flow: Flow; onEdit: () => void; onDuplicate: () => void;
-  onTogglePublish: () => void; onDelete: () => void;
+  onTogglePublish: () => void; onDelete: () => void; onSessions: () => void;
   formatRelative: (iso: string) => string;
 }) {
   return (
@@ -421,6 +432,7 @@ function FlowCard({ flow, onEdit, onDuplicate, onTogglePublish, onDelete, format
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem onClick={onEdit}><Pencil className="w-4 h-4 mr-2" /> Editar</DropdownMenuItem>
+              <DropdownMenuItem onClick={onSessions}><Users className="w-4 h-4 mr-2" /> Ver sessões</DropdownMenuItem>
               <DropdownMenuItem onClick={onTogglePublish}>
                 {flow.is_published ? <><Pause className="w-4 h-4 mr-2" /> Despublicar</> : <><Play className="w-4 h-4 mr-2" /> Publicar</>}
               </DropdownMenuItem>

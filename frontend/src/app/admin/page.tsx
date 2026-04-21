@@ -106,6 +106,7 @@ const FEATURE_TREE: FeatureNode[] = [
       { key: 'ai_audio_response', label: 'Áudio IA (resposta)' },
       { key: 'agentes_ia', label: 'Agentes IA' },
       { key: 'ai_lead_memory', label: 'Memória do lead (IA)' },
+      { key: 'chatbot', label: 'Chatbot Visual' },
     ],
   },
   { key: 'usuarios', label: 'Equipe' },
