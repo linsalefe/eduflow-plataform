@@ -584,6 +584,7 @@ function EditorInner({ flowId }: { flowId: number }) {
             kanbanColumns={kanbanColumns}
             users={users}
             pipelines={pipelines}
+            channelId={selectedChannelId}
           />
         )}
       </div>

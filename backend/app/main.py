@@ -40,6 +40,7 @@ from app.composio_routes import router as composio_router
 from app.stripe_routes import router as stripe_router
 from app.pipeline_routes import router as pipeline_router
 from app.ai_lab.routes import router as ai_lab_router
+from app.agent_routes import router as agent_router
 from contextlib import asynccontextmanager
 import os
 import asyncio
@@ -252,6 +253,7 @@ app.include_router(stripe_router)
 app.include_router(pipeline_router)
 app.include_router(ai_lab_router)
 app.include_router(chatbot_router)
+app.include_router(agent_router)
 
 @app.get("/webhook")
 async def verify_webhook(

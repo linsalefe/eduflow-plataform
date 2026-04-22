@@ -4,7 +4,7 @@ import { memo } from 'react';
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
   Zap, MessageSquare, MousePointerClick, TextCursorInput,
-  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe, Send,
+  GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe, Send, UserRoundCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 // ============================================================
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request' | 'webhook_out';
+  | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request' | 'webhook_out'
+  | 'transfer_to_agent';
 
 export const NODE_META: Record<NodeKind, {
   label: string;
@@ -119,11 +120,19 @@ export const NODE_META: Record<NodeKind, {
     borderClass: 'border-fuchsia-500/30',
     accentClass: 'bg-fuchsia-500',
   },
+  transfer_to_agent: {
+    label: 'Transferir para Agente',
+    description: 'Passa pro agente de IA',
+    icon: UserRoundCog,
+    colorClass: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
+    borderClass: 'border-purple-500/30',
+    accentClass: 'bg-purple-500',
+  },
 };
 
 export const PALETTE_ORDER: NodeKind[] = [
   'trigger', 'message', 'buttons', 'input',
-  'condition', 'http_request', 'webhook_out', 'tag', 'move_stage', 'delay', 'handoff', 'end',
+  'condition', 'http_request', 'webhook_out', 'tag', 'move_stage', 'delay', 'handoff', 'transfer_to_agent', 'end',
 ];
 
 // ============================================================
@@ -138,6 +147,7 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
     case 'buttons':
       return {
         text: 'Escolha uma opção:',
+        display_mode: 'native',
         buttons: [
           { id: `b_${Math.random().toString(36).slice(2, 8)}`, label: 'Opção 1' },
           { id: `b_${Math.random().toString(36).slice(2, 8)}`, label: 'Opção 2' },
@@ -180,6 +190,10 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
         payload_mode: 'auto',
         custom_payload: '',
         headers: [],
+      };
+    case 'transfer_to_agent':
+      return {
+        timeout_minutes: 60,
       };
   }
 }
@@ -440,6 +454,22 @@ export const HttpRequestNode = memo(({ data, selected }: NodeProps) => {
 });
 HttpRequestNode.displayName = 'HttpRequestNode';
 
+export const TransferToAgentNode = memo(({ data, selected }: NodeProps) => {
+  const d = (data || {}) as any;
+  const timeout = d.timeout_minutes ?? 60;
+  return (
+    <NodeShell kind="transfer_to_agent" selected={selected}>
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-purple-500')} />
+      <div className="text-xs text-foreground/80 bg-muted/40 rounded-md px-2 py-1.5 min-h-[28px]">
+        <span>Agente assume por </span>
+        <span className="font-mono font-medium">{timeout}min</span>
+        <span className="text-muted-foreground"> sem resposta</span>
+      </div>
+    </NodeShell>
+  );
+});
+TransferToAgentNode.displayName = 'TransferToAgentNode';
+
 export const WebhookOutNode = memo(({ data, selected }: NodeProps) => {
   const d = (data || {}) as any;
   const url = d.url || '';
@@ -480,6 +510,7 @@ export const nodeTypes = {
   move_stage: MoveStageNode,
   delay: DelayNode,
   handoff: HandoffNode,
+  transfer_to_agent: TransferToAgentNode,
   end: EndNode,
   http_request: HttpRequestNode,
   webhook_out: WebhookOutNode,

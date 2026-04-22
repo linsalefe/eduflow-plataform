@@ -476,6 +476,62 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 op_mode = (getattr(channel, "operation_mode", "ai") or "ai") if channel else "ai"
 
                 if op_mode == "chatbot":
+                    # Verificar se contato está em handoff (agente assumindo)
+                    from datetime import datetime, timedelta
+                    from app.models import AIConfig
+
+                    contact_check = await db.execute(
+                        select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
+                    )
+                    ct = contact_check.scalar_one_or_none()
+
+                    if ct and ct.ai_takeover_active:
+                        # Checar timeout de inatividade
+                        expired = False
+                        if ct.ai_takeover_last_activity and ct.ai_takeover_timeout_minutes:
+                            expiry = ct.ai_takeover_last_activity + timedelta(minutes=ct.ai_takeover_timeout_minutes)
+                            expired = datetime.utcnow() > expiry
+
+                        if expired:
+                            # Timeout: desativa takeover e volta pro chatbot
+                            ct.ai_takeover_active = False
+                            ct.ai_takeover_started_at = None
+                            ct.ai_takeover_last_activity = None
+                            ct.ai_takeover_timeout_minutes = None
+                            ct.ai_takeover_context = None
+                            await db.commit()
+                            print(f"⏰ Handoff expirado: contato={ct.wa_id}, voltando ao workflow")
+                            # Fall-through pro chatbot normal abaixo
+                        else:
+                            # Ainda em janela ativa: agente responde
+                            ct.ai_takeover_last_activity = datetime.utcnow()
+                            await db.commit()
+
+                            ai_cfg = (await db.execute(
+                                select(AIConfig).where(AIConfig.channel_id == channel_id)
+                            )).scalar_one_or_none()
+
+                            if not ai_cfg or not ai_cfg.is_enabled:
+                                print(f"⚠️ Handoff ativo mas canal sem agente habilitado — ignorando")
+                                continue
+
+                            from app.evolution.ai_agent import process_message
+                            try:
+                                await process_message(
+                                    wa_id=phone,
+                                    user_message=text,
+                                    contact_name=sender_name,
+                                    instance_name=instance_name,
+                                    channel_id=channel_id,
+                                    tenant_id=tenant_id,
+                                    db=db,
+                                    extra_context=ct.ai_takeover_context,
+                                )
+                            except Exception as e:
+                                print(f"❌ Erro agente durante handoff: {e}")
+                            continue
+
+                    # Modo chatbot normal (inclui caso de timeout expirado caindo pra cá)
                     try:
                         from app.chatbot.engine import handle_inbound_message as chatbot_handle
                         await chatbot_handle(

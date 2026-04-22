@@ -64,6 +64,13 @@ class Contact(Base):
     ai_memory = Column(JSONB, nullable=True, server_default='{}')
     ai_memory_updated_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Handoff: workflow → agente de IA
+    ai_takeover_active = Column(Boolean, default=False)
+    ai_takeover_started_at = Column(DateTime, nullable=True)
+    ai_takeover_last_activity = Column(DateTime, nullable=True)
+    ai_takeover_timeout_minutes = Column(Integer, nullable=True)
+    ai_takeover_context = Column(JSON, nullable=True)
+
     messages = relationship("Message", back_populates="contact")
     tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
     channel = relationship("Channel", back_populates="contacts")
@@ -148,7 +155,9 @@ class AIConfig(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    channel_id = Column(Integer, ForeignKey("channels.id"), unique=True, nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id"), unique=True, nullable=True)
+    name = Column(String(100), nullable=False)
+    icon = Column(String(30), default="Bot", nullable=True)
     is_enabled = Column(Boolean, default=False)
     system_prompt = Column(Text, nullable=True)
     model = Column(String(50), default="gpt-5")
@@ -165,7 +174,8 @@ class KnowledgeDocument(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
+    agent_id = Column(Integer, ForeignKey("ai_configs.id", ondelete="CASCADE"), nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
     title = Column(String(255), nullable=False)
     content = Column(Text, nullable=False)
     embedding = Column(Text, nullable=True)
@@ -173,6 +183,7 @@ class KnowledgeDocument(Base):
     token_count = Column(Integer, default=0)
     created_at = Column(DateTime, server_default=func.now())
 
+    agent = relationship("AIConfig", backref="knowledge_documents")
     channel = relationship("Channel", backref="knowledge_documents")
 
 

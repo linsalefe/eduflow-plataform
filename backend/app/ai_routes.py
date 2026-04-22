@@ -69,7 +69,12 @@ async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSessio
     config = result.scalar_one_or_none()
 
     if not config:
-        config = AIConfig(channel_id=channel_id, tenant_id=tenant_id)
+        # Buscar nome do canal para nome default do agente
+        from app.models import Channel as Ch
+        ch_res = await db.execute(select(Ch).where(Ch.id == channel_id))
+        ch_obj = ch_res.scalar_one_or_none()
+        ch_name = ch_obj.name if ch_obj else str(channel_id)
+        config = AIConfig(channel_id=channel_id, tenant_id=tenant_id, name=f"Agente - {ch_name}")
         db.add(config)
 
     if req.is_enabled is not None:
@@ -98,8 +103,15 @@ async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession =
 
     contact.ai_active = req.ai_active
 
-    # Se desligou a IA, atualizar o summary do kanban
+    # Se desligou a IA, atualizar o summary do kanban e desligar handoff
     if not req.ai_active:
+        # Desligar handoff do workflow se estiver ativo
+        contact.ai_takeover_active = False
+        contact.ai_takeover_started_at = None
+        contact.ai_takeover_last_activity = None
+        contact.ai_takeover_timeout_minutes = None
+        contact.ai_takeover_context = None
+
         summary_result = await db.execute(
             select(AIConversationSummary).where(
                 AIConversationSummary.contact_wa_id == wa_id,

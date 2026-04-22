@@ -242,12 +242,47 @@ async def _execute_node(
 
     if nt == "buttons":
         intro = interpolate(data.get("text", ""), session.variables, contact)
-        buttons = data.get("buttons") or []
-        rendered = format_buttons_as_text(intro, buttons)
+        buttons_list = data.get("buttons") or []
         session.current_node_id = str(node["id"])
         session.last_interaction_at = datetime.utcnow()
         await db.commit()
-        await _send_text(channel, to, rendered, tid, db)
+
+        use_native = data.get("display_mode", "native") == "native"
+        can_use_native = use_native and len(buttons_list) <= 3
+
+        sent_native = False
+        if can_use_native:
+            from app.evolution.client import send_buttons
+            result = await send_buttons(
+                instance_name=channel.instance_name,
+                to=to,
+                title=intro or "Escolha uma opção:",
+                buttons=[{"id": b["id"], "label": b["label"]} for b in buttons_list],
+            )
+            if result.get("error"):
+                print(f"⚠️ Chatbot: botões nativos falharam ({result.get('status')}: {str(result.get('error'))[:80]}) — fallback pro numerado")
+            else:
+                print(f"💬 Chatbot: botões nativos enviados ({len(buttons_list)} opções)")
+                sent_native = True
+                # Registra mensagem no banco
+                msg = Message(
+                    tenant_id=tid,
+                    wa_message_id=f"bot_{uuid.uuid4().hex[:16]}",
+                    contact_wa_id=to,
+                    channel_id=channel.id,
+                    direction="outbound",
+                    message_type="text",
+                    content=format_buttons_as_text(intro, buttons_list),
+                    timestamp=datetime.now(SP_TZ).replace(tzinfo=None),
+                    status="sent",
+                    sent_by_ai=False,
+                )
+                db.add(msg)
+
+        if not sent_native:
+            rendered = format_buttons_as_text(intro, buttons_list)
+            await _send_text(channel, to, rendered, tid, db)
+
         await db.commit()
         return None, True
 
@@ -557,6 +592,35 @@ async def _execute_node(
         print(f"⏸️ Chatbot: sessão {session.id} aguardando {amount}{unit[0]} (retoma {resume.resume_at.isoformat()})")
         return None, True
 
+    if nt == "transfer_to_agent":
+        node_data = node.get("data") or {}
+        timeout_minutes = int(node_data.get("timeout_minutes", 60))
+
+        # Coletar variáveis do workflow pra passar como contexto ao agente
+        variables = dict(session.variables or {})
+
+        # Ativar takeover no contato
+        contact.ai_active = True
+        contact.ai_takeover_active = True
+        contact.ai_takeover_started_at = datetime.utcnow()
+        contact.ai_takeover_last_activity = datetime.utcnow()
+        contact.ai_takeover_timeout_minutes = timeout_minutes
+        contact.ai_takeover_context = variables
+
+        # Encerrar sessão do workflow
+        session.status = "completed"
+        session.completed_at = datetime.utcnow()
+
+        await db.commit()
+
+        print(
+            f"🤖→🧠 Handoff ativado: contato={contact.wa_id} "
+            f"timeout={timeout_minutes}min "
+            f"variaveis={list(variables.keys())}"
+        )
+
+        return None, False
+
     if nt == "end":
         return None, False
 
@@ -654,8 +718,110 @@ async def handle_inbound_message(
 
     graph = flow.published_graph or {"nodes": [], "edges": []}
 
-    # SEM sessão ativa → achar trigger e iniciar
+    # SEM sessão ativa → verificar re-engajamento antes de criar nova sessão
     if session is None:
+        # Re-engajamento: sessão recente finalizada nas últimas 24h?
+        recent_cutoff = datetime.utcnow() - timedelta(hours=SESSION_TIMEOUT_HOURS)
+        recent_res = await db.execute(
+            select(ChatbotSession).where(
+                ChatbotSession.contact_wa_id == contact_wa_id,
+                ChatbotSession.channel_id == channel.id,
+                ChatbotSession.status.in_(["completed", "cancelled", "timeout"]),
+                ChatbotSession.last_interaction_at >= recent_cutoff,
+            ).order_by(ChatbotSession.id.desc()).limit(1)
+        )
+        recent_session = recent_res.scalar_one_or_none()
+
+        if recent_session is not None:
+            print(f"🔁 Chatbot re-engajamento: contato {contact_wa_id} já tem sessão recente "
+                  f"(id={recent_session.id}, status={recent_session.status}) — encaminhando pro humano")
+            msg = "Olá! 👋 Nossa equipe já foi notificada e vai te atender em breve."
+            await _send_text(channel, contact_wa_id, msg, tenant_id, db)
+
+            assigned = contact.assigned_to
+            if not assigned:
+                admin_res = await db.execute(
+                    select(User).where(User.tenant_id == tenant_id).limit(1)
+                )
+                admin = admin_res.scalar_one_or_none()
+                assigned = admin.id if admin else None
+
+            if assigned:
+                task = Task(
+                    tenant_id=tenant_id,
+                    title=f"Re-contato de {contact.name or contact_wa_id}"[:255],
+                    description=f"Cliente mandou nova mensagem após sessão anterior ({recent_session.status}). Mensagem: {message_text[:200]}",
+                    type="chatbot_handoff",
+                    priority="alta",
+                    due_date=datetime.utcnow().strftime("%Y-%m-%d"),
+                    status="pending",
+                    contact_wa_id=contact.wa_id,
+                    assigned_to=assigned,
+                    created_by=assigned,
+                )
+                db.add(task)
+
+            contact.ai_active = False
+            await db.commit()
+            print(f"✅ Task de re-engajamento criada para contato {contact_wa_id}")
+            return
+
+        # Re-engajamento: sessão em waiting (delay)?
+        waiting_res = await db.execute(
+            select(ChatbotSession).where(
+                ChatbotSession.contact_wa_id == contact_wa_id,
+                ChatbotSession.channel_id == channel.id,
+                ChatbotSession.status == "waiting",
+            ).order_by(ChatbotSession.id.desc()).limit(1)
+        )
+        waiting_session = waiting_res.scalar_one_or_none()
+
+        if waiting_session is not None:
+            print(f"🔁 Chatbot: contato mandou mensagem durante waiting "
+                  f"(sessão {waiting_session.id}) — cancelando e encaminhando pro humano")
+            msg = "Olá! 👋 Nossa equipe já foi notificada e vai te atender em breve."
+            await _send_text(channel, contact_wa_id, msg, tenant_id, db)
+
+            waiting_session.status = "cancelled"
+            waiting_session.completed_at = datetime.utcnow()
+            rres = await db.execute(
+                select(ChatbotScheduledResume).where(
+                    ChatbotScheduledResume.session_id == waiting_session.id,
+                    ChatbotScheduledResume.status == "pending",
+                )
+            )
+            for r in rres.scalars().all():
+                r.status = "cancelled"
+                r.processed_at = datetime.utcnow()
+
+            assigned = contact.assigned_to
+            if not assigned:
+                admin_res = await db.execute(
+                    select(User).where(User.tenant_id == tenant_id).limit(1)
+                )
+                admin = admin_res.scalar_one_or_none()
+                assigned = admin.id if admin else None
+
+            if assigned:
+                task = Task(
+                    tenant_id=tenant_id,
+                    title=f"Re-contato durante espera: {contact.name or contact_wa_id}"[:255],
+                    description=f"Cliente respondeu durante waiting do chatbot. Mensagem: {message_text[:200]}",
+                    type="chatbot_handoff",
+                    priority="alta",
+                    due_date=datetime.utcnow().strftime("%Y-%m-%d"),
+                    status="pending",
+                    contact_wa_id=contact.wa_id,
+                    assigned_to=assigned,
+                    created_by=assigned,
+                )
+                db.add(task)
+
+            contact.ai_active = False
+            await db.commit()
+            return
+
+        # Novo contato ou sessão antiga: procura trigger normalmente
         trigger = find_trigger_node(graph, message_text)
         if not trigger:
             return

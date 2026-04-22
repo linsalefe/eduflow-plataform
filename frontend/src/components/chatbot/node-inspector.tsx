@@ -1,6 +1,8 @@
 'use client';
 
-import { Trash2, Plus, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Trash2, Plus, X, AlertTriangle, ArrowRight } from 'lucide-react';
 import { type Node } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +12,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { NODE_META, type NodeKind } from './node-catalog';
+import api from '@/lib/api';
+import { getAgentIcon } from '@/lib/agent-icons';
 
 export interface KanbanCol { key: string; label: string; }
 export interface UserOpt { id: number; name: string; }
@@ -27,9 +31,10 @@ interface InspectorProps {
   kanbanColumns: KanbanCol[];  // fallback/compat
   users: UserOpt[];
   pipelines: PipelineOpt[];
+  channelId?: number | null;
 }
 
-export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, pipelines }: InspectorProps) {
+export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, pipelines, channelId }: InspectorProps) {
   const kind = (node.type || 'message') as NodeKind;
   const meta = NODE_META[kind];
   const data = (node.data || {}) as Record<string, any>;
@@ -61,6 +66,7 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
         {kind === 'delay' && <DelayForm data={data} update={update} />}
         {kind === 'http_request' && <HttpRequestForm data={data} update={update} />}
         {kind === 'webhook_out' && <WebhookOutForm data={data} update={update} />}
+        {kind === 'transfer_to_agent' && <TransferToAgentForm data={data} update={update} channelId={channelId} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -165,6 +171,24 @@ function ButtonsForm({ data, update }: { data: any; update: (p: any) => void }) 
       <div className="space-y-2">
         <Label htmlFor="cap">Guardar escolha em (opcional)</Label>
         <Input id="cap" value={data.capture_to || ''} onChange={(e) => update({ capture_to: e.target.value })} placeholder="ex: opcao_escolhida" />
+      </div>
+      <div className="space-y-2">
+        <Label>Modo de exibição</Label>
+        <Select
+          value={data.display_mode || 'native'}
+          onValueChange={(v) => update({ display_mode: v })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="native">Botões interativos (WhatsApp)</SelectItem>
+            <SelectItem value="numbered">Lista numerada (compatível com todos)</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {(data.display_mode || 'native') === 'native'
+            ? 'Usa botões clicáveis do WhatsApp. Se falhar ou tiver mais de 3 opções, cai automaticamente pra lista numerada.'
+            : 'Envia sempre texto numerado. Funciona em qualquer versão do WhatsApp, inclusive grupos.'}
+        </p>
       </div>
     </>
   );
@@ -643,6 +667,106 @@ function WebhookOutForm({ data, update }: { data: any; update: (p: any) => void 
   );
 }
 
+
+// ============================================================
+// TRANSFER TO AGENT
+// ============================================================
+function TransferToAgentForm({ data, update, channelId }: { data: any; update: (p: any) => void; channelId?: number | null }) {
+  return (
+    <>
+      <AgentPreviewForChannel channelId={channelId} />
+
+      <div className="space-y-2">
+        <Label>Tempo de atuação do agente</Label>
+        <div className="flex items-center gap-2 mt-1">
+          <Input
+            type="number"
+            min={1}
+            max={1440}
+            value={data.timeout_minutes ?? 60}
+            onChange={(e) => update({ timeout_minutes: Math.max(1, parseInt(e.target.value) || 60) })}
+            className="w-24 font-mono"
+          />
+          <span className="text-sm text-muted-foreground">minutos sem resposta</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Após esse tempo sem mensagem do lead, o agente desativa e a próxima mensagem volta para o workflow.
+        </p>
+      </div>
+
+      <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md border">
+        <p className="font-medium text-foreground mb-1">Como funciona</p>
+        <ul className="space-y-1 list-disc list-inside">
+          <li>Ao executar este nó, o workflow encerra</li>
+          <li>O agente assume o atendimento imediatamente</li>
+          <li>Variáveis coletadas no workflow ficam disponíveis para o agente</li>
+          <li>Você pode desligar o agente a qualquer momento pela conversa</li>
+        </ul>
+      </div>
+    </>
+  );
+}
+
+function AgentPreviewForChannel({ channelId }: { channelId?: number | null }) {
+  const [agent, setAgent] = useState<{ id: number; name: string; icon: string; is_enabled: boolean } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!channelId) {
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await api.get('/agents');
+        const found = res.data.find((a: any) => a.channel_id === channelId);
+        setAgent(found ?? null);
+      } catch {
+        setAgent(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [channelId]);
+
+  if (loading) {
+    return <div className="h-16 rounded-md bg-muted/50 animate-pulse" />;
+  }
+
+  if (!agent) {
+    return (
+      <div className="flex items-start gap-3 p-3 rounded-md border border-warning/30 bg-warning/10">
+        <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-foreground">Canal sem agente associado</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Este workflow não vai conseguir transferir o atendimento.
+          </p>
+          <Link href="/agents" className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2 font-medium">
+            Configurar agente agora <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const Icon = getAgentIcon(agent.icon);
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/30">
+      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-muted-foreground">Agente que vai assumir</p>
+        <p className="text-sm font-medium text-foreground truncate">{agent.name}</p>
+      </div>
+      {!agent.is_enabled && (
+        <span className="text-xs text-warning font-medium">Desativado</span>
+      )}
+    </div>
+  );
+}
 
 // ============================================================
 // Componente reusável: Pipeline + Stage em cascata

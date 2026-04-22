@@ -185,6 +185,7 @@ async def process_message(
     db: AsyncSession,
     tenant_id: int = None,
     input_message_type: str = "text",
+    extra_context: dict | None = None,
 ) -> dict:
     """Processa mensagem do lead e gera resposta da IA."""
 
@@ -209,6 +210,17 @@ async def process_message(
         print(f"⚠️ Sem prompt configurado para canal {channel_id}. IA não vai responder.")
         return {"message": "", "collected": {}, "action": "continue"}
     system_prompt = ai_config.system_prompt
+
+    # Contexto capturado no workflow (handoff)
+    if extra_context:
+        lines = ["\n\nINFORMAÇÕES JÁ COLETADAS DESTE CONTATO:"]
+        for key, value in extra_context.items():
+            if value is None or value == "":
+                continue
+            lines.append(f"- {key}: {value}")
+        lines.append("\nUse essas informações sem pedir pro cliente repetir.")
+        system_prompt = (system_prompt or "") + "\n".join(lines)
+
     model = (ai_config.model or "gpt-4.1") if ai_config else "gpt-4.1"
     temperature = float((ai_config.temperature or "0.3")) if ai_config else 0.3
     max_tokens = (ai_config.max_tokens or 300) if ai_config else 300
