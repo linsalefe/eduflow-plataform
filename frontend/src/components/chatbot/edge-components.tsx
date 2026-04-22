@@ -23,6 +23,7 @@ const SOURCE_COLOR: Record<NodeKind, string> = {
   end: '#6b7280',
   http_request: '#0ea5e9',
   webhook_out: '#d946ef',
+  transfer_to_agent: '#a855f7',
 };
 
 function CustomEdge(props: EdgeProps) {
