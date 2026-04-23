@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Users, UserPlus, MessageCircle, CheckCircle, XCircle,
   RefreshCw, Search, Sparkles, FileText, Settings2,
   GripVertical, Trash2, Plus, X, Save, AlertTriangle, Loader2,
-  MoreVertical,
+  MoreVertical, Check, Tag as TagIcon,
 } from 'lucide-react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
@@ -68,6 +68,30 @@ const PRESET_COLORS = [
   '#f97316', '#84cc16', '#14b8a6', '#64748b',
 ];
 
+// === Filter types & constants ===
+type IAFilter = 'all' | 'on' | 'off';
+type PeriodFilter = 'all' | 'today' | '7d' | '30d';
+
+interface FilterState {
+  tagIds: number[];
+  channelId: number | null;
+  aiStatus: IAFilter;
+  period: PeriodFilter;
+}
+
+interface ChannelOption {
+  id: number;
+  name: string;
+}
+
+const FILTERS_STORAGE_KEY = 'eduflow:pipeline:filters';
+const DEFAULT_FILTERS: FilterState = {
+  tagIds: [],
+  channelId: null,
+  aiStatus: 'all',
+  period: 'all',
+};
+
 export default function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
@@ -88,6 +112,11 @@ export default function PipelinePage() {
   const [newPipelineName, setNewPipelineName] = useState('');
   const [savingPipeline, setSavingPipeline] = useState(false);
   const [showPipelineMenu, setShowPipelineMenu] = useState(false);
+
+  // === Filtros ===
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [channels, setChannels] = useState<ChannelOption[]>([]);
+  const [tagsDropdownOpen, setTagsDropdownOpen] = useState(false);
 
   const loadLeads = useCallback(async () => {
     try {
@@ -141,6 +170,36 @@ export default function PipelinePage() {
     const interval = setInterval(loadLeads, 15000);
     return () => clearInterval(interval);
   }, [loadLeads]);
+
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setFilters({ ...DEFAULT_FILTERS, ...parsed });
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  // Persist filters to localStorage on change
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+      // ignore quota errors
+    }
+  }, [filters]);
+
+  // Load channels for filter dropdown
+  useEffect(() => {
+    api
+      .get('/channels')
+      .then((res) => setChannels(res.data || []))
+      .catch(() => setChannels([]));
+  }, []);
 
   const switchPipeline = (pipeline: PipelineInfo) => {
     setActivePipeline(pipeline);
@@ -222,21 +281,69 @@ export default function PipelinePage() {
     }
   };
 
-  const getLeadsByStatus = (status: string) =>
-    leads
-      .filter((l) => l.lead_status === status)
-      .filter((l) => {
-        if (!search) return true;
-        const s = search.toLowerCase();
-        return (l.name || '').toLowerCase().includes(s) || l.wa_id.includes(s);
+  // === Filtros derivados ===
+  const availableTags = useMemo(() => {
+    const map = new Map<number, { id: number; name: string; color: string }>();
+    leads.forEach((l) => {
+      (l.tags || []).forEach((t) => {
+        if (!map.has(t.id)) map.set(t.id, t);
       });
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [leads]);
 
-  const totalFiltered = search
-    ? leads.filter((l) => {
+  const periodMs = (period: PeriodFilter): number | null => {
+    switch (period) {
+      case 'today': return 24 * 60 * 60 * 1000;
+      case '7d': return 7 * 24 * 60 * 60 * 1000;
+      case '30d': return 30 * 24 * 60 * 60 * 1000;
+      default: return null;
+    }
+  };
+
+  const matchesFilters = useCallback(
+    (lead: Lead): boolean => {
+      // Search (nome ou wa_id)
+      if (search) {
         const s = search.toLowerCase();
-        return (l.name || '').toLowerCase().includes(s) || l.wa_id.includes(s);
-      }).length
-    : leads.length;
+        const inName = (lead.name || '').toLowerCase().includes(s);
+        const inWa = lead.wa_id.includes(s);
+        if (!inName && !inWa) return false;
+      }
+      // Tags (lógica OR)
+      if (filters.tagIds.length > 0) {
+        const leadTagIds = new Set((lead.tags || []).map((t) => t.id));
+        const hasAny = filters.tagIds.some((id) => leadTagIds.has(id));
+        if (!hasAny) return false;
+      }
+      // Canal
+      if (filters.channelId !== null && lead.channel_id !== filters.channelId) return false;
+      // IA
+      if (filters.aiStatus === 'on' && !lead.ai_active) return false;
+      if (filters.aiStatus === 'off' && lead.ai_active) return false;
+      // Período (created_at)
+      const ms = periodMs(filters.period);
+      if (ms !== null && lead.created_at) {
+        const created = new Date(lead.created_at).getTime();
+        if (Date.now() - created > ms) return false;
+      }
+      return true;
+    },
+    [search, filters]
+  );
+
+  const getLeadsByStatus = (status: string) =>
+    leads.filter((l) => l.lead_status === status).filter(matchesFilters);
+
+  const totalFiltered = leads.filter(matchesFilters).length;
+
+  const activeFilterCount =
+    filters.tagIds.length +
+    (filters.channelId !== null ? 1 : 0) +
+    (filters.aiStatus !== 'all' ? 1 : 0) +
+    (filters.period !== 'all' ? 1 : 0);
+
+  const clearFilters = () => setFilters(DEFAULT_FILTERS);
 
   return (
     <AppShell>
@@ -366,6 +473,132 @@ export default function PipelinePage() {
               )}
             </div>
           )}
+
+          {/* Filter Bar */}
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-border">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">
+              Filtros
+            </span>
+
+            {/* Tags multi-select */}
+            <div className="relative">
+              <button
+                onClick={() => setTagsDropdownOpen(!tagsDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] border border-border bg-card hover:bg-muted transition-colors"
+              >
+                <TagIcon className="w-3.5 h-3.5" />
+                Tags
+                {filters.tagIds.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-1">
+                    {filters.tagIds.length}
+                  </Badge>
+                )}
+              </button>
+              {tagsDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setTagsDropdownOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-border py-1 w-56 max-h-64 overflow-y-auto">
+                    {availableTags.length === 0 ? (
+                      <div className="px-3 py-2 text-[12px] text-muted-foreground">
+                        Nenhuma tag disponível
+                      </div>
+                    ) : (
+                      availableTags.map((tag) => {
+                        const checked = filters.tagIds.includes(tag.id);
+                        return (
+                          <button
+                            key={tag.id}
+                            onClick={() =>
+                              setFilters((prev) => ({
+                                ...prev,
+                                tagIds: checked
+                                  ? prev.tagIds.filter((id) => id !== tag.id)
+                                  : [...prev.tagIds, tag.id],
+                              }))
+                            }
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] hover:bg-muted transition-colors"
+                          >
+                            <div
+                              className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                checked ? 'bg-primary border-primary' : 'border-border'
+                              }`}
+                            >
+                              {checked && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="flex-1 truncate">{tag.name}</span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Canal */}
+            <select
+              value={filters.channelId ?? ''}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  channelId: e.target.value ? parseInt(e.target.value) : null,
+                }))
+              }
+              className="px-3 py-1.5 rounded-lg text-[12px] border border-border bg-card hover:bg-muted transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">Todos os canais</option>
+              {channels.map((ch) => (
+                <option key={ch.id} value={ch.id}>{ch.name}</option>
+              ))}
+            </select>
+
+            {/* IA */}
+            <select
+              value={filters.aiStatus}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  aiStatus: e.target.value as IAFilter,
+                }))
+              }
+              className="px-3 py-1.5 rounded-lg text-[12px] border border-border bg-card hover:bg-muted transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">IA: Todos</option>
+              <option value="on">IA: Ativa</option>
+              <option value="off">IA: Inativa</option>
+            </select>
+
+            {/* Período */}
+            <select
+              value={filters.period}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  period: e.target.value as PeriodFilter,
+                }))
+              }
+              className="px-3 py-1.5 rounded-lg text-[12px] border border-border bg-card hover:bg-muted transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="all">Período: Todos</option>
+              <option value="today">Hoje</option>
+              <option value="7d">Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+            </select>
+
+            {/* Clear */}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[12px] text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors ml-auto"
+              >
+                <X className="w-3.5 h-3.5" />
+                Limpar ({activeFilterCount})
+              </button>
+            )}
+          </div>
 
         </div>
 
