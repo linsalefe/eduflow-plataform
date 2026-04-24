@@ -324,6 +324,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         import uuid
         msg_id = result.get("message_id", str(uuid.uuid4()))
 
+        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to))
         contact = contact_result.scalar_one_or_none()
         if not contact:
@@ -356,6 +357,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         wa_id = req.to.replace("+", "").replace("-", "").replace(" ", "")
         msg_id = result.get("key", {}).get("id", str(uuid.uuid4()))
 
+        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
@@ -383,6 +385,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
     result = await send_text_message(req.to, req.text, channel.phone_number_id, channel.whatsapp_token)
     if "messages" in result:
         wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
+        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
@@ -413,6 +416,7 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
     if "messages" in result:
         wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
 
+        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
         contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
@@ -493,6 +497,7 @@ async def send_media(
     if isinstance(result, dict):
         msg_id = result.get("key", {}).get("id", msg_id)
 
+    # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
     contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
     contact = contact_result.scalar_one_or_none()
     if not contact:
@@ -632,6 +637,7 @@ async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_i
     phone = req.get("phone", "").replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
     if not phone.startswith("55"):
         phone = "55" + phone
+    # wa_id tem UNIQUE constraint global — buscar sem tenant_id
     existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
     if existing.scalar_one_or_none():
         raise HTTPException(400, "Contato já existe com esse telefone")
@@ -685,6 +691,7 @@ async def import_contacts(file: UploadFile = File(...), db: AsyncSession = Depen
             continue
         if not phone.startswith('55'):
             phone = '55' + phone
+        # wa_id tem UNIQUE constraint global — buscar sem tenant_id
         existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
         if existing.scalar_one_or_none():
             continue

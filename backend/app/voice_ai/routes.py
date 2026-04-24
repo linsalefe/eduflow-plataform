@@ -96,7 +96,7 @@ async def receive_new_lead(data: NewLeadRequest, db: AsyncSession = Depends(get_
         phone = "55" + phone
     to_number = f"+{phone}"
 
-    # Buscar/criar contato
+    # Buscar/criar contato — wa_id tem UNIQUE constraint global
     result = await db.execute(select(Contact).where(Contact.wa_id == phone))
     contact = result.scalar_one_or_none()
     if not contact:
@@ -706,7 +706,7 @@ async def create_script(data: ScriptCreateRequest, current_user=Depends(get_curr
 async def manual_call(data: ManualCallRequest, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """Dispara chamada IA manualmente para um contato existente."""
     result = await db.execute(
-        select(Contact).where(Contact.wa_id == data.contact_wa_id)
+        select(Contact).where(Contact.wa_id == data.contact_wa_id, Contact.tenant_id == current_user.tenant_id)
     )
     contact = result.scalar_one_or_none()
     if not contact:

@@ -118,7 +118,7 @@ async def move_card(card_id: int, req: MoveCardRequest, db: AsyncSession = Depen
     if req.status == "aguardando_humano":
         card.human_took_over = True
         contact_result = await db.execute(
-            select(Contact).where(Contact.wa_id == card.contact_wa_id)
+            select(Contact).where(Contact.wa_id == card.contact_wa_id, Contact.tenant_id == tenant_id)
         )
         contact = contact_result.scalar_one_or_none()
         if contact:
@@ -157,7 +157,7 @@ async def generate_summary(card_id: int, db: AsyncSession = Depends(get_db), ten
     if not card:
         raise HTTPException(status_code=404, detail="Card nao encontrado")
 
-    summary = await generate_conversation_summary(card.contact_wa_id, db)
+    summary = await generate_conversation_summary(card.contact_wa_id, db, tenant_id=tenant_id)
 
     if summary:
         card.summary = summary

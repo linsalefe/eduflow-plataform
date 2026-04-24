@@ -41,7 +41,7 @@ async def get_ai_config(channel_id: int, db: AsyncSession) -> AIConfig | None:
     return result.scalar_one_or_none()
 
 
-async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSession) -> int | None:
+async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSession, tenant_id: int = None) -> int | None:
     """Busca channel_id pelo instance_name ou pelo contato."""
     ch_result = await db.execute(
         select(Channel).where(Channel.instance_name == instance_name)
@@ -50,9 +50,10 @@ async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSe
     if channel:
         return channel.id
 
-    c_result = await db.execute(
-        select(Contact).where(Contact.wa_id == wa_id)
-    )
+    _cq = select(Contact).where(Contact.wa_id == wa_id)
+    if tenant_id:
+        _cq = _cq.where(Contact.tenant_id == tenant_id)
+    c_result = await db.execute(_cq)
     contact = c_result.scalar_one_or_none()
     return contact.channel_id if contact else None
 
@@ -190,9 +191,10 @@ async def process_message(
     """Processa mensagem do lead e gera resposta da IA."""
 
     # Buscar contato
-    contact_result = await db.execute(
-        select(Contact).where(Contact.wa_id == wa_id)
-    )
+    _contact_q = select(Contact).where(Contact.wa_id == wa_id)
+    if tenant_id:
+        _contact_q = _contact_q.where(Contact.tenant_id == tenant_id)
+    contact_result = await db.execute(_contact_q)
     contact = contact_result.scalar_one_or_none()
 
     # Curso do lead

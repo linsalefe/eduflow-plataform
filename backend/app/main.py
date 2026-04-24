@@ -127,7 +127,7 @@ async def scheduler_job():
                         from app.models import Contact, Channel
                         from app.evolution.client import send_text
                         lead_result = await db.execute(
-                            select(Contact).where(Contact.wa_id == s.contact_wa_id)
+                            select(Contact).where(Contact.wa_id == s.contact_wa_id, Contact.tenant_id == s.tenant_id)
                         )
                         lead = lead_result.scalar_one_or_none()
                         if lead:
@@ -165,7 +165,7 @@ async def scheduler_job():
                         from app.agents.briefing.agent import BriefingAgent
                         from app.models import Contact
                         lead_result = await db.execute(
-                            select(Contact).where(Contact.wa_id == s.contact_wa_id)
+                            select(Contact).where(Contact.wa_id == s.contact_wa_id, Contact.tenant_id == s.tenant_id)
                         )
                         lead = lead_result.scalar_one_or_none()
                         if lead:
@@ -299,6 +299,8 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 wa_id = contact_data["wa_id"]
                 name = contact_data.get("profile", {}).get("name", "")
 
+                # wa_id tem UNIQUE constraint global — buscar sem tenant_id
+                # (será escoped por tenant na Fase D quando UNIQUE mudar pra wa_id+tenant_id)
                 result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
                 contact = result.scalar_one_or_none()
 
@@ -531,11 +533,9 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
             ig_sender_id = f"ig_{sender_id}"
 
             # Criar ou atualizar contato
+            # wa_id tem UNIQUE constraint global — buscar sem tenant_id
             contact_result = await db.execute(
-                select(Contact).where(
-                    Contact.wa_id == ig_sender_id,
-                    Contact.tenant_id == channel.tenant_id,
-                )
+                select(Contact).where(Contact.wa_id == ig_sender_id)
             )
             contact = contact_result.scalar_one_or_none()
 

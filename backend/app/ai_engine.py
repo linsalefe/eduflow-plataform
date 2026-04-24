@@ -9,7 +9,7 @@ import tiktoken
 from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models import KnowledgeDocument, AIConfig, Message, AIConversationSummary, Contact as ContactModel
+from app.models import KnowledgeDocument, AIConfig, Message, AIConversationSummary, Contact as ContactModel, Channel
 from app.openai_usage import log_openai_usage
 
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -178,9 +178,12 @@ async def generate_ai_response(
 
     # 1.5 Buscar nome e curso do lead
     from app.models import Contact, AIConversationSummary
-    contact_result = await db.execute(
-        select(Contact).where(Contact.wa_id == contact_wa_id)
-    )
+    _ch_tid_result = await db.execute(select(Channel.tenant_id).where(Channel.id == channel_id))
+    _ch_tenant_id = _ch_tid_result.scalar()
+    _contact_q = select(Contact).where(Contact.wa_id == contact_wa_id)
+    if _ch_tenant_id:
+        _contact_q = _contact_q.where(Contact.tenant_id == _ch_tenant_id)
+    contact_result = await db.execute(_contact_q)
     contact = contact_result.scalar_one_or_none()
     lead_name = contact.name if contact and contact.name else ""
     
@@ -245,20 +248,13 @@ async def generate_ai_response(
             model=model,
             messages=messages,
 
-            max_completion_tokens=max_tokens,
+            max_completion_tokens=max(max_tokens, 2048),
         )
         await log_openai_usage(db, tenant_id=ai_config.tenant_id, module="rag", model=model, response=response)
         ai_response = response.choices[0].message.content
         if not ai_response:
-            messages.append({"role": "assistant", "content": ""})
-            messages.append({"role": "user", "content": "Por favor, continue o atendimento."})
-            retry = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-                max_completion_tokens=max_tokens,
-            )
-            await log_openai_usage(db, tenant_id=ai_config.tenant_id, module="rag", model="gpt-4o-mini", response=retry)
-            ai_response = retry.choices[0].message.content or "Desculpe, não consegui processar. Um momento que vou transferir para nossa consultora."
+            print(f"⚠️ Resposta vazia do modelo {model} mesmo com max_completion_tokens={max(max_tokens, 2048)} | contact={contact_wa_id} | finish_reason={response.choices[0].finish_reason}")
+            ai_response = "Desculpe, não consegui processar. Um momento que vou transferir para nossa consultora."
         # Detectar agendamento e criar evento no Google Calendar
         try:
             from app.google_calendar import detect_and_create_event
@@ -279,7 +275,7 @@ async def generate_ai_response(
 
 # === Resumo da Conversa ===
 
-async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) -> str | None:
+async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession, tenant_id: int = None) -> str | None:
     """Gera um resumo da conversa para o Kanban."""
     history = await get_conversation_history(contact_wa_id, db, limit=30)
 
@@ -287,7 +283,10 @@ async def generate_conversation_summary(contact_wa_id: str, db: AsyncSession) ->
         return None
 
     # Resolve tenant_id for usage tracking
-    _c = (await db.execute(select(ContactModel).where(ContactModel.wa_id == contact_wa_id))).scalar_one_or_none()
+    _cq = select(ContactModel).where(ContactModel.wa_id == contact_wa_id)
+    if tenant_id:
+        _cq = _cq.where(ContactModel.tenant_id == tenant_id)
+    _c = (await db.execute(_cq)).scalar_one_or_none()
     _tid = _c.tenant_id if _c else 0
 
     conversation_text = "\n".join([

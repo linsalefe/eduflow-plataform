@@ -241,7 +241,7 @@ async def get_flow_queue(
     history = history_result.scalars().all()
 
     async def enrich(ex):
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == ex.contact_wa_id))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == ex.contact_wa_id, Contact.tenant_id == tenant_id))
         contact = contact_result.scalar_one_or_none()
         return {
             "contact_wa_id": ex.contact_wa_id,

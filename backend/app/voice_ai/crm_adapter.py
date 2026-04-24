@@ -30,7 +30,7 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
     # === 1. Atualizar Contact interno ===
     if call.contact_wa_id:
         result = await db.execute(
-            select(Contact).where(Contact.wa_id == call.contact_wa_id)
+            select(Contact).where(Contact.wa_id == call.contact_wa_id, Contact.tenant_id == call.tenant_id)
         )
         contact = result.scalar_one_or_none()
 

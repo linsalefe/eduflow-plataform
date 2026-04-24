@@ -160,7 +160,7 @@ async def list_submissions(page_id: int, db: AsyncSession = Depends(get_db), use
             if not phone_clean.startswith("55"):
                 phone_clean = "55" + phone_clean
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id == phone_clean)
+                select(Contact).where(Contact.wa_id == phone_clean, Contact.tenant_id == tenant_id)
             )
             contact = contact_result.scalar_one_or_none()
 

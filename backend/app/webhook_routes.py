@@ -182,6 +182,7 @@ async def receive_external_lead(
         phone = "55" + phone
 
     # Criar ou atualizar contato
+    # wa_id tem UNIQUE constraint global — buscar sem tenant_id em endpoints de criação
     existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
     contact = existing.scalar_one_or_none()
 
