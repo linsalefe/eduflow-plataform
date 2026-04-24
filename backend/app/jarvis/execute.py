@@ -150,18 +150,18 @@ async def get_stale_leads(args: dict, tenant_id: int, db: AsyncSession) -> dict:
     # Subquery: última mensagem de cada contato
     last_msg_sub = (
         select(
-            Message.contact_wa_id,
+            Message.contact_id,
             func.max(Message.timestamp).label("last_message")
         )
-        .where(Message.tenant_id == tenant_id)
-        .group_by(Message.contact_wa_id)
+        .where(Message.tenant_id == tenant_id, Message.contact_id.isnot(None))
+        .group_by(Message.contact_id)
         .subquery()
     )
 
     # Contacts cuja última mensagem é anterior ao cutoff
     result = await db.execute(
         select(Contact.name, Contact.wa_id, last_msg_sub.c.last_message)
-        .join(last_msg_sub, Contact.wa_id == last_msg_sub.c.contact_wa_id)
+        .join(last_msg_sub, Contact.id == last_msg_sub.c.contact_id)
         .where(Contact.tenant_id == tenant_id)
         .where(Contact.lead_status.notin_(["matriculado", "perdido"]))
         .where(last_msg_sub.c.last_message < cutoff)

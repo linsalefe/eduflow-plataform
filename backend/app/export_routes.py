@@ -96,8 +96,9 @@ async def export_contacts(
 
     # Buscar tags por contato
     tags_q = await db.execute(
-        select(contact_tags.c.contact_wa_id, Tag.name)
+        select(contact_tags.c.contact_id, Tag.name)
         .join(Tag, Tag.id == contact_tags.c.tag_id)
+        .where(contact_tags.c.contact_id.isnot(None))
     )
     tags_map: dict = {}
     for row in tags_q.all():
@@ -106,11 +107,12 @@ async def export_contacts(
     # Buscar contagem de mensagens por contato
     msgs_q = await db.execute(
         select(
-            Message.contact_wa_id,
+            Message.contact_id,
             func.count(Message.id).label("total"),
             func.count(Message.id).filter(Message.direction == "inbound").label("inbound"),
             func.count(Message.id).filter(Message.direction == "outbound").label("outbound"),
-        ).group_by(Message.contact_wa_id)
+        ).where(Message.contact_id.isnot(None))
+        .group_by(Message.contact_id)
     )
     msgs_map = {row[0]: {"total": row[1], "in": row[2], "out": row[3]} for row in msgs_q.all()}
 
@@ -128,8 +130,8 @@ async def export_contacts(
     style_header(ws, headers, col_widths)
 
     for idx, c in enumerate(contacts, 2):
-        msg_data = msgs_map.get(c.wa_id, {"total": 0, "in": 0, "out": 0})
-        contact_tags_list = tags_map.get(c.wa_id, [])
+        msg_data = msgs_map.get(c.id, {"total": 0, "in": 0, "out": 0})
+        contact_tags_list = tags_map.get(c.id, [])
 
         ws.cell(row=idx, column=1, value=c.name or "Sem nome")
         ws.cell(row=idx, column=2, value=c.wa_id)
@@ -284,7 +286,7 @@ async def export_messages(
 
     # Nomes dos contatos
     contacts_q = await db.execute(select(Contact))
-    contacts_map = {c.wa_id: c.name for c in contacts_q.scalars().all()}
+    contacts_map = {c.id: c.name for c in contacts_q.scalars().all()}
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -300,7 +302,7 @@ async def export_messages(
             content = f"[{m.message_type or 'mídia'}]"
 
         ws.cell(row=idx, column=1, value=m.timestamp.strftime("%d/%m/%Y %H:%M") if m.timestamp else "\u2014")
-        ws.cell(row=idx, column=2, value=contacts_map.get(m.contact_wa_id, "Desconhecido"))
+        ws.cell(row=idx, column=2, value=contacts_map.get(m.contact_id, "Desconhecido"))
         ws.cell(row=idx, column=3, value=m.contact_wa_id)
         ws.cell(row=idx, column=4, value="Recebida" if m.direction == "inbound" else "Enviada")
         ws.cell(row=idx, column=5, value=m.message_type or "text")
@@ -327,7 +329,7 @@ async def export_messages(
         ("Total de Mensagens", len(messages)),
         ("Recebidas", inbound),
         ("Enviadas", outbound),
-        ("Contatos únicos", len(set(m.contact_wa_id for m in messages))),
+        ("Contatos únicos", len(set(m.contact_id for m in messages if m.contact_id))),
         ("Média por dia", round(len(messages) / max(days, 1), 1)),
     ]
 

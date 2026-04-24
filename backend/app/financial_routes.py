@@ -108,7 +108,7 @@ async def list_entries(
     enriched = []
     for e in entries:
         d = entry_to_dict(e)
-        contact_res = await db.execute(select(Contact.name).where(Contact.wa_id == e.contact_wa_id))
+        contact_res = await db.execute(select(Contact.name).where(Contact.id == e.contact_id)) if e.contact_id else await db.execute(select(Contact.name).where(Contact.wa_id == e.contact_wa_id))
         d["contact_name"] = contact_res.scalar_one_or_none() or e.contact_wa_id
         creator_res = await db.execute(select(User.name).where(User.id == e.created_by))
         d["created_by_name"] = creator_res.scalar_one_or_none() or ""
@@ -239,7 +239,7 @@ async def delete_entry(
         raise HTTPException(status_code=404, detail="Entrada não encontrada")
 
     # Reverter deal_value do contato
-    contact_res = await db.execute(select(Contact).where(Contact.wa_id == entry.contact_wa_id))
+    contact_res = await db.execute(select(Contact).where(Contact.id == entry.contact_id)) if entry.contact_id else await db.execute(select(Contact).where(Contact.wa_id == entry.contact_wa_id))
     contact = contact_res.scalar_one_or_none()
     if contact and contact.deal_value:
         contact.deal_value = max(0, contact.deal_value - entry.value)

@@ -163,6 +163,8 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
 
     # Buscar contato
     contact_result = await db.execute(
+        select(Contact).where(Contact.id == execution.contact_id)
+    ) if execution.contact_id else await db.execute(
         select(Contact).where(Contact.wa_id == execution.contact_wa_id)
     )
     contact = contact_result.scalar_one_or_none()

@@ -118,6 +118,8 @@ async def move_card(card_id: int, req: MoveCardRequest, db: AsyncSession = Depen
     if req.status == "aguardando_humano":
         card.human_took_over = True
         contact_result = await db.execute(
+            select(Contact).where(Contact.id == card.contact_id)
+        ) if card.contact_id else await db.execute(
             select(Contact).where(Contact.wa_id == card.contact_wa_id, Contact.tenant_id == tenant_id)
         )
         contact = contact_result.scalar_one_or_none()

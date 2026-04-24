@@ -968,6 +968,10 @@ async def resume_session_from_node(
     cres = await db.execute(
         select(Contact)
         .options(selectinload(Contact.tags))
+        .where(Contact.id == session.contact_id)
+    ) if session.contact_id else await db.execute(
+        select(Contact)
+        .options(selectinload(Contact.tags))
         .where(
             Contact.wa_id == session.contact_wa_id,
             Contact.tenant_id == session.tenant_id,

@@ -47,7 +47,7 @@ async def _ensure_message_belongs_to_tenant(
 async def _build_fallback_context(
     db: AsyncSession,
     tenant_id: int,
-    contact_wa_id: str,
+    contact_id: int,
     before_message_id: int,
     window: int = 5,
 ) -> list[dict]:
@@ -57,7 +57,7 @@ async def _build_fallback_context(
         .where(
             and_(
                 Message.tenant_id == tenant_id,
-                Message.contact_wa_id == contact_wa_id,
+                Message.contact_id == contact_id,
                 Message.id < before_message_id,
             )
         )
@@ -112,7 +112,7 @@ async def save_feedback(
     # Fallback: deriva contexto se não veio do frontend
     if context_snippet is None or len(context_snippet) == 0:
         context_snippet = await _build_fallback_context(
-            db, tenant_id, msg.contact_wa_id, msg.id
+            db, tenant_id, msg.contact_id, msg.id
         )
 
     # Upsert: busca feedback existente do mesmo user
@@ -153,16 +153,11 @@ async def save_feedback(
             feedback.context_embedding = None  # limpa se rating mudou pra up/down
     else:
         # INSERT
-        # Buscar contact para dual-write
-        _ct = (await db.execute(select(Contact).where(
-            Contact.wa_id == msg.contact_wa_id, Contact.tenant_id == tenant_id,
-        ))).scalar_one_or_none()
-
         feedback = AIFeedback(
             tenant_id=tenant_id,
             message_id=message_id,
             contact_wa_id=msg.contact_wa_id,
-            contact_id=_ct.id if _ct else None,
+            contact_id=msg.contact_id,
             rating=rating,
             reason=reason,
             corrected_response=corrected_response,
@@ -201,7 +196,7 @@ async def list_conversations_with_ai(
     # Subquery: agregado de feedbacks por contato
     fb_agg = (
         select(
-            AIFeedback.contact_wa_id.label("cw"),
+            AIFeedback.contact_id.label("cid"),
             func.count(AIFeedback.id).label("fb_total"),
             func.sum(
                 case((AIFeedback.rating == "up", 1), else_=0)
@@ -213,15 +208,15 @@ async def list_conversations_with_ai(
                 case((AIFeedback.rating == "edit", 1), else_=0)
             ).label("fb_edit"),
         )
-        .where(AIFeedback.tenant_id == tenant_id)
-        .group_by(AIFeedback.contact_wa_id)
+        .where(AIFeedback.tenant_id == tenant_id, AIFeedback.contact_id.isnot(None))
+        .group_by(AIFeedback.contact_id)
         .subquery()
     )
 
     # Conversas com mensagens da IA
     base = (
         select(
-            Message.contact_wa_id.label("wa_id"),
+            Message.contact_id.label("cid"),
             func.max(Message.id).label("last_msg_id"),
             func.max(Message.timestamp).label("last_msg_at"),
             func.count(Message.id).label("ai_msg_count"),
@@ -231,15 +226,16 @@ async def list_conversations_with_ai(
             func.coalesce(fb_agg.c.fb_edit, 0).label("fb_edit"),
         )
         .select_from(Message)
-        .outerjoin(fb_agg, fb_agg.c.cw == Message.contact_wa_id)
+        .outerjoin(fb_agg, fb_agg.c.cid == Message.contact_id)
         .where(
             and_(
                 Message.tenant_id == tenant_id,
                 Message.sent_by_ai == True,  # noqa: E712
+                Message.contact_id.isnot(None),
             )
         )
         .group_by(
-            Message.contact_wa_id,
+            Message.contact_id,
             fb_agg.c.fb_total,
             fb_agg.c.fb_up,
             fb_agg.c.fb_down,
@@ -264,17 +260,12 @@ async def list_conversations_with_ai(
     out = []
     for r in rows:
         c_result = await db.execute(
-            select(Contact).where(
-                and_(
-                    Contact.tenant_id == tenant_id,
-                    Contact.wa_id == r.wa_id,
-                )
-            )
+            select(Contact).where(Contact.id == r.cid)
         )
         contact = c_result.scalar_one_or_none()
         out.append({
-            "contact_wa_id": r.wa_id,
-            "contact_name": contact.name if contact else r.wa_id,
+            "contact_wa_id": contact.wa_id if contact else str(r.cid),
+            "contact_name": contact.name if contact else str(r.cid),
             "profile_picture_url": contact.profile_picture_url if contact else None,
             "last_message_at": r.last_msg_at.isoformat() if r.last_msg_at else None,
             "ai_message_count": int(r.ai_msg_count or 0),

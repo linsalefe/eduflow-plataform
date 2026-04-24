@@ -531,33 +531,34 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
     # Subquery: última mensagem por contato
     latest_msg_sub = (
         select(
-            Message.contact_wa_id,
+            Message.contact_id,
             func.max(Message.timestamp).label("last_ts")
         )
-        .where(Message.tenant_id == tenant_id)
-        .group_by(Message.contact_wa_id)
+        .where(Message.tenant_id == tenant_id, Message.contact_id.isnot(None))
+        .group_by(Message.contact_id)
         .subquery()
     )
 
     # Subquery: unread count por contato
     unread_sub = (
         select(
-            Message.contact_wa_id,
+            Message.contact_id,
             func.count(Message.id).label("unread")
         )
         .where(
             Message.tenant_id == tenant_id,
             Message.direction == "inbound",
-            Message.status == "received"
+            Message.status == "received",
+            Message.contact_id.isnot(None),
         )
-        .group_by(Message.contact_wa_id)
+        .group_by(Message.contact_id)
         .subquery()
     )
 
     # Query principal
     query = (
         select(Contact)
-        .outerjoin(latest_msg_sub, Contact.wa_id == latest_msg_sub.c.contact_wa_id)
+        .outerjoin(latest_msg_sub, Contact.id == latest_msg_sub.c.contact_id)
         .where(Contact.tenant_id == tenant_id)
         .order_by(latest_msg_sub.c.last_ts.desc().nullslast())
     )
@@ -572,46 +573,46 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
     if not contacts:
         return []
 
-    # Buscar todas as wa_ids de uma vez
-    wa_ids = [c.wa_id for c in contacts]
+    # Buscar todos os IDs de uma vez
+    contact_ids = [c.id for c in contacts]
 
     # Batch: última mensagem de todos os contatos (1 query)
     last_msgs_result = await db.execute(
         select(Message)
-        .where(Message.contact_wa_id.in_(wa_ids), Message.tenant_id == tenant_id)
-        .distinct(Message.contact_wa_id)
-        .order_by(Message.contact_wa_id, Message.timestamp.desc())
+        .where(Message.contact_id.in_(contact_ids), Message.tenant_id == tenant_id)
+        .distinct(Message.contact_id)
+        .order_by(Message.contact_id, Message.timestamp.desc())
     )
-    last_msgs = {m.contact_wa_id: m for m in last_msgs_result.scalars().all()}
+    last_msgs = {m.contact_id: m for m in last_msgs_result.scalars().all()}
 
     # Batch: tags de todos os contatos (1 query)
     tag_result = await db.execute(
-        select(Tag, contact_tags.c.contact_wa_id)
+        select(Tag, contact_tags.c.contact_id)
         .join(contact_tags, Tag.id == contact_tags.c.tag_id)
-        .where(contact_tags.c.contact_wa_id.in_(wa_ids))
+        .where(contact_tags.c.contact_id.in_(contact_ids))
     )
     tags_map = {}
     for row in tag_result:
-        tag, wa_id = row
-        tags_map.setdefault(wa_id, []).append({"id": tag.id, "name": tag.name, "color": tag.color})
+        tag, _cid = row
+        tags_map.setdefault(_cid, []).append({"id": tag.id, "name": tag.name, "color": tag.color})
 
     # Batch: unread count de todos os contatos (1 query)
     unread_result = await db.execute(
-        select(Message.contact_wa_id, func.count(Message.id))
+        select(Message.contact_id, func.count(Message.id))
         .where(
-            Message.contact_wa_id.in_(wa_ids),
+            Message.contact_id.in_(contact_ids),
             Message.tenant_id == tenant_id,
             Message.direction == "inbound",
             Message.status == "received"
         )
-        .group_by(Message.contact_wa_id)
+        .group_by(Message.contact_id)
     )
     unread_map = dict(unread_result.all())
 
     # Montar resposta
     contacts_list = []
     for c in contacts:
-        last_msg = last_msgs.get(c.wa_id)
+        last_msg = last_msgs.get(c.id)
         contacts_list.append({
             "id": c.id,
             "wa_id": c.wa_id,
@@ -622,8 +623,8 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "last_message": last_msg.content if last_msg else "",
             "last_message_time": last_msg.timestamp.isoformat() if last_msg else None,
             "direction": last_msg.direction if last_msg else None,
-            "tags": tags_map.get(c.wa_id, []),
-            "unread": unread_map.get(c.wa_id, 0),
+            "tags": tags_map.get(c.id, []),
+            "unread": unread_map.get(c.id, 0),
             "ai_active": c.ai_active or False,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": c.assigned_to,
@@ -720,8 +721,8 @@ async def delete_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_
     if not contact:
         raise HTTPException(404, "Contato não encontrado")
     await db.execute(
-        text("DELETE FROM messages WHERE contact_wa_id = :wa_id AND tenant_id = :tenant_id"),
-        {"wa_id": wa_id, "tenant_id": tenant_id}
+        text("DELETE FROM messages WHERE contact_id = :contact_id AND tenant_id = :tenant_id"),
+        {"contact_id": contact.id, "tenant_id": tenant_id}
     )
     await db.delete(contact)
     await db.commit()
@@ -1308,17 +1309,17 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     agents = []
     for user_id, lead_count in agent_leads.items():
         assigned_contacts_q = await db.execute(
-            select(Contact.wa_id).where(Contact.assigned_to == user_id, *contact_filter)
+            select(Contact.id).where(Contact.assigned_to == user_id, *contact_filter)
         )
-        assigned_wa_ids = [r[0] for r in assigned_contacts_q.all()]
+        assigned_contact_ids = [r[0] for r in assigned_contacts_q.all()]
 
         msg_count = 0
-        if assigned_wa_ids:
+        if assigned_contact_ids:
             mc = await db.execute(
                 select(func.count(Message.id)).where(
                     Message.direction == "outbound",
                     Message.timestamp >= seven_days_ago,
-                    Message.contact_wa_id.in_(assigned_wa_ids),
+                    Message.contact_id.in_(assigned_contact_ids),
                     *message_filter
                 )
             )
@@ -1356,11 +1357,11 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
         select(
             Tag.name,
             Tag.color,
-            func.count(contact_tags.c.contact_wa_id)
+            func.count(contact_tags.c.contact_id)
         ).join(Tag, Tag.id == contact_tags.c.tag_id)
         .where(Tag.tenant_id == tenant_id)
         .group_by(Tag.name, Tag.color)
-        .order_by(func.count(contact_tags.c.contact_wa_id).desc())
+        .order_by(func.count(contact_tags.c.contact_id).desc())
         .limit(8)
     )
     tags_data = [{"name": r[0], "color": r[1], "count": r[2]} for r in tags_q.all()]
@@ -1389,17 +1390,17 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     try:
         from sqlalchemy import and_
         recent_contacts_q = await db.execute(
-            select(Contact.wa_id).where(
+            select(Contact.id).where(
                 Contact.created_at >= seven_days_ago, *contact_filter
             ).limit(50)
         )
-        recent_wa_ids = [r[0] for r in recent_contacts_q.all()]
+        recent_contact_ids = [r[0] for r in recent_contacts_q.all()]
 
         response_times = []
-        for wa_id in recent_wa_ids:
+        for _cid in recent_contact_ids:
             first_in_q = await db.execute(
                 select(Message.timestamp).where(
-                    Message.contact_wa_id == wa_id,
+                    Message.contact_id == _cid,
                     Message.direction == "inbound"
                 ).order_by(Message.timestamp.asc()).limit(1)
             )
@@ -1408,7 +1409,7 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
             if first_in:
                 first_out_q = await db.execute(
                     select(Message.timestamp).where(
-                        Message.contact_wa_id == wa_id,
+                        Message.contact_id == _cid,
                         Message.direction == "outbound",
                         Message.timestamp > first_in
                     ).order_by(Message.timestamp.asc()).limit(1)

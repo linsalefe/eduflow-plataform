@@ -525,14 +525,13 @@ async def list_sessions(
     if not sessions:
         return []
 
-    wa_ids = list({s.contact_wa_id for s in sessions})
+    _contact_ids = list({s.contact_id for s in sessions if s.contact_id})
     contacts_res = await db.execute(
         select(Contact).where(
-            Contact.tenant_id == tenant_id,
-            Contact.wa_id.in_(wa_ids),
+            Contact.id.in_(_contact_ids),
         )
-    )
-    contact_map = {c.wa_id: c for c in contacts_res.scalars().all()}
+    ) if _contact_ids else None
+    contact_map = {c.id: c for c in contacts_res.scalars().all()} if contacts_res else {}
 
     # Para sessões em waiting, buscar o resume_at mais próximo
     next_resume_map: Dict[int, datetime] = {}
@@ -552,8 +551,8 @@ async def list_sessions(
         {
             "id": s.id,
             "contact_wa_id": s.contact_wa_id,
-            "contact_name": (contact_map.get(s.contact_wa_id).name
-                             if contact_map.get(s.contact_wa_id) else None) or s.contact_wa_id,
+            "contact_name": (contact_map.get(s.contact_id).name
+                             if contact_map.get(s.contact_id) else None) or s.contact_wa_id,
             "current_node_id": s.current_node_id,
             "status": s.status,
             "variables": s.variables or {},

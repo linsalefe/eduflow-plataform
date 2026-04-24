@@ -30,6 +30,8 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
     # === 1. Atualizar Contact interno ===
     if call.contact_wa_id:
         result = await db.execute(
+            select(Contact).where(Contact.id == call.contact_id)
+        ) if call.contact_id else await db.execute(
             select(Contact).where(Contact.wa_id == call.contact_wa_id, Contact.tenant_id == call.tenant_id)
         )
         contact = result.scalar_one_or_none()
@@ -62,9 +64,10 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
 
     # === 2. Criar/Atualizar card no Kanban ===
     if call.contact_wa_id:
-        _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_wa_id == call.contact_wa_id)
         if contact:
             _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_id == contact.id)
+        else:
+            _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_wa_id == call.contact_wa_id)
         result = await db.execute(_summary_q)
         summary = result.scalar_one_or_none()
 

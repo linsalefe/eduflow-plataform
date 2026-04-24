@@ -903,6 +903,8 @@ async def _schedule_retry(call_id: int):
         # Criar nova chamada como retry
         # Buscar contact para dual-write
         ct = (await db.execute(select(Contact).where(
+            Contact.id == call.contact_id,
+        ))).scalar_one_or_none() if call.contact_id else (await db.execute(select(Contact).where(
             Contact.wa_id == call.contact_wa_id,
         ))).scalar_one_or_none()
 
