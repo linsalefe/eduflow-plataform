@@ -480,7 +480,10 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Verificar duplicata
                 existing = await db.execute(
-                    select(Message).where(Message.wa_message_id == msg_id)
+                    select(Message).where(
+                        Message.wa_message_id == msg_id,
+                        Message.tenant_id == tenant_id
+                    )
                 )
                 if existing.scalar_one_or_none():
                     continue
