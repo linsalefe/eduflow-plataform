@@ -95,7 +95,13 @@ async def list_tasks(
     if priority:
         query = query.where(Task.priority == priority)
     if contact_wa_id:
-        query = query.where(Task.contact_wa_id == contact_wa_id)
+        _ct = (await db.execute(
+            select(Contact).where(Contact.wa_id == contact_wa_id, Contact.tenant_id == tenant_id)
+        )).scalar_one_or_none()
+        if _ct:
+            query = query.where(Task.contact_id == _ct.id)
+        else:
+            return []
 
     today_str = date.today().isoformat()
 

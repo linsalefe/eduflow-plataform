@@ -127,9 +127,14 @@ async def search_knowledge(query: str, channel_id: int, db: AsyncSession, top_k:
 
 async def get_conversation_history(contact_wa_id: str, db: AsyncSession, limit: int = 10) -> list[dict]:
     """Busca as últimas mensagens da conversa para contexto."""
+    contact = (await db.execute(
+        select(ContactModel).where(ContactModel.wa_id == contact_wa_id)
+    )).scalar_one_or_none()
+    if not contact:
+        return []
     result = await db.execute(
         select(Message)
-        .where(Message.contact_wa_id == contact_wa_id)
+        .where(Message.contact_id == contact.id)
         .order_by(Message.timestamp.desc())
         .limit(limit)
     )
@@ -345,12 +350,20 @@ async def save_annotation_to_exact(contact_wa_id: str, channel_id: int, db: Asyn
         return False
     
     # 3. Buscar info do card kanban
-    card_result = await db.execute(
-        select(AIConversationSummary).where(
+    _contact_for_card = (await db.execute(
+        select(ContactModel).where(ContactModel.wa_id == contact_wa_id)
+    )).scalar_one_or_none()
+    if _contact_for_card:
+        _card_q = select(AIConversationSummary).where(
+            AIConversationSummary.contact_id == _contact_for_card.id,
+            AIConversationSummary.channel_id == channel_id,
+        )
+    else:
+        _card_q = select(AIConversationSummary).where(
             AIConversationSummary.contact_wa_id == contact_wa_id,
             AIConversationSummary.channel_id == channel_id,
         )
-    )
+    card_result = await db.execute(_card_q)
     card = card_result.scalar_one_or_none()
     lead_course = card.lead_course if card else "Não informado"
     

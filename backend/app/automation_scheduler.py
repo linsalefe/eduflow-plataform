@@ -46,12 +46,19 @@ async def trigger_automations_for_contact(
     )
     flows = result.scalars().all()
 
+    # Lookup contact once before loop
+    ct = (await db.execute(select(Contact).where(
+        Contact.wa_id == contact_wa_id,
+        Contact.tenant_id == tenant_id,
+    ))).scalar_one_or_none()
+
     for flow in flows:
         # Verificar se já existe execução ativa para este contato neste fluxo
+        _exec_filter = AutomationExecution.contact_id == ct.id if ct else AutomationExecution.contact_wa_id == contact_wa_id
         existing = await db.execute(
             select(AutomationExecution).where(
                 AutomationExecution.flow_id == flow.id,
-                AutomationExecution.contact_wa_id == contact_wa_id,
+                _exec_filter,
                 AutomationExecution.status == "pending",
             )
         )
@@ -68,12 +75,6 @@ async def trigger_automations_for_contact(
         step = first_step.scalar_one_or_none()
         if not step:
             continue
-
-        # Buscar contact para dual-write
-        ct = (await db.execute(select(Contact).where(
-            Contact.wa_id == contact_wa_id,
-            Contact.tenant_id == tenant_id,
-        ))).scalar_one_or_none()
 
         # Criar execução
         execution = AutomationExecution(
@@ -94,9 +95,16 @@ async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession):
     Cancela todas as execuções pendentes de um contato.
     Chamado quando o lead responde ou muda de estágio.
     """
+    ct = (await db.execute(
+        select(Contact).where(Contact.wa_id == contact_wa_id)
+    )).scalar_one_or_none()
+    if ct:
+        _cancel_filter = AutomationExecution.contact_id == ct.id
+    else:
+        _cancel_filter = AutomationExecution.contact_wa_id == contact_wa_id
     result = await db.execute(
         select(AutomationExecution).where(
-            AutomationExecution.contact_wa_id == contact_wa_id,
+            _cancel_filter,
             AutomationExecution.status == "pending",
         )
     )

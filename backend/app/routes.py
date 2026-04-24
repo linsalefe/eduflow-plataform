@@ -726,10 +726,15 @@ async def delete_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_
 @router.post("/contacts/{wa_id}/read")
 async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Marca todas as mensagens inbound como lidas."""
+    contact = (await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )).scalar_one_or_none()
+    if not contact:
+        return {"status": "ok"}
     from sqlalchemy import update
     await db.execute(
         update(Message).where(
-            Message.contact_wa_id == wa_id,
+            Message.contact_id == contact.id,
             Message.direction == "inbound",
             Message.status == "received",
             Message.tenant_id == tenant_id,
@@ -900,10 +905,15 @@ async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends
 async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     tag_result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = tag_result.scalar_one_or_none()
+    contact = (await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )).scalar_one_or_none()
+    if not contact:
+        return {"status": "tag removed"}
     await db.execute(
-        contact_tags.delete().where(contact_tags.c.contact_wa_id == wa_id, contact_tags.c.tag_id == tag_id)
+        contact_tags.delete().where(contact_tags.c.contact_id == contact.id, contact_tags.c.tag_id == tag_id)
     )
-    await log_activity(db, wa_id, "tag_removed", f"Tag removida: {tag.name if tag else tag_id}", tenant_id=tenant_id)
+    await log_activity(db, wa_id, "tag_removed", f"Tag removida: {tag.name if tag else tag_id}", tenant_id=tenant_id, contact_id=contact.id)
     await db.commit()
     return {"status": "tag removed"}
 
@@ -912,8 +922,13 @@ async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = De
 
 @router.get("/contacts/{wa_id}/messages")
 async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    contact = (await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )).scalar_one_or_none()
+    if not contact:
+        return []
     result = await db.execute(
-        select(Message).where(Message.contact_wa_id == wa_id, Message.tenant_id == tenant_id).order_by(Message.timestamp.asc())
+        select(Message).where(Message.contact_id == contact.id).order_by(Message.timestamp.asc())
     )
     messages = result.scalars().all()
 
@@ -1207,9 +1222,14 @@ async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str,
 @router.get("/contacts/{wa_id}/activities")
 async def get_activities(wa_id: str, limit: int = 50, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     """Retorna timeline de atividades de um contato"""
+    contact = (await db.execute(
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
+    )).scalar_one_or_none()
+    if not contact:
+        return []
     result = await db.execute(
         select(Activity)
-        .where(Activity.contact_wa_id == wa_id, Activity.tenant_id == tenant_id)
+        .where(Activity.contact_id == contact.id, Activity.tenant_id == tenant_id)
         .order_by(Activity.created_at.desc())
         .limit(limit)
     )
