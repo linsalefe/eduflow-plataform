@@ -95,10 +95,17 @@ async def create_schedule(
     """Cria agendamento manual."""
     scheduled_dt = datetime.strptime(f"{req.scheduled_date} {req.scheduled_time}", "%Y-%m-%d %H:%M")
 
+    # Buscar contact para dual-write
+    contact = None
+    if req.contact_wa_id:
+        _r = await db.execute(select(Contact).where(Contact.wa_id == req.contact_wa_id, Contact.tenant_id == tenant_id))
+        contact = _r.scalar_one_or_none()
+
     schedule = Schedule(
         tenant_id=tenant_id,
         type=req.type,
         contact_wa_id=req.contact_wa_id,
+        contact_id=contact.id if contact else None,
         contact_name=req.contact_name,
         phone=req.phone,
         course=req.course,

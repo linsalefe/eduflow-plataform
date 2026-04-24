@@ -69,10 +69,17 @@ async def trigger_automations_for_contact(
         if not step:
             continue
 
+        # Buscar contact para dual-write
+        ct = (await db.execute(select(Contact).where(
+            Contact.wa_id == contact_wa_id,
+            Contact.tenant_id == tenant_id,
+        ))).scalar_one_or_none()
+
         # Criar execução
         execution = AutomationExecution(
             flow_id=flow.id,
             contact_wa_id=contact_wa_id,
+            contact_id=ct.id if ct else None,
             current_step=1,
             next_send_at=datetime.utcnow() + timedelta(minutes=step.delay_minutes),
             status="pending",
@@ -211,6 +218,7 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
         tenant_id=flow.tenant_id,
         wa_message_id=f"auto_{uuid.uuid4().hex[:16]}",
         contact_wa_id=execution.contact_wa_id,
+        contact_id=contact.id if contact else None,
         channel_id=channel.id,
         direction="outbound",
         message_type="text",

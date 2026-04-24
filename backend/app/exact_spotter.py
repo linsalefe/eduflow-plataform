@@ -165,6 +165,7 @@ async def send_welcome_to_new_lead(lead_data: dict, db: AsyncSession):
         message = Message(
             wa_message_id=send_result["messages"][0]["id"],
             contact_wa_id=phone,
+            contact_id=contact.id if contact else None,
             channel_id=AI_CHANNEL_ID,
             direction="outbound",
             message_type="template",
@@ -177,6 +178,7 @@ async def send_welcome_to_new_lead(lead_data: dict, db: AsyncSession):
         # Criar card no Kanban
         summary = AIConversationSummary(
             contact_wa_id=phone,
+            contact_id=contact.id if contact else None,
             channel_id=AI_CHANNEL_ID,
             status="em_atendimento_ia",
             lead_name=name,

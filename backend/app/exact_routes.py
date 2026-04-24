@@ -223,7 +223,8 @@ async def bulk_send_template(
                 )
                 contact = contact_result.scalar_one_or_none()
                 if not contact:
-                    db.add(Contact(wa_id=wa_id, name=lead.name, channel_id=channel_id))
+                    contact = Contact(wa_id=wa_id, name=lead.name, channel_id=channel_id)
+                    db.add(contact)
                     await db.flush()
 
                 # Salvar mensagem
@@ -232,6 +233,7 @@ async def bulk_send_template(
                 msg = Message(
                     wa_message_id=result["messages"][0]["id"],
                     contact_wa_id=wa_id,
+                    contact_id=contact.id if contact else None,
                     channel_id=channel_id,
                     direction="outbound",
                     message_type="template",

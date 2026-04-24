@@ -129,6 +129,7 @@ async def run_reengagement():
                             tenant_id=tenant.id,
                             wa_message_id=f"reeng_{uuid.uuid4().hex[:12]}",
                             contact_wa_id=contact.wa_id,
+                            contact_id=contact.id if contact else None,
                             channel_id=contact.channel_id,
                             direction="outbound",
                             message_type="text",

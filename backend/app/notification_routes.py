@@ -22,6 +22,7 @@ async def create_notification(
     link: str = None,
     contact_wa_id: str = None,
     tenant_id: int = None,
+    contact_id: int = None,
 ):
     notif = Notification(
         tenant_id=tenant_id,
@@ -31,6 +32,7 @@ async def create_notification(
         message=message,
         link=link,
         contact_wa_id=contact_wa_id,
+        contact_id=contact_id,
     )
     db.add(notif)
     return notif

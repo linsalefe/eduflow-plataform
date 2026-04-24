@@ -61,11 +61,12 @@ def task_to_dict(t: Task) -> dict:
     }
 
 
-async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None):
+async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None, contact_id: int = None):
     from app.models import Activity
     activity = Activity(
         tenant_id=tenant_id,
         contact_wa_id=contact_wa_id,
+        contact_id=contact_id,
         type=activity_type,
         description=description,
         extra_data=metadata,
@@ -162,6 +163,12 @@ async def create_task(
     current_user: dict = Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
 ):
+    # Buscar contact para dual-write
+    contact = None
+    if req.contact_wa_id:
+        _r = await db.execute(select(Contact).where(Contact.wa_id == req.contact_wa_id, Contact.tenant_id == tenant_id))
+        contact = _r.scalar_one_or_none()
+
     task = Task(
         tenant_id=tenant_id,
         title=req.title,
@@ -171,6 +178,7 @@ async def create_task(
         due_date=req.due_date,
         due_time=req.due_time,
         contact_wa_id=req.contact_wa_id,
+        contact_id=contact.id if contact else None,
         assigned_to=req.assigned_to,
         created_by=current_user.id,
     )
