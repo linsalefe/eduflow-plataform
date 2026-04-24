@@ -4,6 +4,7 @@ Rotas do Kanban: listar cards, mover entre colunas, atualizar notas.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -32,7 +33,9 @@ async def list_kanban_cards(
     db: AsyncSession = Depends(get_db),
     tenant_id: int = Depends(get_tenant_id),
 ):
-    query = select(AIConversationSummary).where(
+    query = select(AIConversationSummary).options(
+        selectinload(AIConversationSummary.contact)
+    ).where(
         AIConversationSummary.tenant_id == tenant_id
     ).order_by(AIConversationSummary.updated_at.desc())
 
@@ -47,7 +50,7 @@ async def list_kanban_cards(
     return [
         {
             "id": c.id,
-            "contact_wa_id": c.contact_wa_id,
+            "contact_wa_id": c.contact.wa_id if c.contact else None,
             "channel_id": c.channel_id,
             "status": c.status,
             "summary": c.summary,
@@ -119,9 +122,8 @@ async def move_card(card_id: int, req: MoveCardRequest, db: AsyncSession = Depen
         card.human_took_over = True
         contact_result = await db.execute(
             select(Contact).where(Contact.id == card.contact_id)
-        ) if card.contact_id else await db.execute(
-            select(Contact).where(Contact.wa_id == card.contact_wa_id, Contact.tenant_id == tenant_id)
         )
+
         contact = contact_result.scalar_one_or_none()
         if contact:
             contact.ai_active = False
@@ -159,7 +161,9 @@ async def generate_summary(card_id: int, db: AsyncSession = Depends(get_db), ten
     if not card:
         raise HTTPException(status_code=404, detail="Card nao encontrado")
 
-    summary = await generate_conversation_summary(card.contact_wa_id, db, tenant_id=tenant_id)
+    _card_contact = (await db.execute(select(Contact).where(Contact.id == card.contact_id))).scalar_one_or_none() if card.contact_id else None
+    _card_wa_id = _card_contact.wa_id if _card_contact else None
+    summary = await generate_conversation_summary(_card_wa_id, db, tenant_id=tenant_id) if _card_wa_id else None
 
     if summary:
         card.summary = summary

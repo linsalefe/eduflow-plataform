@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.auth import get_current_user, get_tenant_id
 from app.models import Schedule, Contact
@@ -49,7 +50,7 @@ async def list_schedules(
     db: AsyncSession = Depends(get_db),
 ):
     """Lista agendamentos com filtros."""
-    query = select(Schedule).where(Schedule.tenant_id == tenant_id).order_by(Schedule.scheduled_at.asc())
+    query = select(Schedule).options(selectinload(Schedule.contact)).where(Schedule.tenant_id == tenant_id).order_by(Schedule.scheduled_at.asc())
 
     if status:
         query = query.where(Schedule.status == status)
@@ -68,7 +69,7 @@ async def list_schedules(
         {
             "id": s.id,
             "type": s.type,
-            "contact_wa_id": s.contact_wa_id,
+            "contact_wa_id": s.contact.wa_id if s.contact else None,
             "contact_name": s.contact_name or "",
             "phone": s.phone,
             "course": s.course or "",
@@ -100,6 +101,7 @@ async def create_schedule(
     if req.contact_wa_id:
         _r = await db.execute(select(Contact).where(Contact.wa_id == req.contact_wa_id, Contact.tenant_id == tenant_id))
         contact = _r.scalar_one_or_none()
+
 
     schedule = Schedule(
         tenant_id=tenant_id,

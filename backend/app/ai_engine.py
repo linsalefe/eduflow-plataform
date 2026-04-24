@@ -197,7 +197,7 @@ async def generate_ai_response(
     if contact:
         _summary_q = _summary_q.where(AIConversationSummary.contact_id == contact.id)
     else:
-        _summary_q = _summary_q.where(AIConversationSummary.contact_wa_id == contact_wa_id)
+        _summary_q = _summary_q.where(AIConversationSummary.contact_id == contact.id) if contact else _summary_q.where(False)
     card_result = await db.execute(_summary_q)
     card = card_result.scalar_one_or_none()
     lead_course = card.lead_course if card and card.lead_course else ""
@@ -360,8 +360,7 @@ async def save_annotation_to_exact(contact_wa_id: str, channel_id: int, db: Asyn
         )
     else:
         _card_q = select(AIConversationSummary).where(
-            AIConversationSummary.contact_wa_id == contact_wa_id,
-            AIConversationSummary.channel_id == channel_id,
+            False,  # no contact found — no card
         )
     card_result = await db.execute(_card_q)
     card = card_result.scalar_one_or_none()

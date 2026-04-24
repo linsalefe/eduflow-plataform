@@ -404,7 +404,7 @@ async def get_stats(db: AsyncSession, tenant_id: int) -> dict:
     recent_edits = [
         {
             "id": fb.id,
-            "contact_wa_id": fb.contact_wa_id,
+            "contact_wa_id": None,
             "corrected_response": (fb.corrected_response or "")[:160],
             "created_at": fb.created_at.isoformat() if fb.created_at else None,
         }

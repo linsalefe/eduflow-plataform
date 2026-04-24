@@ -159,14 +159,14 @@ async def delete_channel(channel_id: int, db: AsyncSession = Depends(get_db), te
             {"ids": contact_ids}
         )
 
-    if wa_ids:
-        # 3) Deletar tabelas que referenciam contacts (via contact_wa_id)
+    if contact_ids:
+        # 3) Deletar tabelas que referenciam contacts (via contact_id)
         for tbl in ['activities', 'ai_calls', 'ai_conversation_summaries',
                     'contact_tags', 'financial_entries', 'messages',
                     'schedules', 'tasks']:
             await db.execute(
-                text(f"DELETE FROM {tbl} WHERE contact_wa_id = ANY(:ids)"),
-                {"ids": wa_ids}
+                text(f"DELETE FROM {tbl} WHERE contact_id = ANY(:ids)"),
+                {"ids": contact_ids}
             )
 
     # 4) Deletar tabelas que referenciam channels (via channel_id)
@@ -1194,14 +1194,18 @@ async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db
     if not req.wa_ids:
         raise HTTPException(status_code=400, detail="wa_ids é obrigatório")
 
-    await db.execute(
-        contact_tags.delete().where(
-            contact_tags.c.contact_wa_id.in_(req.wa_ids),
-            contact_tags.c.tag_id == req.tag_id
+    # Lookup contact_ids from wa_ids
+    _cids_result = await db.execute(select(Contact.id).where(Contact.wa_id.in_(req.wa_ids)))
+    _cids = [r[0] for r in _cids_result.all()]
+    if _cids:
+        await db.execute(
+            contact_tags.delete().where(
+                contact_tags.c.contact_id.in_(_cids),
+                contact_tags.c.tag_id == req.tag_id
+            )
         )
-    )
     await db.commit()
-    return {"removed": len(req.wa_ids)}
+    return {"removed": len(_cids)}
 
 
 async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None, contact_id: int = None):

@@ -550,9 +550,9 @@ async def list_sessions(
     return [
         {
             "id": s.id,
-            "contact_wa_id": s.contact_wa_id,
+            "contact_wa_id": contact_map.get(s.contact_id).wa_id if contact_map.get(s.contact_id) else None,
             "contact_name": (contact_map.get(s.contact_id).name
-                             if contact_map.get(s.contact_id) else None) or s.contact_wa_id,
+                             if contact_map.get(s.contact_id) else None),
             "current_node_id": s.current_node_id,
             "status": s.status,
             "variables": s.variables or {},

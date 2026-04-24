@@ -67,7 +67,7 @@ def notif_to_dict(n: Notification) -> dict:
         "message": n.message,
         "is_read": n.is_read,
         "link": n.link,
-        "contact_wa_id": n.contact_wa_id,
+        "contact_wa_id": None,
         "created_at": n.created_at.isoformat() if n.created_at else None,
     }
 

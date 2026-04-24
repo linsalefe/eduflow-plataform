@@ -28,11 +28,9 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
     contact = None
 
     # === 1. Atualizar Contact interno ===
-    if call.contact_wa_id:
+    if call.contact_id:
         result = await db.execute(
             select(Contact).where(Contact.id == call.contact_id)
-        ) if call.contact_id else await db.execute(
-            select(Contact).where(Contact.wa_id == call.contact_wa_id, Contact.tenant_id == call.tenant_id)
         )
         contact = result.scalar_one_or_none()
 
@@ -63,11 +61,8 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
             contact.notes = f"{note}\n{existing_notes}".strip()
 
     # === 2. Criar/Atualizar card no Kanban ===
-    if call.contact_wa_id:
-        if contact:
-            _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_id == contact.id)
-        else:
-            _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_wa_id == call.contact_wa_id)
+    if contact:
+        _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_id == contact.id)
         result = await db.execute(_summary_q)
         summary = result.scalar_one_or_none()
 
@@ -87,11 +82,11 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
                 first_channel = ch_result.scalar_one_or_none()
                 if first_channel:
                     channel_id = first_channel
-                    print(f"⚠️ CRM: Usando channel_id fallback={channel_id} para {call.contact_wa_id}")
+                    print(f"⚠️ CRM: Usando channel_id fallback={channel_id} para contact_id={call.contact_id}")
 
             # Se AINDA não tem channel_id, não cria o summary (evita crash)
             if not channel_id:
-                print(f"❌ CRM: Sem channel_id disponível — pulando AIConversationSummary para {call.contact_wa_id}")
+                print(f"❌ CRM: Sem channel_id disponível — pulando AIConversationSummary para contact_id={call.contact_id}")
             else:
                 summary = AIConversationSummary(
                     contact_id=contact.id if contact else None,

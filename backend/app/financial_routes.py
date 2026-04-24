@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, date
 from decimal import Decimal
 
+from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models import FinancialEntry, Contact, User
 from app.auth import get_current_user, get_tenant_id
@@ -28,7 +29,7 @@ class EntryCreate(BaseModel):
 def entry_to_dict(e: FinancialEntry) -> dict:
     return {
         "id": e.id,
-        "contact_wa_id": e.contact_wa_id,
+        "contact_wa_id": e.contact.wa_id if e.contact else None,
         "type": e.type,
         "value": float(e.value),
         "description": e.description,
@@ -82,7 +83,7 @@ async def list_entries(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
 ):
-    query = select(FinancialEntry).where(FinancialEntry.tenant_id == tenant_id).order_by(FinancialEntry.created_at.desc())
+    query = select(FinancialEntry).options(selectinload(FinancialEntry.contact)).where(FinancialEntry.tenant_id == tenant_id).order_by(FinancialEntry.created_at.desc())
 
     if month and year:
         query = query.where(
@@ -107,8 +108,8 @@ async def list_entries(
     enriched = []
     for e in entries:
         d = entry_to_dict(e)
-        contact_res = await db.execute(select(Contact.name).where(Contact.id == e.contact_id)) if e.contact_id else await db.execute(select(Contact.name).where(Contact.wa_id == e.contact_wa_id))
-        d["contact_name"] = contact_res.scalar_one_or_none() or e.contact_wa_id
+        contact_res = await db.execute(select(Contact.name).where(Contact.id == e.contact_id)) if e.contact_id else None
+        d["contact_name"] = (contact_res.scalar_one_or_none() if contact_res else None) or None
         creator_res = await db.execute(select(User.name).where(User.id == e.created_by))
         d["created_by_name"] = creator_res.scalar_one_or_none() or ""
         enriched.append(d)
@@ -238,8 +239,8 @@ async def delete_entry(
         raise HTTPException(status_code=404, detail="Entrada não encontrada")
 
     # Reverter deal_value do contato
-    contact_res = await db.execute(select(Contact).where(Contact.id == entry.contact_id)) if entry.contact_id else await db.execute(select(Contact).where(Contact.wa_id == entry.contact_wa_id))
-    contact = contact_res.scalar_one_or_none()
+    contact_res = await db.execute(select(Contact).where(Contact.id == entry.contact_id)) if entry.contact_id else None
+    contact = contact_res.scalar_one_or_none() if contact_res else None
     if contact and contact.deal_value:
         contact.deal_value = max(0, contact.deal_value - entry.value)
 

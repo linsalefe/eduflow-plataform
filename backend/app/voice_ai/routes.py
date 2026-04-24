@@ -706,6 +706,7 @@ async def manual_call(data: ManualCallRequest, current_user=Depends(get_current_
     """Dispara chamada IA manualmente para um contato existente."""
     result = await db.execute(
         select(Contact).where(Contact.wa_id == data.contact_wa_id, Contact.tenant_id == current_user.tenant_id)
+
     )
     contact = result.scalar_one_or_none()
     if not contact:
@@ -852,8 +853,10 @@ async def _save_call_results(call_sid: str, pipeline: VoicePipeline):
                         await db.commit()
 
                         # Enviar confirmação WhatsApp
+                        _call_contact = (await db.execute(select(Contact).where(Contact.id == call.contact_id))).scalar_one_or_none() if call.contact_id else None
+                        _call_phone = _call_contact.wa_id if _call_contact else call.to_number
                         await send_schedule_confirmation(
-                            call.contact_wa_id,
+                            _call_phone,
                             call.lead_name,
                             call.course,
                             fields["data_agendamento"],
@@ -865,8 +868,10 @@ async def _save_call_results(call_sid: str, pipeline: VoicePipeline):
         # 3. Se follow-up, enviar WhatsApp
         elif call.outcome == "follow_up":
             try:
+                _fu_contact = (await db.execute(select(Contact).where(Contact.id == call.contact_id))).scalar_one_or_none() if call.contact_id else None
+                _fu_phone = _fu_contact.wa_id if _fu_contact else call.to_number
                 await send_followup_message(
-                    call.contact_wa_id,
+                    _fu_phone,
                     call.lead_name,
                     call.course,
                 )
@@ -903,9 +908,7 @@ async def _schedule_retry(call_id: int):
         # Buscar contact para dual-write
         ct = (await db.execute(select(Contact).where(
             Contact.id == call.contact_id,
-        ))).scalar_one_or_none() if call.contact_id else (await db.execute(select(Contact).where(
-            Contact.wa_id == call.contact_wa_id,
-        ))).scalar_one_or_none()
+        ))).scalar_one_or_none() if call.contact_id else None
 
         new_call = AICall(
             lead_id=call.lead_id,

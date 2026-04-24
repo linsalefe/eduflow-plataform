@@ -128,10 +128,8 @@ async def scheduler_job():
                         from app.evolution.client import send_text
                         lead_result = await db.execute(
                             select(Contact).where(Contact.id == s.contact_id)
-                        ) if s.contact_id else await db.execute(
-                            select(Contact).where(Contact.wa_id == s.contact_wa_id, Contact.tenant_id == s.tenant_id)
-                        )
-                        lead = lead_result.scalar_one_or_none()
+                        ) if s.contact_id else None
+                        lead = lead_result.scalar_one_or_none() if lead_result else None
                         if lead:
                             channel_result = await db.execute(
                                 select(Channel).where(
@@ -168,10 +166,8 @@ async def scheduler_job():
                         from app.models import Contact
                         lead_result = await db.execute(
                             select(Contact).where(Contact.id == s.contact_id)
-                        ) if s.contact_id else await db.execute(
-                            select(Contact).where(Contact.wa_id == s.contact_wa_id, Contact.tenant_id == s.tenant_id)
-                        )
-                        lead = lead_result.scalar_one_or_none()
+                        ) if s.contact_id else None
+                        lead = lead_result.scalar_one_or_none() if lead_result else None
                         if lead:
                             await BriefingAgent().handle(lead.id, s.tenant_id, db)
                         s.status = "completed"

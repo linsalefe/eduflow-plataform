@@ -52,13 +52,16 @@ async def trigger_automations_for_contact(
         Contact.tenant_id == tenant_id,
     ))).scalar_one_or_none()
 
+    if not ct:
+        logger.warning(f"⚠️ Contact não encontrado para wa_id={contact_wa_id} — pulando automações")
+        return
+
     for flow in flows:
         # Verificar se já existe execução ativa para este contato neste fluxo
-        _exec_filter = AutomationExecution.contact_id == ct.id if ct else AutomationExecution.contact_wa_id == contact_wa_id
         existing = await db.execute(
             select(AutomationExecution).where(
                 AutomationExecution.flow_id == flow.id,
-                _exec_filter,
+                AutomationExecution.contact_id == ct.id,
                 AutomationExecution.status == "pending",
             )
         )
@@ -79,7 +82,7 @@ async def trigger_automations_for_contact(
         # Criar execução
         execution = AutomationExecution(
             flow_id=flow.id,
-            contact_id=ct.id if ct else None,
+            contact_id=ct.id,
             current_step=1,
             next_send_at=datetime.utcnow() + timedelta(minutes=step.delay_minutes),
             status="pending",
@@ -98,13 +101,12 @@ async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession):
     ct = (await db.execute(
         select(Contact).where(Contact.wa_id == contact_wa_id)
     )).scalar_one_or_none()
-    if ct:
-        _cancel_filter = AutomationExecution.contact_id == ct.id
-    else:
-        _cancel_filter = AutomationExecution.contact_wa_id == contact_wa_id
+    if not ct:
+        logger.warning(f"⚠️ Contact não encontrado para wa_id={contact_wa_id} — nada a cancelar")
+        return
     result = await db.execute(
         select(AutomationExecution).where(
-            _cancel_filter,
+            AutomationExecution.contact_id == ct.id,
             AutomationExecution.status == "pending",
         )
     )
@@ -171,10 +173,8 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
     # Buscar contato
     contact_result = await db.execute(
         select(Contact).where(Contact.id == execution.contact_id)
-    ) if execution.contact_id else await db.execute(
-        select(Contact).where(Contact.wa_id == execution.contact_wa_id)
-    )
-    contact = contact_result.scalar_one_or_none()
+    ) if execution.contact_id else None
+    contact = contact_result.scalar_one_or_none() if contact_result else None
     if not contact:
         execution.status = "cancelled"
         execution.updated_at = datetime.utcnow()
@@ -183,7 +183,7 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
 
     # Não disparar se a IA estiver ativa
     if contact.ai_active:
-        logger.info(f"⏭️ IA ativa para {execution.contact_wa_id} — pulando")
+        logger.info(f"⏭️ IA ativa para contact_id={execution.contact_id} — pulando")
         execution.status = "cancelled"
         execution.updated_at = datetime.utcnow()
         await db.commit()
@@ -214,12 +214,12 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
     # Enviar mensagem via Evolution API
     await send_text(
         instance_name=channel.instance_name,
-        to=execution.contact_wa_id,
+        to=contact.wa_id,
         text=message,
     )
-    logger.info(f"📨 Mensagem enviada para {execution.contact_wa_id} (step {execution.current_step})")
+    logger.info(f"📨 Mensagem enviada para {contact.wa_id} (step {execution.current_step})")
     # NOVO:
-    print(f"✅ Automação [{flow.name}] → {contact.name or execution.contact_wa_id}: '{message[:50]}'")
+    print(f"✅ Automação [{flow.name}] → {contact.name or contact.wa_id}: '{message[:50]}'")
 
     # Salvar mensagem no banco para aparecer na conversa
     SP_TZ = timezone(timedelta(hours=-3))

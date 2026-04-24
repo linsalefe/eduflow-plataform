@@ -228,7 +228,7 @@ async def _execute_node(
 ) -> Tuple[Optional[dict], bool]:
     nt = _node_type(node)
     data = node.get("data") or {}
-    to = session.contact_wa_id
+    to = contact.wa_id if contact else None
     tid = session.tenant_id
 
     if nt == "trigger":
@@ -529,7 +529,7 @@ async def _execute_node(
                 "tenant_id": session.tenant_id,
                 "contact": {
                     "name": contact.name if contact else None,
-                    "wa_id": session.contact_wa_id,
+                    "wa_id": contact.wa_id if contact else None,
                 },
                 "variables": dict(session.variables or {}),
                 "timestamp": datetime.utcnow().isoformat(),
@@ -963,13 +963,6 @@ async def resume_session_from_node(
         select(Contact)
         .options(selectinload(Contact.tags))
         .where(Contact.id == session.contact_id)
-    ) if session.contact_id else await db.execute(
-        select(Contact)
-        .options(selectinload(Contact.tags))
-        .where(
-            Contact.wa_id == session.contact_wa_id,
-            Contact.tenant_id == session.tenant_id,
-        )
     )
     contact = cres.scalar_one_or_none()
     if not contact:

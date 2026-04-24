@@ -17,7 +17,6 @@ class AICall(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     lead_id = Column(Integer, ForeignKey("exact_leads.id"), nullable=True)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     twilio_call_sid = Column(String(100), unique=True, nullable=True, index=True)
 

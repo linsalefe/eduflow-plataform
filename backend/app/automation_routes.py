@@ -241,11 +241,11 @@ async def get_flow_queue(
     history = history_result.scalars().all()
 
     async def enrich(ex):
-        contact_result = await db.execute(select(Contact).where(Contact.id == ex.contact_id)) if ex.contact_id else await db.execute(select(Contact).where(Contact.wa_id == ex.contact_wa_id, Contact.tenant_id == tenant_id))
-        contact = contact_result.scalar_one_or_none()
+        contact_result = await db.execute(select(Contact).where(Contact.id == ex.contact_id)) if ex.contact_id else None
+        contact = contact_result.scalar_one_or_none() if contact_result else None
         return {
-            "contact_wa_id": ex.contact_wa_id,
-            "contact_name": contact.name if contact else ex.contact_wa_id,
+            "contact_wa_id": contact.wa_id if contact else None,
+            "contact_name": contact.name if contact else None,
             "current_step": ex.current_step,
             "status": ex.status,
             "next_send_at": ex.next_send_at.isoformat() if ex.next_send_at else None,

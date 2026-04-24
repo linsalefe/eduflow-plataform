@@ -9,7 +9,6 @@ from pgvector.sqlalchemy import Vector
 contact_tags = Table(
     "contact_tags",
     Base.metadata,
-    Column("contact_wa_id", String(20), ForeignKey("contacts.wa_id"), primary_key=True),
     Column("contact_id", BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True),
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
 )
@@ -86,7 +85,6 @@ class Message(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     wa_message_id = Column(String(255), unique=True, nullable=False, index=True)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"))
     direction = Column(String(10), nullable=False)
@@ -202,7 +200,6 @@ class AIConversationSummary(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     status = Column(String(30), default="em_atendimento_ia")
@@ -235,7 +232,6 @@ class CallLog(Base):
     drive_file_url = Column(Text, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     user_name = Column(String(255), nullable=True)
-    contact_wa_id = Column(String(20), nullable=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     contact_name = Column(String(255), nullable=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
@@ -291,7 +287,6 @@ class Schedule(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     type = Column(String(20), nullable=False)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     contact_name = Column(String(255), nullable=True)
     phone = Column(String(30), nullable=False)
@@ -314,7 +309,6 @@ class Activity(Base):
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(String(30), nullable=False)
     description = Column(Text, nullable=False)
@@ -333,7 +327,6 @@ class Task(Base):
     due_date = Column(String(10), nullable=False)
     due_time = Column(String(5), nullable=True)
     status = Column(String(20), default="pending")
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -356,7 +349,6 @@ class Notification(Base):
     message = Column(Text, nullable=True)
     is_read = Column(Boolean, default=False)
     link = Column(String(255), nullable=True)
-    contact_wa_id = Column(String(20), nullable=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -368,7 +360,6 @@ class FinancialEntry(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(String(20), nullable=False)
     value = Column(Numeric(10, 2), nullable=False)
@@ -564,7 +555,6 @@ class AutomationExecution(Base):
     __tablename__ = "automation_executions"
     id = Column(Integer, primary_key=True, autoincrement=True)
     flow_id = Column(Integer, ForeignKey("automation_flows.id", ondelete="CASCADE"), nullable=False)
-    contact_wa_id = Column(String(100), nullable=False)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     current_step = Column(Integer, nullable=False, default=0)
     next_send_at = Column(DateTime, nullable=False)
@@ -621,7 +611,6 @@ class AIFeedback(Base):
         ForeignKey("messages.id", ondelete="CASCADE"),
         nullable=False,
     )
-    contact_wa_id = Column(String(100), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     rating = Column(String(10), nullable=False)  # 'up' | 'down' | 'edit'
     reason = Column(String(50), nullable=True)
@@ -667,7 +656,6 @@ class ChatbotSession(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     flow_id = Column(Integer, ForeignKey("chatbot_flows.id", ondelete="CASCADE"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
-    contact_wa_id = Column(String(100), nullable=False, index=True)
     contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # ID do nó corrente dentro do grafo (IDs do React Flow são strings)

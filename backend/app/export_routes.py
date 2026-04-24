@@ -279,8 +279,9 @@ async def export_messages(
     if channel_id:
         filters.append(Message.channel_id == channel_id)
 
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(Message).where(*filters).order_by(Message.timestamp.desc()).limit(5000)
+        select(Message).options(selectinload(Message.contact)).where(*filters).order_by(Message.timestamp.desc()).limit(5000)
     )
     messages = result.scalars().all()
 
@@ -303,7 +304,7 @@ async def export_messages(
 
         ws.cell(row=idx, column=1, value=m.timestamp.strftime("%d/%m/%Y %H:%M") if m.timestamp else "\u2014")
         ws.cell(row=idx, column=2, value=contacts_map.get(m.contact_id, "Desconhecido"))
-        ws.cell(row=idx, column=3, value=m.contact_wa_id)
+        ws.cell(row=idx, column=3, value=m.contact.wa_id if m.contact else None)
         ws.cell(row=idx, column=4, value="Recebida" if m.direction == "inbound" else "Enviada")
         ws.cell(row=idx, column=5, value=m.message_type or "text")
         ws.cell(row=idx, column=6, value=content[:200])

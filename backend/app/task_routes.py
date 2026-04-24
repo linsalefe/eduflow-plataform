@@ -49,7 +49,7 @@ def task_to_dict(t: Task) -> dict:
         "due_date": t.due_date,
         "due_time": t.due_time,
         "status": t.status,
-        "contact_wa_id": t.contact_wa_id,
+        "contact_wa_id": t.contact.wa_id if t.contact else None,
         "contact_name": t.contact.name if t.contact else None,
         "assigned_to": t.assigned_to,
         "assigned_name": t.assigned_user.name if t.assigned_user else None,
@@ -190,13 +190,13 @@ async def create_task(
     await db.flush()
 
     # Registrar atividade no contato
-    if req.contact_wa_id:
+    if contact:
         await log_activity(
-            db, req.contact_wa_id, "task_created",
+            db, contact.wa_id, "task_created",
             f"Tarefa criada: {req.title}",
             f'{{"task_id": {task.id}, "priority": "{req.priority}"}}',
             tenant_id=tenant_id,
-            contact_id=contact.id if contact else None,
+            contact_id=contact.id,
         )
 
     await db.commit()
@@ -243,9 +243,9 @@ async def complete_task(
     task.updated_at = datetime.utcnow()
 
     # Registrar atividade no contato
-    if task.contact_wa_id:
+    if task.contact_id:
         await log_activity(
-            db, task.contact_wa_id, "task_completed",
+            db, None, "task_completed",
             f"Tarefa concluída: {task.title}",
             f'{{"task_id": {task.id}}}',
             tenant_id=task.tenant_id,
