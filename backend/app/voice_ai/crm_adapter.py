@@ -62,11 +62,10 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
 
     # === 2. Criar/Atualizar card no Kanban ===
     if call.contact_wa_id:
-        result = await db.execute(
-            select(AIConversationSummary).where(
-                AIConversationSummary.contact_wa_id == call.contact_wa_id
-            )
-        )
+        _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_wa_id == call.contact_wa_id)
+        if contact:
+            _summary_q = select(AIConversationSummary).where(AIConversationSummary.contact_id == contact.id)
+        result = await db.execute(_summary_q)
         summary = result.scalar_one_or_none()
 
         if not summary:

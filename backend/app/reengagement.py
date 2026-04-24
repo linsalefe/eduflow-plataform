@@ -65,7 +65,7 @@ async def run_reengagement():
                     # Verificar última mensagem da conversa
                     last_msg_result = await db.execute(
                         select(Message)
-                        .where(Message.contact_wa_id == contact.wa_id, Message.tenant_id == tenant.id)
+                        .where(Message.contact_id == contact.id, Message.tenant_id == tenant.id)
                         .order_by(Message.timestamp.desc())
                         .limit(1)
                     )

@@ -693,7 +693,7 @@ async def handle_inbound_message(
 
     sess_res = await db.execute(
         select(ChatbotSession).where(
-            ChatbotSession.contact_wa_id == contact_wa_id,
+            ChatbotSession.contact_id == contact.id,
             ChatbotSession.channel_id == channel.id,
             ChatbotSession.status == "active",
         )
@@ -727,7 +727,7 @@ async def handle_inbound_message(
         recent_cutoff = datetime.utcnow() - timedelta(hours=SESSION_TIMEOUT_HOURS)
         recent_res = await db.execute(
             select(ChatbotSession).where(
-                ChatbotSession.contact_wa_id == contact_wa_id,
+                ChatbotSession.contact_id == contact.id,
                 ChatbotSession.channel_id == channel.id,
                 ChatbotSession.status.in_(["completed", "cancelled", "timeout"]),
                 ChatbotSession.last_interaction_at >= recent_cutoff,
@@ -773,7 +773,7 @@ async def handle_inbound_message(
         # Re-engajamento: sessão em waiting (delay)?
         waiting_res = await db.execute(
             select(ChatbotSession).where(
-                ChatbotSession.contact_wa_id == contact_wa_id,
+                ChatbotSession.contact_id == contact.id,
                 ChatbotSession.channel_id == channel.id,
                 ChatbotSession.status == "waiting",
             ).order_by(ChatbotSession.id.desc()).limit(1)

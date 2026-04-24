@@ -246,14 +246,14 @@ async def get_contact_details(args: dict, tenant_id: int, db: AsyncSession) -> d
     tags_result = await db.execute(
         select(Tag.name)
         .join(contact_tags)
-        .where(contact_tags.c.contact_wa_id == contact.wa_id)
+        .where(contact_tags.c.contact_id == contact.id)
     )
     tags = [r[0] for r in tags_result.all()]
 
     # Última mensagem
     last_msg_result = await db.execute(
         select(Message)
-        .where(Message.contact_wa_id == contact.wa_id)
+        .where(Message.contact_id == contact.id)
         .order_by(Message.timestamp.desc())
         .limit(1)
     )
@@ -306,7 +306,7 @@ async def get_contact_conversations(args: dict, tenant_id: int, db: AsyncSession
     # Buscar mensagens
     msgs_result = await db.execute(
         select(Message)
-        .where(Message.contact_wa_id == contact.wa_id)
+        .where(Message.contact_id == contact.id)
         .where(Message.tenant_id == tenant_id)
         .order_by(Message.timestamp.desc())
         .limit(limit)

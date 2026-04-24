@@ -188,15 +188,15 @@ async def generate_ai_response(
     lead_name = contact.name if contact and contact.name else ""
     
     # Buscar curso no card do kanban
-    card_result = await db.execute(
-        select(AIConversationSummary).where(
-            AIConversationSummary.contact_wa_id == contact_wa_id,
-            AIConversationSummary.channel_id == channel_id,
-        )
-    )
+    _summary_q = select(AIConversationSummary).where(AIConversationSummary.channel_id == channel_id)
+    if contact:
+        _summary_q = _summary_q.where(AIConversationSummary.contact_id == contact.id)
+    else:
+        _summary_q = _summary_q.where(AIConversationSummary.contact_wa_id == contact_wa_id)
+    card_result = await db.execute(_summary_q)
     card = card_result.scalar_one_or_none()
     lead_course = card.lead_course if card and card.lead_course else ""
-    
+
     # Injetar dados do lead no prompt
     lead_info = ""
     if lead_name or lead_course:

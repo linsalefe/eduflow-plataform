@@ -750,11 +750,11 @@ async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
 
     tag_result = await db.execute(
-        select(Tag).join(contact_tags).where(contact_tags.c.contact_wa_id == wa_id)
+        select(Tag).join(contact_tags).where(contact_tags.c.contact_id == contact.id)
     )
     tags = tag_result.scalars().all()
 
-    msg_count = await db.execute(select(func.count(Message.id)).where(Message.contact_wa_id == wa_id))
+    msg_count = await db.execute(select(func.count(Message.id)).where(Message.contact_id == contact.id))
 
     return {
         "wa_id": contact.wa_id,
@@ -1099,7 +1099,7 @@ async def global_search(q: str = "", db: AsyncSession = Depends(get_db), tenant_
     contacts_list = []
     for c in contacts:
         tag_result = await db.execute(
-            select(Tag).join(contact_tags).where(contact_tags.c.contact_wa_id == c.wa_id)
+            select(Tag).join(contact_tags).where(contact_tags.c.contact_id == c.id)
         )
         tags = tag_result.scalars().all()
 

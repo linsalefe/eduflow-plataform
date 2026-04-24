@@ -86,7 +86,7 @@ async def should_update_memory(
         select(func.count(Message.id)).where(
             and_(
                 Message.tenant_id == contact.tenant_id,
-                Message.contact_wa_id == contact.wa_id,
+                Message.contact_id == contact.id,
                 Message.direction == "inbound",
                 Message.created_at > cutoff,
             )
@@ -285,7 +285,7 @@ async def update_lead_memory(
             .where(
                 and_(
                     Message.tenant_id == contact.tenant_id,
-                    Message.contact_wa_id == contact.wa_id,
+                    Message.contact_id == contact.id,
                 )
             )
             .order_by(desc(Message.id))

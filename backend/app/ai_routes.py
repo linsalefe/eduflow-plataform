@@ -114,7 +114,7 @@ async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession =
 
         summary_result = await db.execute(
             select(AIConversationSummary).where(
-                AIConversationSummary.contact_wa_id == wa_id,
+                AIConversationSummary.contact_id == contact.id,
                 AIConversationSummary.status == "em_atendimento_ia",
             )
         )

@@ -314,7 +314,7 @@ async def get_conversation_detail(
         .where(
             and_(
                 Message.tenant_id == tenant_id,
-                Message.contact_wa_id == contact_wa_id,
+                Message.contact_id == contact.id,
             )
         )
         .order_by(desc(Message.id))
@@ -328,7 +328,7 @@ async def get_conversation_detail(
         select(AIFeedback).where(
             and_(
                 AIFeedback.tenant_id == tenant_id,
-                AIFeedback.contact_wa_id == contact_wa_id,
+                AIFeedback.contact_id == contact.id,
             )
         )
     )
