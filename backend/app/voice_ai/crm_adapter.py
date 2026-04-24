@@ -93,6 +93,7 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
             else:
                 summary = AIConversationSummary(
                     contact_wa_id=call.contact_wa_id,
+                    contact_id=contact.id if contact else None,
                     channel_id=channel_id,
                     status=_outcome_to_kanban_status(call.outcome),
                     summary=call.summary,

@@ -131,6 +131,7 @@ class FollowupAgent:
                 db.add(Schedule(
                     tenant_id=tenant_id,
                     contact_wa_id=lead.wa_id,
+                    contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,
                     scheduled_at=d1,
@@ -149,6 +150,7 @@ class FollowupAgent:
                 db.add(Schedule(
                     tenant_id=tenant_id,
                     contact_wa_id=lead.wa_id,
+                    contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,
                     scheduled_at=d0,
@@ -166,6 +168,7 @@ class FollowupAgent:
                 db.add(Schedule(
                     tenant_id=tenant_id,
                     contact_wa_id=lead.wa_id,
+                    contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,
                     scheduled_at=briefing_time,

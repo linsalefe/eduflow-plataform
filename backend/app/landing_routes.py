@@ -402,8 +402,8 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         )
         if not existing_tag.first():
             await db.execute(
-                text("INSERT INTO contact_tags (contact_wa_id, tag_id) VALUES (:wid, :tid)"),
-                {"wid": contact.wa_id, "tid": tag_obj.id}
+                text("INSERT INTO contact_tags (contact_wa_id, contact_id, tag_id) VALUES (:wid, :cid, :tid)"),
+                {"wid": contact.wa_id, "cid": contact.id, "tid": tag_obj.id}
             )
 
     # === Enviar mensagem WhatsApp ===

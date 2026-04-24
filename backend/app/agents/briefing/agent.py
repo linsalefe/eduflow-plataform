@@ -37,6 +37,7 @@ class BriefingAgent:
         activity = Activity(
             tenant_id=tenant_id,
             contact_wa_id=lead.wa_id,
+            contact_id=lead.id if lead else None,
             type="briefing",
             description=briefing,
         )

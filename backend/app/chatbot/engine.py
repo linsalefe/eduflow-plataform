@@ -193,7 +193,7 @@ def format_buttons_as_text(intro: str, buttons: List[dict]) -> str:
 # ============================================================
 # Sender
 # ============================================================
-async def _send_text(channel: Channel, to: str, text: str, tenant_id: int, db: AsyncSession):
+async def _send_text(channel: Channel, to: str, text: str, tenant_id: int, db: AsyncSession, contact_id: int = None):
     from app.evolution.client import send_text as evolution_send_text
     try:
         await evolution_send_text(channel.instance_name, to, text)
@@ -204,6 +204,7 @@ async def _send_text(channel: Channel, to: str, text: str, tenant_id: int, db: A
         tenant_id=tenant_id,
         wa_message_id=f"bot_{uuid.uuid4().hex[:16]}",
         contact_wa_id=to,
+        contact_id=contact_id,
         channel_id=channel.id,
         direction="outbound",
         message_type="text",
@@ -237,7 +238,7 @@ async def _execute_node(
     if nt == "message":
         text = interpolate(data.get("text", ""), session.variables, contact)
         if text:
-            await _send_text(channel, to, text, tid, db)
+            await _send_text(channel, to, text, tid, db, contact_id=contact.id if contact else None)
         return find_next_node(graph, node["id"]), False
 
     if nt == "buttons":
@@ -269,6 +270,7 @@ async def _execute_node(
                     tenant_id=tid,
                     wa_message_id=f"bot_{uuid.uuid4().hex[:16]}",
                     contact_wa_id=to,
+                    contact_id=contact.id if contact else None,
                     channel_id=channel.id,
                     direction="outbound",
                     message_type="text",
@@ -281,7 +283,7 @@ async def _execute_node(
 
         if not sent_native:
             rendered = format_buttons_as_text(intro, buttons_list)
-            await _send_text(channel, to, rendered, tid, db)
+            await _send_text(channel, to, rendered, tid, db, contact_id=contact.id if contact else None)
 
         await db.commit()
         return None, True
@@ -292,7 +294,7 @@ async def _execute_node(
         session.last_interaction_at = datetime.utcnow()
         await db.commit()
         if prompt:
-            await _send_text(channel, to, prompt, tid, db)
+            await _send_text(channel, to, prompt, tid, db, contact_id=contact.id if contact else None)
             await db.commit()
         return None, True
 
@@ -366,6 +368,7 @@ async def _execute_node(
                 due_date=datetime.utcnow().strftime("%Y-%m-%d"),
                 status="pending",
                 contact_wa_id=contact.wa_id if contact else None,
+                contact_id=contact.id if contact else None,
                 assigned_to=assigned_to,
                 created_by=assigned_to,
             )
@@ -736,7 +739,7 @@ async def handle_inbound_message(
             print(f"🔁 Chatbot re-engajamento: contato {contact_wa_id} já tem sessão recente "
                   f"(id={recent_session.id}, status={recent_session.status}) — encaminhando pro humano")
             msg = "Olá! 👋 Nossa equipe já foi notificada e vai te atender em breve."
-            await _send_text(channel, contact_wa_id, msg, tenant_id, db)
+            await _send_text(channel, contact_wa_id, msg, tenant_id, db, contact_id=contact.id if contact else None)
 
             assigned = contact.assigned_to
             if not assigned:
@@ -756,6 +759,7 @@ async def handle_inbound_message(
                     due_date=datetime.utcnow().strftime("%Y-%m-%d"),
                     status="pending",
                     contact_wa_id=contact.wa_id,
+                    contact_id=contact.id if contact else None,
                     assigned_to=assigned,
                     created_by=assigned,
                 )
@@ -780,7 +784,7 @@ async def handle_inbound_message(
             print(f"🔁 Chatbot: contato mandou mensagem durante waiting "
                   f"(sessão {waiting_session.id}) — cancelando e encaminhando pro humano")
             msg = "Olá! 👋 Nossa equipe já foi notificada e vai te atender em breve."
-            await _send_text(channel, contact_wa_id, msg, tenant_id, db)
+            await _send_text(channel, contact_wa_id, msg, tenant_id, db, contact_id=contact.id if contact else None)
 
             waiting_session.status = "cancelled"
             waiting_session.completed_at = datetime.utcnow()
@@ -812,6 +816,7 @@ async def handle_inbound_message(
                     due_date=datetime.utcnow().strftime("%Y-%m-%d"),
                     status="pending",
                     contact_wa_id=contact.wa_id,
+                    contact_id=contact.id if contact else None,
                     assigned_to=assigned,
                     created_by=assigned,
                 )
@@ -831,6 +836,7 @@ async def handle_inbound_message(
             flow_id=flow.id,
             channel_id=channel.id,
             contact_wa_id=contact_wa_id,
+            contact_id=contact.id if contact else None,
             current_node_id=str(trigger.get("id")),
             variables={},
             status="active",
@@ -858,7 +864,7 @@ async def handle_inbound_message(
         if not selected:
             intro = interpolate(waiting_node.get("data", {}).get("text", ""), session.variables, contact)
             rendered = format_buttons_as_text("Não entendi. Por favor escolha uma das opções:\n\n" + intro, buttons)
-            await _send_text(channel, contact_wa_id, rendered, tenant_id, db)
+            await _send_text(channel, contact_wa_id, rendered, tenant_id, db, contact_id=contact.id if contact else None)
             session.last_interaction_at = datetime.utcnow()
             await db.commit()
             return
@@ -886,7 +892,7 @@ async def handle_inbound_message(
         validation = data.get("validation") or "text"
         if not validate_input(message_text, validation):
             err = data.get("error_message") or "Resposta inválida. Tente novamente."
-            await _send_text(channel, contact_wa_id, err, tenant_id, db)
+            await _send_text(channel, contact_wa_id, err, tenant_id, db, contact_id=contact.id if contact else None)
             session.last_interaction_at = datetime.utcnow()
             await db.commit()
             return

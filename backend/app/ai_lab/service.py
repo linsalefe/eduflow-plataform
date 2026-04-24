@@ -153,10 +153,16 @@ async def save_feedback(
             feedback.context_embedding = None  # limpa se rating mudou pra up/down
     else:
         # INSERT
+        # Buscar contact para dual-write
+        _ct = (await db.execute(select(Contact).where(
+            Contact.wa_id == msg.contact_wa_id, Contact.tenant_id == tenant_id,
+        ))).scalar_one_or_none()
+
         feedback = AIFeedback(
             tenant_id=tenant_id,
             message_id=message_id,
             contact_wa_id=msg.contact_wa_id,
+            contact_id=_ct.id if _ct else None,
             rating=rating,
             reason=reason,
             corrected_response=corrected_response,
