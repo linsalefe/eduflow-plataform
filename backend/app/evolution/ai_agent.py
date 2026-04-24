@@ -405,6 +405,7 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
                 tenant_id=tenant_id,
                 wa_message_id=f"ai_{uuid.uuid4().hex[:16]}",
                 contact_wa_id=wa_id,
+                contact_id=contact.id if contact else None,
                 channel_id=channel_id,
                 direction="outbound",
                 message_type="text",
