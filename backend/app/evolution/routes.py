@@ -571,7 +571,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     if ct:
                         ct.updated_at = msg_time
                         from app.automation_scheduler import cancel_automations_for_contact
-                        await cancel_automations_for_contact(contact_phone, db)
+                        await cancel_automations_for_contact(contact_phone, db, tenant_id=tenant_id)
 
                 print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
 
@@ -759,7 +759,9 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
         return {"status": "ok"}
 
     except Exception as e:
+        import traceback
         print(f"❌ Erro webhook Evolution [{instance_name}]: {e}")
+        traceback.print_exc()
         return {"status": "error", "detail": str(e)}
 
 

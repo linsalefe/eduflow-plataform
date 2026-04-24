@@ -93,14 +93,15 @@ async def trigger_automations_for_contact(
     await db.commit()
 
 
-async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession):
+async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession, tenant_id: int = None):
     """
     Cancela todas as execuções pendentes de um contato.
     Chamado quando o lead responde ou muda de estágio.
     """
-    ct = (await db.execute(
-        select(Contact).where(Contact.wa_id == contact_wa_id)
-    )).scalar_one_or_none()
+    _cq = select(Contact).where(Contact.wa_id == contact_wa_id)
+    if tenant_id:
+        _cq = _cq.where(Contact.tenant_id == tenant_id)
+    ct = (await db.execute(_cq)).scalar_one_or_none()
     if not ct:
         logger.warning(f"⚠️ Contact não encontrado para wa_id={contact_wa_id} — nada a cancelar")
         return
