@@ -335,6 +335,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
             tenant_id=tenant_id,
             wa_message_id=msg_id,
             contact_wa_id=req.to,
+            contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
             message_type="text",
@@ -366,6 +367,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
             tenant_id=tenant_id,
             wa_message_id=msg_id,
             contact_wa_id=wa_id,
+            contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
             message_type="text",
@@ -391,6 +393,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
             tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
             contact_wa_id=wa_id,
+            contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
             message_type="text",
@@ -426,6 +429,7 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
             tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
             contact_wa_id=wa_id,
+            contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
             message_type="template",
@@ -500,6 +504,7 @@ async def send_media(
         tenant_id=tenant_id,
         wa_message_id=msg_id,
         contact_wa_id=wa_id,
+        contact_id=contact.id if contact and contact.id else None,
         channel_id=channel_id,
         direction="outbound",
         message_type=message_type,
@@ -707,7 +712,10 @@ async def delete_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_
     contact = result.scalar_one_or_none()
     if not contact:
         raise HTTPException(404, "Contato não encontrado")
-    await db.execute(text(f"DELETE FROM messages WHERE contact_wa_id = '{wa_id}'"))
+    await db.execute(
+        text("DELETE FROM messages WHERE contact_wa_id = :wa_id AND tenant_id = :tenant_id"),
+        {"wa_id": wa_id, "tenant_id": tenant_id}
+    )
     await db.delete(contact)
     await db.commit()
     return {"message": "Contato excluído"}
@@ -876,7 +884,9 @@ async def update_contact_ai_memory(
 async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     tag_result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = tag_result.scalar_one_or_none()
-    await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=tag_id))
+    contact_id_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
+    _contact_id = contact_id_result.scalar_one_or_none()
+    await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, contact_id=_contact_id, tag_id=tag_id))
     await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id)
     await db.commit()
     return {"status": "tag added"}
@@ -1148,7 +1158,9 @@ async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db), 
     added = 0
     for wa_id in req.wa_ids:
         try:
-            await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, tag_id=req.tag_id))
+            _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
+            _cid = _cid_result.scalar_one_or_none()
+            await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, contact_id=_cid, tag_id=req.tag_id))
             added += 1
         except Exception:
             pass
@@ -1173,11 +1185,15 @@ async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db
     return {"removed": len(req.wa_ids)}
 
 
-async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None):
+async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None, contact_id: int = None):
     """Helper para registrar atividade na timeline"""
+    if not contact_id and contact_wa_id:
+        _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == contact_wa_id))
+        contact_id = _cid_result.scalar_one_or_none()
     activity = Activity(
         tenant_id=tenant_id,
         contact_wa_id=contact_wa_id,
+        contact_id=contact_id,
         type=activity_type,
         description=description,
         extra_data=metadata,

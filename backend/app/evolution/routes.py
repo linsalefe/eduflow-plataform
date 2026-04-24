@@ -245,6 +245,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 # Direção
                 direction = "outbound" if from_me else "inbound"
                 contact_phone = phone
+                contact = None
 
                 # Criar ou atualizar contato (só pra mensagens recebidas)
                 if not from_me:
@@ -385,6 +386,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     tenant_id=tenant_id,
                     wa_message_id=msg_id,
                     contact_wa_id=contact_phone,
+                    contact_id=contact.id if contact and contact.id else None,
                     channel_id=channel_id,
                     direction=direction,
                     message_type=msg_type if msg_type != "conversation" else "text",
@@ -638,6 +640,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                         tenant_id=tenant_id,
                                         type="voice_ai",
                                         contact_wa_id=phone,
+                                        contact_id=ct.id if ct and ct.id else None,
                                         contact_name=sender_name,
                                         phone=phone,
                                         course=course,

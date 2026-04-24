@@ -294,6 +294,7 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                     channel_id = channel.id
 
             # Salvar contato
+            contact = None
             for contact_data in value.get("contacts", []):
                 wa_id = contact_data["wa_id"]
                 name = contact_data.get("profile", {}).get("name", "")
@@ -323,6 +324,7 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                         pass
                     contact = Contact(wa_id=wa_id, name=name, channel_id=channel_id, pipeline_id=_pipeline_id)
                     db.add(contact)
+                    await db.flush()
                     await notify_all_users(
                         db, "new_lead", 
                         f"Novo lead: {name or wa_id}",
@@ -367,6 +369,7 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 message = Message(
                     wa_message_id=wa_message_id,
                     contact_wa_id=msg["from"],
+                    contact_id=contact.id if contact and contact.id else None,
                     channel_id=channel_id,
                     direction="inbound",
                     message_type=msg_type,
@@ -608,6 +611,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                 tenant_id=channel.tenant_id,
                 wa_message_id=msg_id,
                 contact_wa_id=ig_sender_id,
+                contact_id=contact.id if contact and contact.id else None,
                 channel_id=channel_id,
                 direction="inbound",
                 message_type=msg_type,

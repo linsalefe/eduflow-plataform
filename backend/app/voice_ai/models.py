@@ -3,7 +3,7 @@ Modelos de banco de dados para o sistema Voice AI.
 Tabelas: ai_calls, ai_call_turns, ai_call_events, voice_scripts, ai_call_qa
 """
 from sqlalchemy import (
-    Column, String, Text, DateTime, Integer, Float, Boolean,
+    Column, String, Text, DateTime, Integer, BigInteger, Float, Boolean,
     ForeignKey, JSON, func
 )
 from sqlalchemy.orm import relationship
@@ -18,6 +18,7 @@ class AICall(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     lead_id = Column(Integer, ForeignKey("exact_leads.id"), nullable=True)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     twilio_call_sid = Column(String(100), unique=True, nullable=True, index=True)
 
     # Dados da chamada

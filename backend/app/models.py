@@ -10,6 +10,7 @@ contact_tags = Table(
     "contact_tags",
     Base.metadata,
     Column("contact_wa_id", String(20), ForeignKey("contacts.wa_id"), primary_key=True),
+    Column("contact_id", BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True),
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
 )
 
@@ -71,8 +72,12 @@ class Contact(Base):
     ai_takeover_timeout_minutes = Column(Integer, nullable=True)
     ai_takeover_context = Column(JSON, nullable=True)
 
-    messages = relationship("Message", back_populates="contact")
-    tags = relationship("Tag", secondary=contact_tags, back_populates="contacts")
+    messages = relationship("Message", back_populates="contact", foreign_keys="Message.contact_wa_id")
+    tags = relationship(
+        "Tag", secondary=contact_tags, back_populates="contacts",
+        primaryjoin=wa_id == contact_tags.c.contact_wa_id,
+        secondaryjoin="Tag.id == contact_tags.c.tag_id",
+    )
     channel = relationship("Channel", back_populates="contacts")
 
 class Message(Base):
@@ -82,6 +87,7 @@ class Message(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     wa_message_id = Column(String(255), unique=True, nullable=False, index=True)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"))
     direction = Column(String(10), nullable=False)
     message_type = Column(String(20), nullable=False)
@@ -92,7 +98,7 @@ class Message(Base):
     sender_name = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
-    contact = relationship("Contact", back_populates="messages")
+    contact = relationship("Contact", back_populates="messages", foreign_keys=[contact_wa_id])
     channel = relationship("Channel", back_populates="messages")
 
 
@@ -108,7 +114,11 @@ class Tag(Base):
     color = Column(String(20), nullable=False, default="blue")
     created_at = Column(DateTime, server_default=func.now())
 
-    contacts = relationship("Contact", secondary=contact_tags, back_populates="tags")
+    contacts = relationship(
+        "Contact", secondary=contact_tags, back_populates="tags",
+        primaryjoin=id == contact_tags.c.tag_id,
+        secondaryjoin="Contact.wa_id == contact_tags.c.contact_wa_id",
+    )
 
 
 class User(Base):
@@ -193,6 +203,7 @@ class AIConversationSummary(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=False)
     status = Column(String(30), default="em_atendimento_ia")
     summary = Column(Text, nullable=True)
@@ -204,7 +215,7 @@ class AIConversationSummary(Base):
     finished_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="ai_summaries")
+    contact = relationship("Contact", backref="ai_summaries", foreign_keys=[contact_wa_id])
     channel = relationship("Channel", backref="ai_summaries")
 
 
@@ -225,6 +236,7 @@ class CallLog(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     user_name = Column(String(255), nullable=True)
     contact_wa_id = Column(String(20), nullable=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     contact_name = Column(String(255), nullable=True)
     channel_id = Column(Integer, ForeignKey("channels.id"), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
@@ -280,6 +292,7 @@ class Schedule(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     type = Column(String(20), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     contact_name = Column(String(255), nullable=True)
     phone = Column(String(30), nullable=False)
     course = Column(String(255), nullable=True)
@@ -293,7 +306,7 @@ class Schedule(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="schedules")
+    contact = relationship("Contact", backref="schedules", foreign_keys=[contact_wa_id])
     channel = relationship("Channel", backref="schedules")
 
 class Activity(Base):
@@ -302,6 +315,7 @@ class Activity(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(String(30), nullable=False)
     description = Column(Text, nullable=False)
     extra_data = Column("metadata", Text, nullable=True)
@@ -320,13 +334,14 @@ class Task(Base):
     due_time = Column(String(5), nullable=True)
     status = Column(String(20), default="pending")
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     assigned_to = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="tasks")
+    contact = relationship("Contact", backref="tasks", foreign_keys=[contact_wa_id])
     assigned_user = relationship("User", foreign_keys=[assigned_to], backref="assigned_tasks")
     creator = relationship("User", foreign_keys=[created_by], backref="created_tasks")
 
@@ -342,6 +357,7 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     link = Column(String(255), nullable=True)
     contact_wa_id = Column(String(20), nullable=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now())
 
     user = relationship("User", backref="notifications")
@@ -353,6 +369,7 @@ class FinancialEntry(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contact_wa_id = Column(String(20), ForeignKey("contacts.wa_id"), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     type = Column(String(20), nullable=False)
     value = Column(Numeric(10, 2), nullable=False)
     description = Column(Text, nullable=True)
@@ -360,7 +377,7 @@ class FinancialEntry(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
-    contact = relationship("Contact", backref="financial_entries")
+    contact = relationship("Contact", backref="financial_entries", foreign_keys=[contact_wa_id])
     creator = relationship("User", backref="financial_entries")
 
 class Pipeline(Base):
@@ -548,6 +565,7 @@ class AutomationExecution(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     flow_id = Column(Integer, ForeignKey("automation_flows.id", ondelete="CASCADE"), nullable=False)
     contact_wa_id = Column(String(100), nullable=False)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     current_step = Column(Integer, nullable=False, default=0)
     next_send_at = Column(DateTime, nullable=False)
     status = Column(String(50), nullable=False, default="pending")
@@ -604,6 +622,7 @@ class AIFeedback(Base):
         nullable=False,
     )
     contact_wa_id = Column(String(100), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
     rating = Column(String(10), nullable=False)  # 'up' | 'down' | 'edit'
     reason = Column(String(50), nullable=True)
     corrected_response = Column(Text, nullable=True)
@@ -649,6 +668,7 @@ class ChatbotSession(Base):
     flow_id = Column(Integer, ForeignKey("chatbot_flows.id", ondelete="CASCADE"), nullable=False)
     channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
     contact_wa_id = Column(String(100), nullable=False, index=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
 
     # ID do nó corrente dentro do grafo (IDs do React Flow são strings)
     current_node_id = Column(String(100), nullable=True)
