@@ -104,7 +104,6 @@ async def create_schedule(
     schedule = Schedule(
         tenant_id=tenant_id,
         type=req.type,
-        contact_wa_id=req.contact_wa_id,
         contact_id=contact.id if contact else None,
         contact_name=req.contact_name,
         phone=req.phone,

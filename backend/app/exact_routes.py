@@ -232,7 +232,6 @@ async def bulk_send_template(
 
                 msg = Message(
                     wa_message_id=result["messages"][0]["id"],
-                    contact_wa_id=wa_id,
                     contact_id=contact.id if contact else None,
                     channel_id=channel_id,
                     direction="outbound",

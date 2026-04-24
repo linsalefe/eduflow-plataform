@@ -335,7 +335,6 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         message = Message(
             tenant_id=tenant_id,
             wa_message_id=msg_id,
-            contact_wa_id=req.to,
             contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
@@ -368,7 +367,6 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         message = Message(
             tenant_id=tenant_id,
             wa_message_id=msg_id,
-            contact_wa_id=wa_id,
             contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
@@ -395,7 +393,6 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         message = Message(
             tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
-            contact_wa_id=wa_id,
             contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
@@ -432,7 +429,6 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
         message = Message(
             tenant_id=tenant_id,
             wa_message_id=result["messages"][0]["id"],
-            contact_wa_id=wa_id,
             contact_id=contact.id if contact and contact.id else None,
             channel_id=req.channel_id,
             direction="outbound",
@@ -508,7 +504,6 @@ async def send_media(
     message = Message(
         tenant_id=tenant_id,
         wa_message_id=msg_id,
-        contact_wa_id=wa_id,
         contact_id=contact.id if contact and contact.id else None,
         channel_id=channel_id,
         direction="outbound",
@@ -895,7 +890,7 @@ async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends
     tag = tag_result.scalar_one_or_none()
     contact_id_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
     _contact_id = contact_id_result.scalar_one_or_none()
-    await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, contact_id=_contact_id, tag_id=tag_id))
+    await db.execute(contact_tags.insert().values(contact_id=_contact_id, tag_id=tag_id))
     await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id, contact_id=_contact_id)
     await db.commit()
     return {"status": "tag added"}
@@ -1169,7 +1164,7 @@ async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db), 
         try:
             _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
             _cid = _cid_result.scalar_one_or_none()
-            await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, contact_id=_cid, tag_id=req.tag_id))
+            await db.execute(contact_tags.insert().values(contact_id=_cid, tag_id=req.tag_id))
             added += 1
         except Exception:
             pass
@@ -1201,7 +1196,6 @@ async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str,
         contact_id = _cid_result.scalar_one_or_none()
     activity = Activity(
         tenant_id=tenant_id,
-        contact_wa_id=contact_wa_id,
         contact_id=contact_id,
         type=activity_type,
         description=description,

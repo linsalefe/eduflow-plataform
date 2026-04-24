@@ -65,7 +65,6 @@ async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str,
     from app.models import Activity
     activity = Activity(
         tenant_id=tenant_id,
-        contact_wa_id=contact_wa_id,
         contact_id=contact_id,
         type=activity_type,
         description=description,
@@ -177,7 +176,6 @@ async def create_task(
         priority=req.priority,
         due_date=req.due_date,
         due_time=req.due_time,
-        contact_wa_id=req.contact_wa_id,
         contact_id=contact.id if contact else None,
         assigned_to=req.assigned_to,
         created_by=current_user.id,

@@ -156,7 +156,6 @@ async def save_feedback(
         feedback = AIFeedback(
             tenant_id=tenant_id,
             message_id=message_id,
-            contact_wa_id=msg.contact_wa_id,
             contact_id=msg.contact_id,
             rating=rating,
             reason=reason,

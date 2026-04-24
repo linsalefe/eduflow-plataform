@@ -78,7 +78,6 @@ async def trigger_automations_for_contact(
         # Criar execução
         execution = AutomationExecution(
             flow_id=flow.id,
-            contact_wa_id=contact_wa_id,
             contact_id=ct.id if ct else None,
             current_step=1,
             next_send_at=datetime.utcnow() + timedelta(minutes=step.delay_minutes),
@@ -219,7 +218,6 @@ async def process_execution(execution: AutomationExecution, db: AsyncSession):
     auto_msg = Message(
         tenant_id=flow.tenant_id,
         wa_message_id=f"auto_{uuid.uuid4().hex[:16]}",
-        contact_wa_id=execution.contact_wa_id,
         contact_id=contact.id if contact else None,
         channel_id=channel.id,
         direction="outbound",

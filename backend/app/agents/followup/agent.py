@@ -130,7 +130,6 @@ class FollowupAgent:
                 msg_d1 = _render_template(templates["reminder_d1"], nome=lead_name, hora=hora_str, data="", interesse="", empresa="")
                 db.add(Schedule(
                     tenant_id=tenant_id,
-                    contact_wa_id=lead.wa_id,
                     contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,
@@ -149,7 +148,6 @@ class FollowupAgent:
                 msg_d0 = _render_template(templates["reminder_d0"], nome=lead_name, hora=hora_str, data="", interesse="", empresa="")
                 db.add(Schedule(
                     tenant_id=tenant_id,
-                    contact_wa_id=lead.wa_id,
                     contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,
@@ -167,7 +165,6 @@ class FollowupAgent:
             if briefing_time > datetime.utcnow():
                 db.add(Schedule(
                     tenant_id=tenant_id,
-                    contact_wa_id=lead.wa_id,
                     contact_id=lead.id if lead else None,
                     phone=lead.wa_id,
                     contact_name=lead_name_full,

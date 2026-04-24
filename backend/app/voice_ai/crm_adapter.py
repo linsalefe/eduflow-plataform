@@ -94,7 +94,6 @@ async def update_lead_after_call(call: AICall, db: AsyncSession):
                 print(f"❌ CRM: Sem channel_id disponível — pulando AIConversationSummary para {call.contact_wa_id}")
             else:
                 summary = AIConversationSummary(
-                    contact_wa_id=call.contact_wa_id,
                     contact_id=contact.id if contact else None,
                     channel_id=channel_id,
                     status=_outcome_to_kanban_status(call.outcome),

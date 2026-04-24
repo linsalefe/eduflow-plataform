@@ -54,7 +54,6 @@ async def create_entry(
 
     entry = FinancialEntry(
         tenant_id=tenant_id,
-        contact_wa_id=data.contact_wa_id,
         contact_id=contact.id if contact else None,
         type=data.type,
         value=data.value,

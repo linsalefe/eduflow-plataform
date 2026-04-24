@@ -145,7 +145,6 @@ async def receive_new_lead(data: NewLeadRequest, db: AsyncSession = Depends(get_
     # Criar registro da chamada
     ai_call = AICall(
         lead_id=lead_id,
-        contact_wa_id=phone,
         contact_id=contact.id if contact else None,
         from_number=TWILIO_PHONE_NUMBER,
         to_number=to_number,
@@ -910,7 +909,6 @@ async def _schedule_retry(call_id: int):
 
         new_call = AICall(
             lead_id=call.lead_id,
-            contact_wa_id=call.contact_wa_id,
             contact_id=ct.id if ct else None,
             from_number=call.from_number,
             to_number=call.to_number,

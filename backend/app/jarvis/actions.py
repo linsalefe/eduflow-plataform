@@ -292,7 +292,6 @@ async def _exec_schedule(details: dict, tenant_id: int, db: AsyncSession) -> dic
     schedule = Schedule(
         tenant_id=tenant_id,
         type=details.get("type", "consultant"),
-        contact_wa_id=details["wa_id"],
         contact_id=ct.id if ct else None,
         contact_name=details["lead_name"],
         phone=details["phone"],

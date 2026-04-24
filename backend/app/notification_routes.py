@@ -31,7 +31,6 @@ async def create_notification(
         title=title,
         message=message,
         link=link,
-        contact_wa_id=contact_wa_id,
         contact_id=contact_id,
     )
     db.add(notif)
