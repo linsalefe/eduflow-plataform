@@ -7,8 +7,12 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user, get_tenant_id
 from sqlalchemy import select, delete
-from app.database import get_db
+from app.database import get_db, async_session
+from app.evolution.debounce import schedule_debounced_call
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission
 from app.evolution import client
 
@@ -145,6 +149,165 @@ async def logout_instance(instance_name: str, db: AsyncSession = Depends(get_db)
         return {"status": "logged_out", "instance_name": instance_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# HELPER: Processa IA com sessão DB própria (chamado pelo debounce)
+# ============================================================
+
+async def _process_ai_for_contact(
+    phone: str,
+    sender_name: str,
+    text: str,
+    instance_name: str,
+    channel_id: int,
+    tenant_id: int,
+    raw_msg_type: str,
+):
+    """
+    Executa lógica de IA para um contato.
+    Abre sessão DB própria — seguro para chamar via debounce (15s depois).
+    """
+    try:
+        async with async_session() as db:
+            # Verificar se IA está ativa para este contato
+            contact_check = await db.execute(
+                select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
+            )
+            ct = contact_check.scalar_one_or_none()
+            if not ct or not ct.ai_active:
+                return
+
+            # Verificar se o agente está ativado no canal
+            ai_cfg_check = await db.execute(
+                select(AIConfig).where(AIConfig.channel_id == channel_id)
+            )
+            ai_cfg = ai_cfg_check.scalar_one_or_none()
+            if not ai_cfg or not ai_cfg.is_enabled:
+                return
+
+            # Processar com agente IA
+            from app.evolution.ai_agent import process_message
+            result = await process_message(
+                wa_id=phone,
+                user_message=text,
+                contact_name=sender_name,
+                instance_name=instance_name,
+                channel_id=channel_id,
+                db=db,
+                tenant_id=tenant_id,
+                input_message_type=raw_msg_type,
+            )
+
+            action = result.get("action", "continue")
+            print(f"🤖 IA respondeu para {phone}: {result.get('message', '')[:80]} [action={action}]")
+
+            # Mover lead para "em_contato" no primeiro atendimento da IA
+            try:
+                from app.models import Tenant
+                if ct and ct.lead_status == "novo":
+                    tenant_result_move = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+                    tenant_move = tenant_result_move.scalar_one_or_none()
+                    moves = (tenant_move.agent_pipeline_moves or {}) if tenant_move else {}
+                    target = moves.get("on_first_contact", "")
+                    if target:
+                        ct.lead_status = target
+                        await db.commit()
+                        print(f"📊 Pipeline: lead {ct.id} movido de 'novo' → '{target}'")
+            except Exception as e:
+                print(f"❌ Erro ao mover lead no primeiro contato: {e}")
+
+            # Disparar ligação se lead aceitou
+            if action == "trigger_call":
+                try:
+                    from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
+                    notes = json.loads(ct.notes or "{}")
+                    course = notes.get("course", "Pós-graduação")
+                    await make_outbound_call(phone, sender_name, course)
+                    print(f"📞 Ligação disparada para {phone}")
+                except Exception as e:
+                    print(f"❌ Erro ao disparar ligação: {e}")
+            # Agendar ligação se lead não pode agora
+            elif action == "schedule_call":
+                try:
+                    from app.models import Schedule, Tenant
+                    from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
+
+                    collected = result.get("collected", {})
+                    dia = collected.get("dia_agendamento", "")
+                    horario = collected.get("horario_agendamento", "")
+
+                    if dia and horario:
+                        from app.evolution.scheduler import parse_schedule_datetime
+                        scheduled_dt = parse_schedule_datetime(dia, horario)
+
+                        if scheduled_dt:
+                            # Verificar se tenant tem voice ativo
+                            tenant_result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
+                            tenant_obj = tenant_result.scalar_one_or_none()
+                            plan_flags = (tenant_obj.agent_plan_flags or {}) if tenant_obj else {}
+                            agent_flags = (tenant_obj.agent_flags or {}) if tenant_obj else {}
+
+                            if plan_flags.get("voice") and agent_flags.get("voice"):
+                                # Tenant tem voz → agendar ligação automática
+                                notes_data = json.loads(ct.notes or "{}")
+                                course = notes_data.get("course", "Pós-graduação")
+                                schedule = Schedule(
+                                    tenant_id=tenant_id,
+                                    type="voice_ai",
+                                    contact_id=ct.id if ct and ct.id else None,
+                                    contact_name=sender_name,
+                                    phone=phone,
+                                    course=course,
+                                    scheduled_date=scheduled_dt.strftime("%Y-%m-%d"),
+                                    scheduled_time=scheduled_dt.strftime("%H:%M"),
+                                    scheduled_at=scheduled_dt,
+                                    status="pending",
+                                    channel_id=channel_id,
+                                )
+                                db.add(schedule)
+                                await db.commit()
+                                print(f"📞 Agendamento voice_ai criado: {sender_name} → {scheduled_dt}")
+                            else:
+                                await db.commit()
+                                print(f"👤 Tenant sem voice ativo — reunião com closer humana: {scheduled_dt}")
+
+                            # Sempre acionar orquestrador → FollowupAgent
+                            await orchestrator.on_event(AgentEvent(
+                                lead_id=ct.id,
+                                tenant_id=tenant_id,
+                                event_type="call_completed",
+                                payload={
+                                    "outcome": "qualified",
+                                    "summary": f"Lead qualificado via WhatsApp. Reunião agendada para {scheduled_dt}",
+                                    "collected_fields": {
+                                        "data_agendamento": scheduled_dt.strftime("%d/%m/%Y"),
+                                        "hora_agendamento": scheduled_dt.strftime("%H:%M"),
+                                    },
+                                },
+                            ), db)
+                            print(f"🤖 Orquestrador acionado para lead {ct.id}")
+
+                            # Mover lead na pipeline automaticamente
+                            try:
+                                moves = (tenant_obj.agent_pipeline_moves or {}) if tenant_obj else {}
+                                target_status = moves.get("on_schedule_call", "")
+                                if target_status and ct.lead_status != target_status:
+                                    old_status = ct.lead_status
+                                    ct.lead_status = target_status
+                                    await db.commit()
+                                    print(f"📊 Pipeline: lead {ct.id} movido de '{old_status}' → '{target_status}'")
+                            except Exception as e:
+                                print(f"❌ Erro ao mover lead na pipeline: {e}")
+
+                        else:
+                            print(f"⚠️ Não conseguiu parsear data: dia={dia}, horario={horario}")
+                    else:
+                        print(f"⚠️ Agendamento sem dia/horário: {collected}")
+                except Exception as e:
+                    print(f"❌ Erro ao agendar: {e}")
+    except Exception as e:
+        logger.exception(f"Erro em _process_ai_for_contact para {phone}: {e}")
 
 
 # ============================================================
@@ -550,8 +713,8 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 if op_mode == "none":
                     continue
 
-                # === Modo 'ai' (default) — lógica original ===
-                # Verificar se IA está ativa para este contato
+                # === Modo 'ai' (default) — agendar com debounce de 15s ===
+                # Verificação rápida de ai_active antes de agendar
                 contact_check = await db.execute(
                     select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
                 )
@@ -559,136 +722,36 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 if not ct or not ct.ai_active:
                     continue
 
-                # Verificar se o agente está ativado no canal
-                from app.models import AIConfig
-                ai_cfg_check = await db.execute(
-                    select(AIConfig).where(AIConfig.channel_id == channel_id)
-                )
-                ai_cfg = ai_cfg_check.scalar_one_or_none()
-                if not ai_cfg or not ai_cfg.is_enabled:
-                    continue
-
-                # Processar com agente IA
-                from app.evolution.ai_agent import process_message
-                result = await process_message(
-                    wa_id=phone,
-                    user_message=text,
-                    contact_name=sender_name,
-                    instance_name=instance_name,
-                    channel_id=channel_id,
-                    db=db,
-                    tenant_id=tenant_id,
-                    input_message_type=raw_msg_type,
-                )
-
-                action = result.get("action", "continue")
-                print(f"🤖 IA respondeu para {phone}: {result.get('message', '')[:80]} [action={action}]")
-
-                # Mover lead para "em_contato" no primeiro atendimento da IA
                 try:
-                    from app.models import Tenant
-                    if ct and ct.lead_status == "novo":
-                        tenant_result_move = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
-                        tenant_move = tenant_result_move.scalar_one_or_none()
-                        moves = (tenant_move.agent_pipeline_moves or {}) if tenant_move else {}
-                        target = moves.get("on_first_contact", "")
-                        if target:
-                            ct.lead_status = target
-                            await db.commit()
-                            print(f"📊 Pipeline: lead {ct.id} movido de 'novo' → '{target}'")
+                    schedule_debounced_call(
+                        tenant_id=tenant_id,
+                        wa_id=phone,
+                        callback=_process_ai_for_contact,
+                        callback_kwargs=dict(
+                            phone=phone,
+                            sender_name=sender_name,
+                            text=text,
+                            instance_name=instance_name,
+                            channel_id=channel_id,
+                            tenant_id=tenant_id,
+                            raw_msg_type=raw_msg_type,
+                        ),
+                    )
+                    print(f"📮 IA agendada com debounce 15s para {phone}")
                 except Exception as e:
-                    print(f"❌ Erro ao mover lead no primeiro contato: {e}")
-
-                # Disparar ligação se lead aceitou
-
-                if action == "trigger_call":
-                    try:
-                        from app.voice_ai_elevenlabs.voice_pipeline import make_outbound_call
-                        notes = json.loads(ct.notes or "{}")
-                        course = notes.get("course", "Pós-graduação")
-                        await make_outbound_call(phone, sender_name, course)
-                        print(f"📞 Ligação disparada para {phone}")
-                    except Exception as e:
-                        print(f"❌ Erro ao disparar ligação: {e}")
-                # Agendar ligação se lead não pode agora
-                elif action == "schedule_call":
-                    try:
-                        from app.models import Schedule, Tenant
-                        from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
-
-                        collected = result.get("collected", {})
-                        dia = collected.get("dia_agendamento", "")
-                        horario = collected.get("horario_agendamento", "")
-
-                        if dia and horario:
-                            from app.evolution.scheduler import parse_schedule_datetime
-                            scheduled_dt = parse_schedule_datetime(dia, horario)
-
-                            if scheduled_dt:
-                                # Verificar se tenant tem voice ativo
-                                tenant_result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
-                                tenant_obj = tenant_result.scalar_one_or_none()
-                                plan_flags = (tenant_obj.agent_plan_flags or {}) if tenant_obj else {}
-                                agent_flags = (tenant_obj.agent_flags or {}) if tenant_obj else {}
-
-                                if plan_flags.get("voice") and agent_flags.get("voice"):
-                                    # Tenant tem voz → agendar ligação automática
-                                    notes_data = json.loads(ct.notes or "{}")
-                                    course = notes_data.get("course", "Pós-graduação")
-                                    schedule = Schedule(
-                                        tenant_id=tenant_id,
-                                        type="voice_ai",
-                                        contact_id=ct.id if ct and ct.id else None,
-                                        contact_name=sender_name,
-                                        phone=phone,
-                                        course=course,
-                                        scheduled_date=scheduled_dt.strftime("%Y-%m-%d"),
-                                        scheduled_time=scheduled_dt.strftime("%H:%M"),
-                                        scheduled_at=scheduled_dt,
-                                        status="pending",
-                                        channel_id=channel_id,
-                                    )
-                                    db.add(schedule)
-                                    await db.commit()
-                                    print(f"📞 Agendamento voice_ai criado: {sender_name} → {scheduled_dt}")
-                                else:
-                                    await db.commit()
-                                    print(f"👤 Tenant sem voice ativo — reunião com closer humana: {scheduled_dt}")
-
-                                # Sempre acionar orquestrador → FollowupAgent
-                                await orchestrator.on_event(AgentEvent(
-                                    lead_id=ct.id,
-                                    tenant_id=tenant_id,
-                                    event_type="call_completed",
-                                    payload={
-                                        "outcome": "qualified",
-                                        "summary": f"Lead qualificado via WhatsApp. Reunião agendada para {scheduled_dt}",
-                                        "collected_fields": {
-                                            "data_agendamento": scheduled_dt.strftime("%d/%m/%Y"),
-                                            "hora_agendamento": scheduled_dt.strftime("%H:%M"),
-                                        },
-                                    },
-                                ), db)
-                                print(f"🤖 Orquestrador acionado para lead {ct.id}")
-
-                                # Mover lead na pipeline automaticamente
-                                try:
-                                    moves = (tenant_obj.agent_pipeline_moves or {}) if tenant_obj else {}
-                                    target_status = moves.get("on_schedule_call", "")
-                                    if target_status and ct.lead_status != target_status:
-                                        old_status = ct.lead_status
-                                        ct.lead_status = target_status
-                                        await db.commit()
-                                        print(f"📊 Pipeline: lead {ct.id} movido de '{old_status}' → '{target_status}'")
-                                except Exception as e:
-                                    print(f"❌ Erro ao mover lead na pipeline: {e}")
-
-                            else:
-                                print(f"⚠️ Não conseguiu parsear data: dia={dia}, horario={horario}")
-                        else:
-                            print(f"⚠️ Agendamento sem dia/horário: {collected}")
-                    except Exception as e:
-                        print(f"❌ Erro ao agendar: {e}")
+                    # Fallback: chamar IA imediatamente se debounce falhar
+                    print(f"⚠️ Debounce falhou, chamando IA direto: {e}")
+                    from app.evolution.ai_agent import process_message
+                    await process_message(
+                        wa_id=phone,
+                        user_message=text,
+                        contact_name=sender_name,
+                        instance_name=instance_name,
+                        channel_id=channel_id,
+                        db=db,
+                        tenant_id=tenant_id,
+                        input_message_type=raw_msg_type,
+                    )
 
         return {"status": "ok"}
 
