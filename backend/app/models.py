@@ -72,10 +72,10 @@ class Contact(Base):
     ai_takeover_timeout_minutes = Column(Integer, nullable=True)
     ai_takeover_context = Column(JSON, nullable=True)
 
-    messages = relationship("Message", back_populates="contact", foreign_keys="Message.contact_wa_id")
+    messages = relationship("Message", back_populates="contact", foreign_keys="Message.contact_id")
     tags = relationship(
         "Tag", secondary=contact_tags, back_populates="contacts",
-        primaryjoin=wa_id == contact_tags.c.contact_wa_id,
+        primaryjoin=id == contact_tags.c.contact_id,
         secondaryjoin="Tag.id == contact_tags.c.tag_id",
     )
     channel = relationship("Channel", back_populates="contacts")
@@ -98,7 +98,7 @@ class Message(Base):
     sender_name = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
-    contact = relationship("Contact", back_populates="messages", foreign_keys=[contact_wa_id])
+    contact = relationship("Contact", back_populates="messages", foreign_keys=[contact_id])
     channel = relationship("Channel", back_populates="messages")
 
 
@@ -117,7 +117,7 @@ class Tag(Base):
     contacts = relationship(
         "Contact", secondary=contact_tags, back_populates="tags",
         primaryjoin=id == contact_tags.c.tag_id,
-        secondaryjoin="Contact.wa_id == contact_tags.c.contact_wa_id",
+        secondaryjoin="Contact.id == contact_tags.c.contact_id",
     )
 
 
@@ -215,7 +215,7 @@ class AIConversationSummary(Base):
     finished_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="ai_summaries", foreign_keys=[contact_wa_id])
+    contact = relationship("Contact", backref="ai_summaries", foreign_keys=[contact_id])
     channel = relationship("Channel", backref="ai_summaries")
 
 
@@ -306,7 +306,7 @@ class Schedule(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="schedules", foreign_keys=[contact_wa_id])
+    contact = relationship("Contact", backref="schedules", foreign_keys=[contact_id])
     channel = relationship("Channel", backref="schedules")
 
 class Activity(Base):
@@ -341,7 +341,7 @@ class Task(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    contact = relationship("Contact", backref="tasks", foreign_keys=[contact_wa_id])
+    contact = relationship("Contact", backref="tasks", foreign_keys=[contact_id])
     assigned_user = relationship("User", foreign_keys=[assigned_to], backref="assigned_tasks")
     creator = relationship("User", foreign_keys=[created_by], backref="created_tasks")
 
@@ -377,7 +377,7 @@ class FinancialEntry(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
 
-    contact = relationship("Contact", backref="financial_entries", foreign_keys=[contact_wa_id])
+    contact = relationship("Contact", backref="financial_entries", foreign_keys=[contact_id])
     creator = relationship("User", backref="financial_entries")
 
 class Pipeline(Base):
