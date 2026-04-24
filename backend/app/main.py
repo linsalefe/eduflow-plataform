@@ -299,9 +299,10 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                 wa_id = contact_data["wa_id"]
                 name = contact_data.get("profile", {}).get("name", "")
 
-                # wa_id tem UNIQUE constraint global — buscar sem tenant_id
-                # (será escoped por tenant na Fase D quando UNIQUE mudar pra wa_id+tenant_id)
-                result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+                _cq = select(Contact).where(Contact.wa_id == wa_id)
+                if channel:
+                    _cq = _cq.where(Contact.tenant_id == channel.tenant_id)
+                result = await db.execute(_cq)
                 contact = result.scalar_one_or_none()
 
                 if not contact:
@@ -533,9 +534,8 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
             ig_sender_id = f"ig_{sender_id}"
 
             # Criar ou atualizar contato
-            # wa_id tem UNIQUE constraint global — buscar sem tenant_id
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id == ig_sender_id)
+                select(Contact).where(Contact.wa_id == ig_sender_id, Contact.tenant_id == channel.tenant_id)
             )
             contact = contact_result.scalar_one_or_none()
 

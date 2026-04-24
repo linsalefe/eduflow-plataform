@@ -96,8 +96,13 @@ async def receive_new_lead(data: NewLeadRequest, db: AsyncSession = Depends(get_
         phone = "55" + phone
     to_number = f"+{phone}"
 
-    # Buscar/criar contato — wa_id tem UNIQUE constraint global
-    result = await db.execute(select(Contact).where(Contact.wa_id == phone))
+    # Buscar/criar contato — filtrar por tenant via channel
+    _ch_tid = await db.execute(select(Channel.tenant_id).where(Channel.id == data.channel_id))
+    _tenant_id = _ch_tid.scalar_one_or_none()
+    _cq = select(Contact).where(Contact.wa_id == phone)
+    if _tenant_id:
+        _cq = _cq.where(Contact.tenant_id == _tenant_id)
+    result = await db.execute(_cq)
     contact = result.scalar_one_or_none()
     if not contact:
         # Resolve pipeline for new contact

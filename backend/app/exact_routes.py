@@ -219,7 +219,7 @@ async def bulk_send_template(
 
                 # Criar contato se não existir
                 contact_result = await db.execute(
-                    select(Contact).where(Contact.wa_id == wa_id)
+                    select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == channel.tenant_id)
                 )
                 contact = contact_result.scalar_one_or_none()
                 if not contact:

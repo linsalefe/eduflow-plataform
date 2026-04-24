@@ -324,8 +324,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         import uuid
         msg_id = result.get("message_id", str(uuid.uuid4()))
 
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == req.to, Contact.tenant_id == tenant_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
             contact = Contact(wa_id=req.to, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
@@ -356,8 +355,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
         wa_id = req.to.replace("+", "").replace("-", "").replace(" ", "")
         msg_id = result.get("key", {}).get("id", str(uuid.uuid4()))
 
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
             contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
@@ -383,8 +381,7 @@ async def send_text(req: SendTextRequest, db: AsyncSession = Depends(get_db), te
     result = await send_text_message(req.to, req.text, channel.phone_number_id, channel.whatsapp_token)
     if "messages" in result:
         wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
             contact = Contact(wa_id=wa_id, name="", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db))
@@ -413,8 +410,7 @@ async def send_template(req: SendTemplateRequest, db: AsyncSession = Depends(get
     if "messages" in result:
         wa_id = result.get("contacts", [{}])[0].get("wa_id", req.to)
 
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
             db.add(Contact(wa_id=wa_id, name=req.contact_name or "", channel_id=req.channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(req.channel_id, tenant_id, db)))
@@ -493,8 +489,7 @@ async def send_media(
     if isinstance(result, dict):
         msg_id = result.get("key", {}).get("id", msg_id)
 
-    # wa_id tem UNIQUE constraint global — buscar sem tenant_id em find-or-create
-    contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id))
+    contact_result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = contact_result.scalar_one_or_none()
     if not contact:
         contact = Contact(wa_id=wa_id, name="", channel_id=channel_id, tenant_id=tenant_id, pipeline_id=await resolve_pipeline_id(channel_id, tenant_id, db))
@@ -633,8 +628,7 @@ async def create_contact(req: dict, db: AsyncSession = Depends(get_db), tenant_i
     phone = req.get("phone", "").replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
     if not phone.startswith("55"):
         phone = "55" + phone
-    # wa_id tem UNIQUE constraint global — buscar sem tenant_id
-    existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
+    existing = await db.execute(select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id))
     if existing.scalar_one_or_none():
         raise HTTPException(400, "Contato já existe com esse telefone")
     channel_id = req.get("channel_id")
@@ -687,8 +681,7 @@ async def import_contacts(file: UploadFile = File(...), db: AsyncSession = Depen
             continue
         if not phone.startswith('55'):
             phone = '55' + phone
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id
-        existing = await db.execute(select(Contact).where(Contact.wa_id == phone))
+        existing = await db.execute(select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id))
         if existing.scalar_one_or_none():
             continue
         name = str(row.get('nome') or row.get('name') or '').strip()
@@ -893,7 +886,7 @@ async def update_contact_ai_memory(
 async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     tag_result = await db.execute(select(Tag).where(Tag.id == tag_id, Tag.tenant_id == tenant_id))
     tag = tag_result.scalar_one_or_none()
-    contact_id_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
+    contact_id_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     _contact_id = contact_id_result.scalar_one_or_none()
     await db.execute(contact_tags.insert().values(contact_id=_contact_id, tag_id=tag_id))
     await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id, contact_id=_contact_id)
@@ -1177,7 +1170,7 @@ async def bulk_add_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db), 
     added = 0
     for wa_id in req.wa_ids:
         try:
-            _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
+            _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
             _cid = _cid_result.scalar_one_or_none()
             await db.execute(contact_tags.insert().values(contact_id=_cid, tag_id=req.tag_id))
             added += 1
@@ -1211,7 +1204,10 @@ async def bulk_remove_tag(req: BulkTagRequest, db: AsyncSession = Depends(get_db
 async def log_activity(db: AsyncSession, contact_wa_id: str, activity_type: str, description: str, metadata: str = None, tenant_id: int = None, contact_id: int = None):
     """Helper para registrar atividade na timeline"""
     if not contact_id and contact_wa_id:
-        _cid_result = await db.execute(select(Contact.id).where(Contact.wa_id == contact_wa_id))
+        _q = select(Contact.id).where(Contact.wa_id == contact_wa_id)
+        if tenant_id:
+            _q = _q.where(Contact.tenant_id == tenant_id)
+        _cid_result = await db.execute(_q)
         contact_id = _cid_result.scalar_one_or_none()
     activity = Activity(
         tenant_id=tenant_id,

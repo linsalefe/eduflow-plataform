@@ -141,8 +141,7 @@ async def send_welcome_to_new_lead(lead_data: dict, db: AsyncSession):
             return
 
         # Criar ou atualizar contato
-        # wa_id tem UNIQUE constraint global — buscar sem tenant_id em endpoints de criação
-        contact_result = await db.execute(select(Contact).where(Contact.wa_id == phone))
+        contact_result = await db.execute(select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == channel.tenant_id))
         contact = contact_result.scalar_one_or_none()
         if not contact:
             contact = Contact(
