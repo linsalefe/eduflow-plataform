@@ -58,10 +58,10 @@ async def get_channel_id_for_contact(wa_id: str, instance_name: str, db: AsyncSe
     return contact.channel_id if contact else None
 
 
-async def get_conversation_history(wa_id: str, db: AsyncSession, limit: int = 20) -> list:
+async def get_conversation_history(wa_id: str, db: AsyncSession, tenant_id: int, limit: int = 20) -> list:
     """Busca últimas mensagens do contato para contexto."""
     contact = (await db.execute(
-        select(Contact).where(Contact.wa_id == wa_id)
+        select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
     )).scalar_one_or_none()
     if not contact:
         return []
@@ -244,7 +244,7 @@ async def process_message(
         print(f"⚠️ Erro ao buscar RAG: {e}")
 
     # ── Histórico de conversa ─────────────────────────────────────────────────
-    history = await get_conversation_history(wa_id, db)
+    history = await get_conversation_history(wa_id, db, tenant_id=tenant_id)
 
     # ── Montar mensagens ──────────────────────────────────────────────────────
     lead_info = f"\nDados do lead: Nome={contact_name}, Curso de interesse={course or 'não informado'}"
