@@ -783,7 +783,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
     if req.lead_status is not None:
         old_status = contact.lead_status
         contact.lead_status = req.lead_status
-        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id)
+        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id, contact_id=contact.id if contact else None)
         # Desligar IA automaticamente (configurável por tenant)
         try:
             from app.models import Tenant as TenantModel
@@ -823,10 +823,11 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
             f"/conversations",
             wa_id,
             tenant_id=tenant_id,
+            contact_id=contact.id if contact else None,
         )
     if req.notes is not None:
         contact.notes = req.notes
-        await log_activity(db, wa_id, "note", "Notas atualizadas", tenant_id=tenant_id)
+        await log_activity(db, wa_id, "note", "Notas atualizadas", tenant_id=tenant_id, contact_id=contact.id if contact else None)
     if req.pipeline_id is not None:
         contact.pipeline_id = req.pipeline_id
 
@@ -894,7 +895,7 @@ async def add_tag_to_contact(wa_id: str, tag_id: int, db: AsyncSession = Depends
     contact_id_result = await db.execute(select(Contact.id).where(Contact.wa_id == wa_id))
     _contact_id = contact_id_result.scalar_one_or_none()
     await db.execute(contact_tags.insert().values(contact_wa_id=wa_id, contact_id=_contact_id, tag_id=tag_id))
-    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id)
+    await log_activity(db, wa_id, "tag_added", f"Tag adicionada: {tag.name if tag else tag_id}", tenant_id=tenant_id, contact_id=_contact_id)
     await db.commit()
     return {"status": "tag added"}
 
@@ -1258,9 +1259,9 @@ async def assign_contact(wa_id: str, req: dict, db: AsyncSession = Depends(get_d
     if user_id:
         user_result = await db.execute(select(User).where(User.id == user_id))
         user = user_result.scalar_one_or_none()
-        await log_activity(db, wa_id, "assigned", f"Atribuído a {user.name if user else f'#{user_id}'}", tenant_id=tenant_id)
+        await log_activity(db, wa_id, "assigned", f"Atribuído a {user.name if user else f'#{user_id}'}", tenant_id=tenant_id, contact_id=contact.id if contact else None)
     else:
-        await log_activity(db, wa_id, "assigned", "Atribuição removida", tenant_id=tenant_id)
+        await log_activity(db, wa_id, "assigned", "Atribuição removida", tenant_id=tenant_id, contact_id=contact.id if contact else None)
 
     await db.commit()
     return {"status": "assigned", "assigned_to": user_id}

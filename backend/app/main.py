@@ -328,11 +328,12 @@ async def receive_webhook(request: Request, db: AsyncSession = Depends(get_db)):
                     db.add(contact)
                     await db.flush()
                     await notify_all_users(
-                        db, "new_lead", 
+                        db, "new_lead",
                         f"Novo lead: {name or wa_id}",
                         f"Um novo lead entrou pelo WhatsApp",
                         f"/conversations",
                         wa_id,
+                        contact_id=contact.id if contact else None,
                     )
                 else:
                     contact.name = name
@@ -602,6 +603,7 @@ async def handle_instagram_webhook(body: dict, db: AsyncSession):
                     f"/conversations",
                     ig_sender_id,
                     tenant_id=channel.tenant_id,
+                    contact_id=contact.id if contact else None,
                 )
 
             # Salvar mensagem

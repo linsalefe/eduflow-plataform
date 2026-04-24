@@ -46,6 +46,7 @@ async def notify_all_users(
     link: str = None,
     contact_wa_id: str = None,
     tenant_id: int = None,
+    contact_id: int = None,
 ):
     user_filter = [User.is_active == True]
     if tenant_id:
@@ -53,7 +54,7 @@ async def notify_all_users(
     result = await db.execute(select(User).where(*user_filter))
     users = result.scalars().all()
     for u in users:
-        await create_notification(db, u.id, type, title, message, link, contact_wa_id, tenant_id=tenant_id)
+        await create_notification(db, u.id, type, title, message, link, contact_wa_id, tenant_id=tenant_id, contact_id=contact_id)
 
 
 # -- Serializer ----------------------------------------

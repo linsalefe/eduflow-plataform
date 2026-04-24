@@ -191,7 +191,8 @@ async def create_task(
             db, req.contact_wa_id, "task_created",
             f"Tarefa criada: {req.title}",
             f'{{"task_id": {task.id}, "priority": "{req.priority}"}}',
-            tenant_id=tenant_id
+            tenant_id=tenant_id,
+            contact_id=contact.id if contact else None,
         )
 
     await db.commit()
@@ -243,7 +244,8 @@ async def complete_task(
             db, task.contact_wa_id, "task_completed",
             f"Tarefa concluída: {task.title}",
             f'{{"task_id": {task.id}}}',
-            tenant_id=task.tenant_id
+            tenant_id=task.tenant_id,
+            contact_id=task.contact_id,
         )
 
     await db.commit()
