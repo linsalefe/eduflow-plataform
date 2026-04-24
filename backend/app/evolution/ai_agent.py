@@ -319,23 +319,21 @@ Responda APENAS com JSON válido (sem markdown, sem backticks, sem texto fora do
             "messages": messages,
             "max_completion_tokens": max_tokens,
         }
-        if not model.startswith("gpt-5"):
+        if model.startswith("gpt-5"):
+            # GPT-5 consome tokens em reasoning interno (invisível).
+            # Com max_tokens baixo, reasoning come tudo e output vem vazio.
+            # Mínimo seguro: 2048 (reasoning ~256-500 + output ~500-1500)
+            api_params["max_completion_tokens"] = max(max_tokens, 2048)
+        else:
             api_params["temperature"] = temperature
 
         response = await client.chat.completions.create(**api_params)
         raw = (response.choices[0].message.content or "").strip()
 
-        # Retry com gpt-4o-mini se resposta vazia
+        # Log explícito se GPT-5 ainda vier vazio mesmo com 2048 (anomalia)
         if not raw and model.startswith("gpt-5"):
-            print(f"⚠️ GPT-5 retornou vazio, tentando retry com gpt-4o-mini...")
-            retry_params = {
-                "model": "gpt-4o-mini",
-                "messages": messages,
-                "max_completion_tokens": max_tokens,
-                "temperature": temperature,
-            }
-            response = await client.chat.completions.create(**retry_params)
-            raw = (response.choices[0].message.content or "").strip()
+            usage = response.usage
+            print(f"❌ GPT-5 retornou vazio mesmo com max={api_params['max_completion_tokens']}. Usage: {usage}")
 
         # Salvar consumo de tokens e debitar crédito
         try:
