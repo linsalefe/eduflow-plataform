@@ -138,6 +138,23 @@ async def create_tenant(
     db.add(tenant)
     await db.flush()
 
+    # Criar Pipeline padrão
+    default_pipeline = Pipeline(
+        tenant_id=tenant.id,
+        name="Pipeline Principal",
+        is_default=True,
+        columns=[
+            {"key": "novo", "color": "#6366f1", "label": "Novos Leads", "order": 0},
+            {"key": "em_contato", "color": "#f59e0b", "label": "Em Contato", "order": 1},
+            {"key": "qualificado", "color": "#8b5cf6", "label": "Qualificados", "order": 2},
+            {"key": "negociacao", "color": "#06b6d4", "label": "Em Negociação", "order": 3},
+            {"key": "convertido", "color": "#10b981", "label": "Convertidos", "order": 4},
+            {"key": "perdido", "color": "#ef4444", "label": "Perdidos", "order": 5},
+        ],
+    )
+    db.add(default_pipeline)
+    await db.flush()
+
     # Criar usuário admin do tenant
     owner = User(
         tenant_id=tenant.id,
