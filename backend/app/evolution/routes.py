@@ -410,6 +410,12 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                 contact_phone = phone
                 contact = None
 
+                # Para mensagens outbound (from_me=True), apenas buscar o contato existente
+                if from_me and not is_group:
+                    _outbound_contact = await db.execute(
+                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
+                    )
+                    contact = _outbound_contact.scalar_one_or_none()
                 # Criar ou atualizar contato (só pra mensagens recebidas)
                 if not from_me:
                     contact_result = await db.execute(
