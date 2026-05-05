@@ -463,6 +463,19 @@ async def send_media(
     from app.evolution.client import send_media as evo_send_media, send_audio as evo_send_audio
 
     if type == "audio":
+        # Converte para OGG/Opus mono 16kHz (formato PTT exigido pelo WhatsApp).
+        # Navegadores gravam em formatos diferentes (Chrome=webm, Safari=mp4),
+        # então padronizamos aqui antes de enviar à Evolution e antes de salvar em disco.
+        from app.evolution.audio_utils import convert_to_whatsapp_ptt, AudioConversionError
+        try:
+            converted_bytes = await convert_to_whatsapp_ptt(file_bytes)
+        except AudioConversionError as e:
+            raise HTTPException(status_code=500, detail=f"Falha ao processar áudio: {e}")
+
+        # Reconstrói base64 e data URI com mimetype correto a partir dos bytes convertidos.
+        b64 = base64.b64encode(converted_bytes).decode("utf-8")
+        b64_data = f"data:audio/ogg;base64,{b64}"
+
         result = await evo_send_audio(channel.instance_name, wa_id, b64_data)
         message_type = "audio"
         import uuid as _uuid, os as _os
@@ -471,7 +484,7 @@ async def send_media(
         _audio_filename = f"{_uuid.uuid4().hex}.ogg"
         _audio_path = f"{_media_dir}/{_audio_filename}"
         with open(_audio_path, "wb") as _f:
-            _f.write(file_bytes)
+            _f.write(converted_bytes)
         content = f"local:{_audio_filename}|audio/ogg|"
     elif type == "image":
         media_type = "image"
