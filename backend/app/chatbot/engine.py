@@ -248,7 +248,11 @@ async def _execute_node(
         await db.commit()
 
         use_native = data.get("display_mode", "native") == "native"
-        can_use_native = use_native and len(buttons_list) <= 3
+        # WhatsApp pessoal (via Baileys/Evolution) não renderiza nativeFlowMessage —
+        # mensagem aparece como "Não foi possível carregar a mensagem" no celular.
+        # Forçar fallback para texto numerado que funciona em 100% dos clientes.
+        # Reverter apenas se migrar para WhatsApp Cloud API Business verificada.
+        can_use_native = False
 
         sent_native = False
         if can_use_native:
