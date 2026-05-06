@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Plus, X, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Trash2, Plus, X, AlertTriangle, ArrowRight, Check, ChevronsUpDown } from 'lucide-react';
 import { type Node } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from '@/components/ui/command';
 import { NODE_META, type NodeKind } from './node-catalog';
 import api from '@/lib/api';
 import { getAgentIcon } from '@/lib/agent-icons';
@@ -32,9 +36,12 @@ interface InspectorProps {
   users: UserOpt[];
   pipelines: PipelineOpt[];
   channelId?: number | null;
+  // Para o ConditionForm descobrir variáveis disponíveis no fluxo
+  flowNodes?: any[];
+  flowEdges?: any[];
 }
 
-export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, pipelines, channelId }: InspectorProps) {
+export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, pipelines, channelId, flowNodes, flowEdges }: InspectorProps) {
   const kind = (node.type || 'message') as NodeKind;
   const meta = NODE_META[kind];
   const data = (node.data || {}) as Record<string, any>;
@@ -55,11 +62,19 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {kind === 'trigger' && <TriggerForm data={data} update={update} />}
+        {kind === 'trigger' && <TriggerForm data={data} update={update} pipelines={pipelines} />}
         {kind === 'message' && <MessageForm data={data} update={update} />}
         {kind === 'buttons' && <ButtonsForm data={data} update={update} />}
         {kind === 'input' && <InputForm data={data} update={update} />}
-        {kind === 'condition' && <ConditionForm data={data} update={update} />}
+        {kind === 'condition' && (
+          <ConditionForm
+            data={data}
+            update={update}
+            nodeId={node.id}
+            flowNodes={flowNodes}
+            flowEdges={flowEdges}
+          />
+        )}
         {kind === 'tag' && <TagForm data={data} update={update} />}
         {kind === 'move_stage' && <StageForm data={data} update={update} kanbanColumns={kanbanColumns} pipelines={pipelines} />}
         {kind === 'handoff' && <HandoffForm data={data} update={update} kanbanColumns={kanbanColumns} users={users} pipelines={pipelines} />}
@@ -98,27 +113,114 @@ function VarHint({ kind }: { kind: NodeKind }) {
   );
 }
 
-function TriggerForm({ data, update }: { data: any; update: (p: any) => void }) {
+function TriggerForm({
+  data,
+  update,
+  pipelines = [],
+}: {
+  data: any;
+  update: (p: any) => void;
+  pipelines?: PipelineOpt[];
+}) {
+  const selectedPipelineId =
+    data.pipeline_id ??
+    pipelines.find((p) => p.is_default)?.id ??
+    pipelines[0]?.id ??
+    null;
+  const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId) ?? null;
+  const columns = selectedPipeline?.columns ?? [];
+
   return (
-    <>
-      <div className="space-y-2">
+    <div className="space-y-3">
+      <div className="space-y-1">
         <Label>Quando acionar</Label>
-        <Select value={data.mode || 'any_message'} onValueChange={(v) => update({ mode: v })}>
+        <Select
+          value={data.mode || 'any_message'}
+          onValueChange={(v) => update({ mode: v })}
+        >
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="any_message">Qualquer primeira mensagem</SelectItem>
             <SelectItem value="keyword">Palavra-chave</SelectItem>
+            <SelectItem value="stage_change">Mudança de estágio do funil</SelectItem>
           </SelectContent>
         </Select>
       </div>
+
       {data.mode === 'keyword' && (
-        <div className="space-y-2">
-          <Label htmlFor="kw">Palavra-chave</Label>
-          <Input id="kw" value={data.keyword || ''} onChange={(e) => update({ keyword: e.target.value })} placeholder="ex: menu, oi, boleto" />
-          <p className="text-[11px] text-muted-foreground">Aceita quando a palavra aparece em qualquer lugar da mensagem.</p>
+        <div className="space-y-1">
+          <Label>Palavra-chave</Label>
+          <Input
+            value={data.keyword || ''}
+            onChange={(e) => update({ keyword: e.target.value })}
+            placeholder="ex: menu, oi, boleto"
+          />
         </div>
       )}
-    </>
+
+      {data.mode === 'stage_change' && (
+        <>
+          {pipelines.length > 1 && (
+            <div className="space-y-1">
+              <Label>Pipeline</Label>
+              <Select
+                value={String(selectedPipelineId ?? '')}
+                onValueChange={(v) =>
+                  update({ pipeline_id: Number(v), stage_from: '', stage_to: '' })
+                }
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {pipelines.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>De (estágio de origem)</Label>
+            <Select
+              value={data.stage_from || '__any__'}
+              onValueChange={(v) =>
+                update({ stage_from: v === '__any__' ? '' : v })
+              }
+            >
+              <SelectTrigger><SelectValue placeholder="Qualquer estágio" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__any__">Qualquer estágio</SelectItem>
+                {columns.map((c: any) => (
+                  <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Para (estágio destino) <span className="text-red-500">*</span></Label>
+            <Select
+              value={data.stage_to || ''}
+              onValueChange={(v) => update({ stage_to: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o estágio destino" />
+              </SelectTrigger>
+              <SelectContent>
+                {columns.map((c: any) => (
+                  <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!data.stage_to && (
+              <p className="text-xs text-amber-600">
+                Selecione um estágio destino — sem isso o gatilho nunca dispara.
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -229,32 +331,391 @@ function InputForm({ data, update }: { data: any; update: (p: any) => void }) {
   );
 }
 
-function ConditionForm({ data, update }: { data: any; update: (p: any) => void }) {
+type SuggestionItem = string | { value: string; label: string };
+
+type FlowVariable = {
+  name: string;
+  label: string;
+  category: 'contact' | 'captured' | 'flow';
+  source_node_id: string | null;
+  value_suggestions: SuggestionItem[];
+  value_type?: 'text' | 'select' | 'user_id' | 'boolean' | 'datetime';
+};
+
+/**
+ * Normaliza qualquer entry de value_suggestions ({string} ou {value,label})
+ * para um par {value, label}. Usado pra renderizar Combobox uniformemente.
+ */
+function normalizeSuggestion(s: SuggestionItem): { value: string; label: string } {
+  if (typeof s === 'string') return { value: s, label: s };
+  return { value: String(s.value), label: s.label || String(s.value) };
+}
+
+const ALL_OPERATORS: Array<{ value: string; label: string }> = [
+  { value: 'equals',       label: 'igual a' },
+  { value: 'not_equals',   label: 'diferente de' },
+  { value: 'contains',     label: 'contém' },
+  { value: 'starts_with',  label: 'começa com' },
+  { value: 'ends_with',    label: 'termina com' },
+  { value: 'is_empty',     label: 'está vazio' },
+  { value: 'is_not_empty', label: 'não está vazio' },
+  { value: 'older_than',   label: 'há mais de' },
+  { value: 'newer_than',   label: 'há menos de' },
+];
+
+const NO_VALUE_OPERATORS = new Set(['is_empty', 'is_not_empty']);
+const TEMPORAL_OPERATORS = new Set(['older_than', 'newer_than']);
+
+function operatorsForVariable(v?: FlowVariable): typeof ALL_OPERATORS {
+  if (!v) return ALL_OPERATORS;
+
+  const t = v.value_type || 'text';
+  if (v.name === 'contact.tags') {
+    return ALL_OPERATORS.filter((op) =>
+      ['contains', 'is_empty', 'is_not_empty'].includes(op.value)
+    );
+  }
+  if (t === 'datetime') {
+    return ALL_OPERATORS.filter((op) =>
+      ['older_than', 'newer_than', 'is_empty', 'is_not_empty'].includes(op.value)
+    );
+  }
+  if (t === 'boolean') {
+    return ALL_OPERATORS.filter((op) =>
+      ['equals', 'not_equals'].includes(op.value)
+    );
+  }
+  return ALL_OPERATORS.filter((op) => !TEMPORAL_OPERATORS.has(op.value));
+}
+
+const BOOLEAN_OPTIONS: { value: string; label: string }[] = [
+  { value: 'true',  label: 'Sim' },
+  { value: 'false', label: 'Não' },
+];
+
+const DURATION_UNITS: { value: string; label: string }[] = [
+  { value: 'minutes', label: 'minutos' },
+  { value: 'hours',   label: 'horas' },
+  { value: 'days',    label: 'dias' },
+];
+
+function ConditionForm({
+  data,
+  update,
+  nodeId,
+  flowNodes,
+  flowEdges,
+}: {
+  data: any;
+  update: (p: any) => void;
+  nodeId: string;
+  flowNodes?: any[];
+  flowEdges?: any[];
+}) {
+  const [variables, setVariables] = useState<FlowVariable[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [valueOpen, setValueOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchVars = async () => {
+      if (!flowNodes || !flowEdges) return;
+      setLoading(true);
+      try {
+        const res = await api.post('/chatbot/flow-variables', {
+          graph: { nodes: flowNodes, edges: flowEdges },
+          node_id: nodeId,
+        });
+        if (!cancelled) setVariables(res.data?.variables || []);
+      } catch {
+        if (!cancelled) setVariables([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchVars();
+    return () => { cancelled = true; };
+  }, [flowNodes, flowEdges, nodeId]);
+
+  const selectedVar = variables.find((v) => v.name === data.variable);
+  const operators = operatorsForVariable(selectedVar);
+
+  // Auto-corrigir operador se ficou inválido depois de trocar a variável.
+  useEffect(() => {
+    if (!selectedVar) return;
+    const validOps = operators.map((o) => o.value);
+    if (data.operator && !validOps.includes(data.operator)) {
+      update({ operator: validOps[0] });
+    }
+  }, [selectedVar?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const op = data.operator || 'equals';
+  const isTemporal = TEMPORAL_OPERATORS.has(op);
+  const showValueField = !NO_VALUE_OPERATORS.has(op);
+
+  const contactVars = variables.filter((v) => v.category === 'contact');
+  const flowVars = variables.filter((v) => v.category === 'flow');
+  const capturedVars = variables.filter((v) => v.category === 'captured');
+
   return (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="cd-var">Variável</Label>
-        <Input id="cd-var" value={data.variable || ''} onChange={(e) => update({ variable: e.target.value })} placeholder="ex: opcao_escolhida" />
+    <div className="space-y-3">
+      {/* Variável */}
+      <div className="space-y-1.5">
+        <Label>Variável a comparar</Label>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              className="w-full justify-between font-normal"
+            >
+              {selectedVar ? (
+                <span className="truncate">{selectedVar.label}</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {loading ? 'Carregando...' : 'Selecione uma variável'}
+                </span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[320px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar variável..." />
+              <CommandList>
+                <CommandEmpty>Nenhuma variável encontrada.</CommandEmpty>
+                {contactVars.length > 0 && (
+                  <CommandGroup heading="Dados do contato">
+                    {contactVars.map((v) => (
+                      <CommandItem
+                        key={v.name}
+                        value={`${v.name} ${v.label}`}
+                        onSelect={() => {
+                          update({ variable: v.name, value: '' });
+                          setOpen(false);
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${data.variable === v.name ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className="flex flex-col">
+                          <span>{v.label}</span>
+                          <span className="text-xs text-muted-foreground">{v.name}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+                {flowVars.length > 0 && (
+                  <CommandGroup heading="Estado do fluxo">
+                    {flowVars.map((v) => (
+                      <CommandItem
+                        key={v.name}
+                        value={`${v.name} ${v.label}`}
+                        onSelect={() => {
+                          update({ variable: v.name, value: '' });
+                          setOpen(false);
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${data.variable === v.name ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className="flex flex-col">
+                          <span>{v.label}</span>
+                          <span className="text-xs text-muted-foreground">{v.name}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+                {capturedVars.length > 0 && (
+                  <CommandGroup heading="Capturado no fluxo">
+                    {capturedVars.map((v) => (
+                      <CommandItem
+                        key={v.name}
+                        value={`${v.name} ${v.label}`}
+                        onSelect={() => {
+                          update({ variable: v.name, value: '' });
+                          setOpen(false);
+                        }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${data.variable === v.name ? 'opacity-100' : 'opacity-0'}`} />
+                        <div className="flex flex-col">
+                          <span>{v.label}</span>
+                          <span className="text-xs text-muted-foreground">{v.name}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )}
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {capturedVars.length === 0 && flowVars.length === 0 && !loading && (
+          <p className="text-[11px] text-muted-foreground">
+            Para usar variáveis capturadas, adicione um nó <strong>Captura</strong> ou{' '}
+            <strong>Botões</strong> antes desta condição.
+          </p>
+        )}
       </div>
-      <div className="space-y-2">
+
+      {/* Operador */}
+      <div className="space-y-1.5">
         <Label>Operador</Label>
-        <Select value={data.operator || 'equals'} onValueChange={(v) => update({ operator: v })}>
+        <Select
+          value={op}
+          onValueChange={(v) => update({ operator: v })}
+        >
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="equals">igual a</SelectItem>
-            <SelectItem value="not_equals">diferente de</SelectItem>
-            <SelectItem value="contains">contém</SelectItem>
+            {operators.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="cd-val">Valor</Label>
-        <Input id="cd-val" value={data.value || ''} onChange={(e) => update({ value: e.target.value })} placeholder="ex: Boleto" />
-      </div>
+
+      {/* Valor — varia por value_type / operador */}
+      {showValueField && <ValueField selectedVar={selectedVar} data={data} update={update} valueOpen={valueOpen} setValueOpen={setValueOpen} nodeId={nodeId} isTemporal={isTemporal} />}
+
       <p className="text-[11px] text-muted-foreground">
-        Saídas: <span className="text-emerald-600 dark:text-emerald-400 font-medium">verdadeiro</span> e <span className="text-rose-600 dark:text-rose-400 font-medium">falso</span>.
+        Saídas do nó: <span className="text-emerald-600 font-medium">verdadeiro</span> e{' '}
+        <span className="text-rose-600 font-medium">falso</span>.
       </p>
-    </>
+    </div>
+  );
+}
+
+// =======================================================
+// ValueField — render do campo Valor adaptado ao tipo
+// =======================================================
+function ValueField({
+  selectedVar, data, update, valueOpen, setValueOpen, nodeId, isTemporal,
+}: {
+  selectedVar?: FlowVariable;
+  data: any;
+  update: (p: any) => void;
+  valueOpen: boolean;
+  setValueOpen: (b: boolean) => void;
+  nodeId: string;
+  isTemporal: boolean;
+}) {
+  const valueType = selectedVar?.value_type || 'text';
+
+  // Operador temporal — UI de duração (número + unidade)
+  if (isTemporal) {
+    const duration = (data.value && typeof data.value === 'object')
+      ? data.value
+      : { amount: '', unit: 'minutes' };
+    return (
+      <div className="space-y-1.5">
+        <Label>Tempo</Label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            min={1}
+            value={duration.amount ?? ''}
+            onChange={(e) => update({
+              value: { amount: Number(e.target.value || 0), unit: duration.unit || 'minutes' }
+            })}
+            placeholder="ex: 48"
+            className="w-24"
+          />
+          <Select
+            value={duration.unit || 'minutes'}
+            onValueChange={(u) => update({
+              value: { amount: duration.amount || 0, unit: u }
+            })}
+          >
+            <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {DURATION_UNITS.map((u) => (
+                <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    );
+  }
+
+  // Boolean — combobox fixo Sim/Não
+  if (valueType === 'boolean') {
+    const opts = (selectedVar?.value_suggestions?.length ? selectedVar.value_suggestions.map(normalizeSuggestion) : BOOLEAN_OPTIONS);
+    return (
+      <div className="space-y-1.5">
+        <Label>Valor</Label>
+        <Select
+          value={data.value || ''}
+          onValueChange={(v) => update({ value: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            {opts.map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  // Tem sugestões -> Combobox estrito
+  const sugs = (selectedVar?.value_suggestions || []).map(normalizeSuggestion);
+  if (sugs.length > 0) {
+    const selected = sugs.find((s) => s.value === data.value);
+    return (
+      <div className="space-y-1.5">
+        <Label>Valor</Label>
+        <Popover open={valueOpen} onOpenChange={setValueOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" role="combobox" aria-expanded={valueOpen} className="w-full justify-between font-normal">
+              {selected ? <span className="truncate">{selected.label}</span> : <span className="text-muted-foreground">Selecione um valor</span>}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[320px] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar..." />
+              <CommandList>
+                <CommandEmpty>Nenhum valor encontrado.</CommandEmpty>
+                <CommandGroup>
+                  {sugs.map((s) => (
+                    <CommandItem
+                      key={s.value}
+                      value={`${s.value} ${s.label}`}
+                      onSelect={() => { update({ value: s.value }); setValueOpen(false); }}
+                    >
+                      <Check className={`mr-2 h-4 w-4 ${data.value === s.value ? 'opacity-100' : 'opacity-0'}`} />
+                      <div className="flex flex-col">
+                        <span>{s.label}</span>
+                        {s.label !== s.value && (<span className="text-xs text-muted-foreground">{s.value}</span>)}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
+
+  // Default: input texto livre
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="cd-val">Valor</Label>
+      <Input
+        id="cd-val"
+        value={typeof data.value === 'string' ? data.value : ''}
+        onChange={(e) => update({ value: e.target.value })}
+        placeholder="Digite o valor a comparar"
+      />
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ Motor de execução do Chatbot Visual.
 Entrada: handle_inbound_message() chamado pelo webhook Evolution quando
 channel.operation_mode == 'chatbot'.
 """
+import logging
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -16,8 +17,11 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.models import (
     ChatbotFlow, ChatbotSession, ChatbotScheduledResume,
+    ChatbotTriggerLog,
     Channel, Contact, Message, Task, Tag, User,
 )
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # Configuração
@@ -79,6 +83,176 @@ def find_trigger_node(graph: dict, text: str) -> Optional[dict]:
         elif mode == "any_message":
             fallback = fallback or n
     return fallback
+
+
+def _matches_trigger(trigger_data: dict, event_type: str, payload: dict) -> bool:
+    """
+    Confere se o nó trigger configurado é compatível com o evento recebido.
+
+    Eventos suportados:
+      - "stage_change": payload deve ter stage_from e stage_to.
+        Match exige mode == "stage_change" e:
+          * stage_to == payload["stage_to"] (sempre obrigatório)
+          * stage_from == payload["stage_from"] OU stage_from vazio (qualquer origem)
+    """
+    mode = trigger_data.get("mode")
+
+    if event_type == "stage_change":
+        if mode != "stage_change":
+            return False
+        wanted_to = (trigger_data.get("stage_to") or "").strip()
+        wanted_from = (trigger_data.get("stage_from") or "").strip()
+        got_to = (payload.get("stage_to") or "").strip()
+        got_from = (payload.get("stage_from") or "").strip()
+        if not wanted_to:
+            return False
+        if wanted_to != got_to:
+            return False
+        if wanted_from and wanted_from != got_from:
+            return False
+        return True
+
+    return False
+
+
+async def start_flow_by_event(
+    db,
+    *,
+    tenant_id: int,
+    contact_id: int,
+    event_type: str,
+    payload: dict,
+    cooldown_minutes: int = 5,
+) -> list[int]:
+    """
+    Dispara todos os fluxos publicados do tenant cujo nó trigger seja
+    compatível com o evento.
+
+    Aplica cooldown por (contact_id, flow_id) consultando chatbot_trigger_log.
+    Para cada disparo, grava log, cria ChatbotSession e executa o fluxo
+    a partir do nó trigger via _advance_from.
+
+    Retorna a lista de flow_ids efetivamente disparados (já considerando cooldown).
+    Erros em fluxos individuais são logados e não impedem outros fluxos de rodar.
+    """
+    triggered: list[int] = []
+    cooldown_threshold = datetime.utcnow() - timedelta(minutes=cooldown_minutes)
+
+    # Resolver contact e channel uma única vez.
+    contact_result = await db.execute(
+        select(Contact)
+        .options(selectinload(Contact.tags))
+        .where(Contact.id == contact_id, Contact.tenant_id == tenant_id)
+    )
+    contact = contact_result.scalar_one_or_none()
+    if not contact:
+        logger.warning("Contact %s não encontrado no tenant %s", contact_id, tenant_id)
+        return []
+    if not contact.channel_id:
+        logger.warning(
+            "Contact %s sem channel_id — não é possível disparar fluxos por evento",
+            contact_id,
+        )
+        return []
+
+    channel_result = await db.execute(
+        select(Channel).where(Channel.id == contact.channel_id)
+    )
+    channel = channel_result.scalar_one_or_none()
+    if not channel:
+        logger.warning("Channel %s do contact %s não encontrado", contact.channel_id, contact_id)
+        return []
+
+    # Buscar fluxos publicados do tenant.
+    flows_result = await db.execute(
+        select(ChatbotFlow).where(
+            ChatbotFlow.tenant_id == tenant_id,
+            ChatbotFlow.is_published == True,  # noqa: E712
+        )
+    )
+    flows = flows_result.scalars().all()
+
+    for flow in flows:
+        graph = flow.published_graph or flow.graph or {}
+        if not isinstance(graph, dict):
+            continue
+        nodes = graph.get("nodes", [])
+
+        # Encontrar o nó trigger.
+        trigger_node = None
+        for n in nodes:
+            if _node_type(n) == "trigger":
+                trigger_node = n
+                break
+        if not trigger_node:
+            continue
+
+        # Match do evento.
+        if not _matches_trigger(trigger_node.get("data", {}), event_type, payload):
+            continue
+
+        # Cooldown.
+        recent = await db.execute(
+            select(ChatbotTriggerLog.id).where(
+                ChatbotTriggerLog.contact_id == contact_id,
+                ChatbotTriggerLog.flow_id == flow.id,
+                ChatbotTriggerLog.triggered_at > cooldown_threshold,
+            ).limit(1)
+        )
+        if recent.scalar_one_or_none():
+            logger.info(
+                "Flow %s pulado por cooldown (contact %s, evento %s)",
+                flow.id, contact_id, event_type,
+            )
+            continue
+
+        # Registrar disparo.
+        log_entry = ChatbotTriggerLog(
+            tenant_id=tenant_id,
+            contact_id=contact_id,
+            flow_id=flow.id,
+            event_type=event_type,
+            payload=payload,
+            triggered_at=datetime.utcnow(),
+        )
+        db.add(log_entry)
+
+        # Criar ChatbotSession (mesmo padrão de handle_inbound_message).
+        session = ChatbotSession(
+            tenant_id=tenant_id,
+            flow_id=flow.id,
+            channel_id=channel.id,
+            contact_id=contact.id,
+            current_node_id=str(trigger_node.get("id")),
+            variables={},
+            status="active",
+        )
+        db.add(session)
+
+        # Commit ANTES do _advance_from para que session.id e log estejam persistidos.
+        try:
+            await db.commit()
+            await db.refresh(session)
+        except Exception as e:
+            logger.exception("Falha ao persistir session/log do flow %s: %s", flow.id, e)
+            await db.rollback()
+            continue
+
+        # Executar o fluxo. Erros aqui não impedem outros flows.
+        try:
+            await _advance_from(session, trigger_node, graph, channel, contact, db)
+            triggered.append(flow.id)
+            logger.info(
+                "Flow %s disparado (contact %s, evento %s, session %s)",
+                flow.id, contact_id, event_type, session.id,
+            )
+        except Exception as e:
+            logger.exception(
+                "Erro executando flow %s para contact %s: %s",
+                flow.id, contact_id, e,
+            )
+
+    return triggered
 
 
 # ============================================================
@@ -148,6 +322,158 @@ def validate_input(value: str, validation: str) -> bool:
         except Exception:
             return False
     return True
+
+
+# ============================================================
+# Helpers para nó Condition
+# ============================================================
+def _is_empty(value) -> bool:
+    """
+    Considera vazio: None, string vazia/whitespace, lista vazia, dict vazio.
+    """
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, (list, tuple, dict, set)):
+        return len(value) == 0
+    return False
+
+
+def _stringify_for_compare(value) -> str:
+    """
+    Normaliza qualquer valor para string usável em comparação textual.
+    Listas viram CSV (útil para tags do contato).
+    """
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return ", ".join(str(v) for v in value)
+    return str(value)
+
+
+async def _resolve_condition_variable(var_name: str, contact, session, db):
+    """
+    Resolve o valor de uma variável usada em nó Condition.
+
+    Convenção de prefixos:
+      - "contact.<campo>": dado do Contact (name, telefone, lead_status,
+        assigned_to, tags, last_inbound_at, has_ever_replied).
+      - "flow.<campo>": estado da sessão atual (last_input_received).
+      - sem prefixo: lê de session.variables (capturas do fluxo).
+
+    Retorna o valor cru. Função async porque has_ever_replied faz query no banco.
+    """
+    if not var_name:
+        return None
+
+    # ---------------- contact.* ----------------
+    if var_name.startswith("contact."):
+        field = var_name[len("contact."):].strip()
+        if not contact:
+            return None
+        if field == "name":
+            return getattr(contact, "name", None)
+        if field in ("telefone", "phone", "wa_id"):
+            return getattr(contact, "wa_id", None)
+        if field in ("lead_status", "stage"):
+            return getattr(contact, "lead_status", None)
+        if field == "assigned_to":
+            return getattr(contact, "assigned_to", None)
+        if field == "tags":
+            tags = getattr(contact, "tags", None) or []
+            return [getattr(t, "name", str(t)) for t in tags]
+        if field == "last_inbound_at":
+            return getattr(contact, "last_inbound_at", None)
+        if field == "has_ever_replied":
+            try:
+                from sqlalchemy import select as sa_select, exists
+                from app.models import Message
+                stmt = sa_select(exists().where(
+                    Message.contact_id == contact.id,
+                    Message.direction == "inbound",
+                ))
+                result = await db.execute(stmt)
+                return bool(result.scalar())
+            except Exception:
+                logger.exception("Falha ao checar has_ever_replied")
+                return False
+        logger.warning("Campo desconhecido em contact.%s", field)
+        return None
+
+    # ---------------- flow.* ----------------
+    if var_name.startswith("flow."):
+        field = var_name[len("flow."):].strip()
+        if field == "last_input_received":
+            return bool((session.variables or {}).get("_flow_last_input_received"))
+        logger.warning("Campo desconhecido em flow.%s", field)
+        return None
+
+    # ---------------- session.variables ----------------
+    return (session.variables or {}).get(var_name)
+
+
+def _parse_duration(value) -> tuple[int, str] | None:
+    """
+    Faz parse de um valor de duração para os operadores temporais.
+
+    Aceita:
+      - dict: {"amount": 5, "unit": "minutes"}  (forma canônica do front)
+      - str: "5 minutes" / "48 hours" / "7 days"
+      - números puros (5) → assumimos minutos como default
+
+    Unidades aceitas: minutes, hours, days (também aceita variantes singulares).
+    Retorna (amount_int, normalized_unit) ou None se inválido.
+    """
+    UNIT_MAP = {
+        "minute": "minutes", "minutes": "minutes", "min": "minutes", "mins": "minutes",
+        "hour": "hours", "hours": "hours", "h": "hours", "hr": "hours", "hrs": "hours",
+        "day": "days", "days": "days", "d": "days",
+    }
+
+    if isinstance(value, dict):
+        try:
+            amount = int(value.get("amount") or 0)
+        except (TypeError, ValueError):
+            return None
+        unit = UNIT_MAP.get(str(value.get("unit", "")).strip().lower())
+        if amount <= 0 or not unit:
+            return None
+        return amount, unit
+
+    if isinstance(value, (int, float)):
+        return (int(value), "minutes") if value > 0 else None
+
+    if isinstance(value, str):
+        s = value.strip().lower()
+        if not s:
+            return None
+        parts = s.split()
+        if len(parts) == 1:
+            try:
+                return int(parts[0]), "minutes"
+            except ValueError:
+                return None
+        if len(parts) == 2:
+            try:
+                amount = int(parts[0])
+            except ValueError:
+                return None
+            unit = UNIT_MAP.get(parts[1])
+            if amount <= 0 or not unit:
+                return None
+            return amount, unit
+    return None
+
+
+def _duration_to_timedelta(amount: int, unit: str):
+    """Converte (amount, unit) para timedelta."""
+    from datetime import timedelta
+    return {
+        "minutes": timedelta(minutes=amount),
+        "hours": timedelta(hours=amount),
+        "days": timedelta(days=amount),
+    }[unit]
 
 
 # ============================================================
@@ -301,20 +627,55 @@ async def _execute_node(
         return None, True
 
     if nt == "condition":
-        var_name = data.get("variable", "")
+        from datetime import datetime as _dt_condition
+        var_name = (data.get("variable") or "").strip()
         op = data.get("operator", "equals")
-        value = str(data.get("value", ""))
-        actual = str((session.variables or {}).get(var_name, ""))
-        a = actual.strip().lower()
-        b = value.strip().lower()
-        result = False
-        if op == "equals":
-            result = a == b
-        elif op == "not_equals":
-            result = a != b
-        elif op == "contains":
-            result = b in a
+        value = data.get("value", "")
+
+        actual_raw = await _resolve_condition_variable(var_name, contact, session, db)
+
+        if op == "is_empty":
+            result = _is_empty(actual_raw)
+        elif op == "is_not_empty":
+            result = not _is_empty(actual_raw)
+        elif op in ("older_than", "newer_than"):
+            duration = _parse_duration(value)
+            if duration is None or actual_raw is None:
+                result = False
+            else:
+                amount, unit = duration
+                threshold = _dt_condition.utcnow() - _duration_to_timedelta(amount, unit)
+                actual_dt = actual_raw
+                if hasattr(actual_dt, "tzinfo") and actual_dt.tzinfo is not None:
+                    actual_dt = actual_dt.replace(tzinfo=None)
+                if op == "older_than":
+                    result = actual_dt < threshold
+                else:
+                    result = actual_dt >= threshold
+        else:
+            actual = _stringify_for_compare(actual_raw)
+            value_str = str(value) if value is not None else ""
+            a = actual.strip().lower()
+            b = value_str.strip().lower()
+            if op == "equals":
+                result = a == b
+            elif op == "not_equals":
+                result = a != b
+            elif op == "contains":
+                result = b in a
+            elif op == "starts_with":
+                result = a.startswith(b)
+            elif op == "ends_with":
+                result = a.endswith(b)
+            else:
+                logger.warning("Operador desconhecido em condition: %s", op)
+                result = False
+
         handle = "true" if result else "false"
+        logger.info(
+            "Condition: %s %s %r -> actual=%r -> %s",
+            var_name, op, value, actual_raw, result,
+        )
         return find_next_node(graph, node["id"], source_handle=handle), False
 
     if nt == "tag":
@@ -867,11 +1228,12 @@ async def handle_inbound_message(
             await db.commit()
             return
         capture_to = waiting_node.get("data", {}).get("capture_to")
+        new_vars = dict(session.variables or {})
         if capture_to:
-            new_vars = dict(session.variables or {})
             new_vars[capture_to] = selected.get("label") or selected.get("id") or ""
-            session.variables = new_vars
-            flag_modified(session, "variables")
+        new_vars["_flow_last_input_received"] = True
+        session.variables = new_vars
+        flag_modified(session, "variables")
         session.last_interaction_at = datetime.utcnow()
 
         next_node = find_next_node(graph, waiting_node["id"], source_handle=selected.get("id"))
@@ -897,6 +1259,7 @@ async def handle_inbound_message(
 
         new_vars = dict(session.variables or {})
         new_vars[var_name] = message_text.strip()
+        new_vars["_flow_last_input_received"] = True
         session.variables = new_vars
         flag_modified(session, "variables")
         session.last_interaction_at = datetime.utcnow()

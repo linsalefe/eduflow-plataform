@@ -12,10 +12,13 @@ from datetime import datetime
 
 from app.database import get_db
 from app.auth import get_current_user, get_tenant_id
+import logging
 from app.models import (
     ChatbotFlow, ChatbotSession, Channel, Tenant, User, Contact,
-    ChatbotScheduledResume,
+    ChatbotScheduledResume, Pipeline, Tag,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chatbot", tags=["Chatbot"])
 
@@ -721,3 +724,277 @@ async def resume_session_now(
         count += 1
     await db.commit()
     return {"message": f"{count} retomada(s) antecipada(s)", "session_id": session_id}
+
+
+# ============================================================
+# Discovery de variáveis disponíveis em um ponto do fluxo
+# ============================================================
+
+# Variáveis fixas do contato — sempre disponíveis em qualquer condição.
+# Campo "value_type" é usado pelo frontend pra renderizar o campo Valor:
+#   - "text"     -> input livre
+#   - "select"   -> combobox com value_suggestions
+#   - "user_id"  -> combobox com value_suggestions {value,label}
+#   - "datetime" -> requer operador temporal (older_than/newer_than/is_empty)
+#   - "boolean"  -> combobox com "Sim"/"Não"
+_CONTACT_VARIABLES = [
+    {"name": "contact.name",             "label": "Nome do contato",                "category": "contact", "value_type": "text"},
+    {"name": "contact.telefone",         "label": "Telefone (WhatsApp) do contato", "category": "contact", "value_type": "text"},
+    {"name": "contact.lead_status",      "label": "Estágio do funil",               "category": "contact", "value_type": "select"},
+    {"name": "contact.tags",             "label": "Tags do contato",                "category": "contact", "value_type": "select"},
+    {"name": "contact.assigned_to",      "label": "Responsável atribuído",          "category": "contact", "value_type": "user_id"},
+    {"name": "contact.last_inbound_at",  "label": "Última resposta do contato",     "category": "contact", "value_type": "datetime"},
+    {"name": "contact.has_ever_replied", "label": "Já respondeu alguma vez?",       "category": "contact", "value_type": "boolean"},
+]
+
+
+def _flow_variables_for_node(graph: dict, ancestor_ids: set) -> list[dict]:
+    """
+    Retorna as variáveis de namespace 'flow.*' aplicáveis no contexto do nó.
+
+    Hoje há apenas uma:
+      - flow.last_input_received: só faz sentido se houver pelo menos
+        UM nó Input ou Buttons entre o trigger e a Condição.
+    """
+    nodes = (graph or {}).get("nodes") or []
+    has_capture_ancestor = False
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if n.get("id") not in ancestor_ids:
+            continue
+        kind = (n.get("data") or {}).get("kind") or n.get("type")
+        if kind in ("input", "buttons"):
+            has_capture_ancestor = True
+            break
+
+    if not has_capture_ancestor:
+        return []
+
+    return [{
+        "name": "flow.last_input_received",
+        "label": "Respondeu à última pergunta do bot?",
+        "category": "flow",
+        "source_node_id": None,
+        "value_suggestions": [],
+        "value_type": "boolean",
+    }]
+
+
+def _ancestor_node_ids(graph: dict, target_node_id: str) -> set:
+    """
+    Retorna o set de IDs de todos os nós que podem chegar em target_node_id
+    via edges (BFS reverso). NÃO inclui o próprio target.
+    """
+    if not isinstance(graph, dict):
+        return set()
+    edges = graph.get("edges") or []
+    # Construir mapa de adjacência reversa: target -> [sources]
+    incoming: dict[str, list[str]] = {}
+    for e in edges:
+        if not isinstance(e, dict):
+            continue
+        src = e.get("source")
+        tgt = e.get("target")
+        if not src or not tgt:
+            continue
+        incoming.setdefault(tgt, []).append(src)
+
+    visited: set[str] = set()
+    queue: list[str] = list(incoming.get(target_node_id, []))
+    while queue:
+        node_id = queue.pop()
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+        for parent in incoming.get(node_id, []):
+            if parent not in visited:
+                queue.append(parent)
+    return visited
+
+
+def _extract_node_variables(node: dict) -> list[dict]:
+    """
+    Dado um nó do grafo, retorna a lista de variáveis que ele salva em
+    session.variables, com label legível e sugestões de valor quando aplicável.
+
+    Convenção alinhada com o engine:
+      - kind=input  -> data.variable (default "resposta")
+      - kind=buttons -> data.capture_to (se definido)
+      - kind=http_request -> data.prefix gera _status, _ok, _response, _response_raw
+    """
+    if not isinstance(node, dict):
+        return []
+    data = node.get("data") or {}
+    if not isinstance(data, dict):
+        return []
+    kind = data.get("kind") or node.get("type")
+    node_id = node.get("id")
+    out: list[dict] = []
+
+    if kind == "input":
+        var_name = (data.get("variable") or "resposta").strip()
+        question = (data.get("question") or data.get("prompt") or "").strip()
+        label = f'Captura de "{question}"' if question else f'Captura ({var_name})'
+        out.append({
+            "name": var_name,
+            "label": label,
+            "category": "captured",
+            "source_node_id": node_id,
+            "value_suggestions": [],
+        })
+
+    elif kind == "buttons":
+        var_name = (data.get("capture_to") or "").strip()
+        if var_name:
+            buttons = data.get("buttons") or data.get("options") or []
+            suggestions: list[str] = []
+            for b in buttons:
+                if isinstance(b, dict):
+                    lbl = b.get("label") or b.get("text") or b.get("displayText")
+                    if lbl:
+                        suggestions.append(str(lbl))
+            title = (data.get("title") or data.get("body") or "").strip()
+            label = f'Botão clicado em "{title}"' if title else "Botão clicado"
+            out.append({
+                "name": var_name,
+                "label": label,
+                "category": "captured",
+                "source_node_id": node_id,
+                "value_suggestions": suggestions,
+            })
+
+    elif kind in ("http", "http_request"):
+        prefix = (data.get("prefix") or data.get("variable_prefix") or "").strip()
+        if prefix:
+            api_label = (data.get("name") or data.get("title") or prefix).strip()
+            base_label = f'Resposta da API "{api_label}"'
+            for suffix, suggestions in [
+                ("_status",       ["200", "201", "400", "404", "500"]),
+                ("_ok",           ["true", "false"]),
+                ("_response",     []),
+                ("_response_raw", []),
+            ]:
+                out.append({
+                    "name": f"{prefix}{suffix}",
+                    "label": f"{base_label} ({suffix.lstrip('_')})",
+                    "category": "captured",
+                    "source_node_id": node_id,
+                    "value_suggestions": suggestions,
+                })
+
+    return out
+
+
+class FlowVariablesRequest(BaseModel):
+    graph: dict
+    node_id: Optional[str] = None
+
+
+@router.post("/flow-variables")
+async def list_flow_variables(
+    req: FlowVariablesRequest,
+    tenant_id: int = Depends(get_tenant_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Retorna a lista de variáveis utilizáveis em um nó Condition no ponto
+    indicado por node_id. Inclui:
+      - 7 variáveis do contato (algumas com value_suggestions reais).
+      - Variáveis de fluxo (flow.*) condicionais ao contexto.
+      - Variáveis capturadas por nós ancestrais (Input/Buttons/HTTP).
+    """
+    graph = req.graph or {}
+    nodes = graph.get("nodes") or []
+
+    # ----- Ancestrais para limitar capturas / disponibilidade de flow.* -----
+    relevant_node_ids: set = set()
+    if req.node_id:
+        relevant_node_ids = _ancestor_node_ids(graph, req.node_id)
+
+    # ----- Capturadas pelos ancestrais -----
+    captured: list[dict] = []
+    for n in nodes:
+        if not isinstance(n, dict):
+            continue
+        if n.get("id") not in relevant_node_ids:
+            continue
+        captured.extend(_extract_node_variables(n))
+
+    seen: set = set()
+    deduped: list[dict] = []
+    for v in captured:
+        key = v["name"]
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append({
+            **v,
+            "value_suggestions": v.get("value_suggestions") or [],
+            "value_type": v.get("value_type") or "text",
+        })
+
+    # ----- Variáveis do contato (com sugestões reais quando aplicável) -----
+    pipeline_keys: list[str] = []
+    try:
+        result = await db.execute(
+            select(Pipeline).where(Pipeline.tenant_id == tenant_id)
+        )
+        pipelines = result.scalars().all()
+        default_p = next((p for p in pipelines if getattr(p, "is_default", False)), None)
+        if default_p is None and pipelines:
+            default_p = pipelines[0]
+        if default_p and isinstance(default_p.columns, list):
+            pipeline_keys = [
+                str(c.get("key"))
+                for c in default_p.columns
+                if isinstance(c, dict) and c.get("key")
+            ]
+    except Exception:
+        logger.exception("Falha ao listar pipeline do tenant %s", tenant_id)
+
+    tag_names: list[str] = []
+    try:
+        result = await db.execute(
+            select(Tag.name).where(Tag.tenant_id == tenant_id).order_by(Tag.name)
+        )
+        tag_names = [t for t in result.scalars().all() if t]
+    except Exception:
+        logger.exception("Falha ao listar tags do tenant %s", tenant_id)
+
+    user_options: list[dict] = []
+    try:
+        result = await db.execute(
+            select(User.id, User.name).where(User.tenant_id == tenant_id).order_by(User.name)
+        )
+        for uid, uname in result.all():
+            if uid is None:
+                continue
+            user_options.append({"value": str(uid), "label": uname or f"User {uid}"})
+    except Exception:
+        logger.exception("Falha ao listar usuários do tenant %s", tenant_id)
+
+    boolean_options = [
+        {"value": "true",  "label": "Sim"},
+        {"value": "false", "label": "Não"},
+    ]
+
+    suggestions_by_name = {
+        "contact.lead_status":      pipeline_keys,
+        "contact.tags":             tag_names,
+        "contact.assigned_to":      user_options,
+        "contact.has_ever_replied": boolean_options,
+    }
+
+    contact_vars = []
+    for v in _CONTACT_VARIABLES:
+        sug = suggestions_by_name.get(v["name"], [])
+        contact_vars.append({
+            **v,
+            "source_node_id": None,
+            "value_suggestions": sug,
+        })
+
+    flow_vars = _flow_variables_for_node(graph, relevant_node_ids)
+
+    return {"variables": contact_vars + flow_vars + deduped}

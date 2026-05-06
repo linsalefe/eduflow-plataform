@@ -682,3 +682,21 @@ class ChatbotScheduledResume(Base):
     status = Column(String(20), nullable=False, default="pending")  # pending | processed | cancelled
     processed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ChatbotTriggerLog(Base):
+    """
+    Registro de cada disparo de fluxo do chatbot por evento (não-mensagem).
+    Usado para:
+      - Cooldown: evitar redisparos em ações repetidas (ex: arrastar card 4x).
+      - Auditoria/analytics: rastrear quando e por qual evento o fluxo disparou.
+    """
+    __tablename__ = "chatbot_trigger_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, nullable=False, index=True)
+    contact_id = Column(Integer, nullable=False)
+    flow_id = Column(Integer, nullable=False)
+    event_type = Column(String(40), nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    triggered_at = Column(DateTime, nullable=False)

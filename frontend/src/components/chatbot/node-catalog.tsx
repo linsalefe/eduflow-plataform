@@ -141,7 +141,7 @@ export const PALETTE_ORDER: NodeKind[] = [
 export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
   switch (kind) {
     case 'trigger':
-      return { kind: 'trigger', mode: 'any_message', keyword: '' };
+      return { kind: 'trigger', mode: 'any_message', keyword: '', stage_from: '', stage_to: '' };
     case 'message':
       return { text: '' };
     case 'buttons':
@@ -252,9 +252,19 @@ const HANDLE_RIGHT = { right: -7 };
 // ============================================================
 export const TriggerNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
-  const label = d.mode === 'keyword'
-    ? (d.keyword ? `Quando contém: "${d.keyword}"` : 'Palavra-chave (configurar)')
-    : 'Qualquer primeira mensagem';
+  let label: string;
+  if (d.mode === 'keyword') {
+    label = d.keyword ? `Quando contém: "${d.keyword}"` : 'Palavra-chave (configurar)';
+  } else if (d.mode === 'stage_change') {
+    if (!d.stage_to) {
+      label = 'Mudança de estágio (configurar)';
+    } else {
+      const fromTxt = d.stage_from ? `${d.stage_from} → ${d.stage_to}` : `Qualquer → ${d.stage_to}`;
+      label = `Estágio: ${fromTxt}`;
+    }
+  } else {
+    label = 'Qualquer primeira mensagem';
+  }
   return (
     <NodeShell kind="trigger" selected={selected}>
       <Preview text={label} placeholder="Configure o gatilho" />
@@ -327,7 +337,39 @@ InputNode.displayName = 'InputNode';
 
 export const ConditionNode = memo(({ data, selected }: NodeProps) => {
   const d = data as Record<string, any>;
-  const opLabel: Record<string, string> = { equals: '=', not_equals: '≠', contains: 'contém' };
+  const opLabel: Record<string, string> = {
+    equals: '=',
+    not_equals: '≠',
+    contains: 'contém',
+    starts_with: 'começa com',
+    ends_with: 'termina com',
+    is_empty: 'está vazio',
+    is_not_empty: 'não está vazio',
+    older_than: 'há mais de',
+    newer_than: 'há menos de',
+  };
+  const unitLabel: Record<string, string> = {
+    minutes: 'min',
+    hours: 'h',
+    days: 'd',
+  };
+  const op = (d.operator as string) || 'equals';
+  const noValue = op === 'is_empty' || op === 'is_not_empty';
+  const isTemporal = op === 'older_than' || op === 'newer_than';
+
+  let valueText = '';
+  if (isTemporal && d.value && typeof d.value === 'object') {
+    const a = d.value.amount;
+    const u = unitLabel[d.value.unit] || d.value.unit || '';
+    valueText = a ? `${a}${u}` : '?';
+  } else if (typeof d.value === 'string') {
+    if (d.value === 'true') valueText = 'Sim';
+    else if (d.value === 'false') valueText = 'Não';
+    else valueText = d.value || '?';
+  } else {
+    valueText = '?';
+  }
+
   return (
     <NodeShell kind="condition" selected={selected} minWidth={240}>
       <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-amber-500')} />
@@ -335,8 +377,13 @@ export const ConditionNode = memo(({ data, selected }: NodeProps) => {
         {d.variable ? (
           <>
             <span className="text-amber-600 dark:text-amber-400">{`{${d.variable}}`}</span>
-            {' '}<span className="text-muted-foreground">{opLabel[d.operator as string] || '='}</span>{' '}
-            <span className="text-foreground">&ldquo;{d.value || '?'}&rdquo;</span>
+            {' '}<span className="text-muted-foreground">{opLabel[op] || '='}</span>
+            {!noValue && (
+              <>
+                {' '}
+                <span className="text-foreground">&ldquo;{valueText}&rdquo;</span>
+              </>
+            )}
           </>
         ) : (
           <span className="text-muted-foreground italic">Configure a condição</span>

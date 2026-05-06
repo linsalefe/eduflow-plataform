@@ -585,6 +585,8 @@ function EditorInner({ flowId }: { flowId: number }) {
             users={users}
             pipelines={pipelines}
             channelId={selectedChannelId}
+            flowNodes={nodes}
+            flowEdges={edges}
           />
         )}
       </div>

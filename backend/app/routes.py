@@ -5,8 +5,12 @@ from pydantic import BaseModel
 from app.notification_routes import notify_all_users
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import asyncio
 import base64
+import logging
 import uuid
+
+logger = logging.getLogger(__name__)
 
 SP_TZ = timezone(timedelta(hours=-3))
 
@@ -84,6 +88,39 @@ class ChannelRequest(BaseModel):
     page_id: Optional[str] = None
     instagram_id: Optional[str] = None
     access_token: Optional[str] = None
+
+
+async def _trigger_chatbot_stage_change(
+    tenant_id: int,
+    contact_id: int,
+    stage_from: str | None,
+    stage_to: str | None,
+) -> None:
+    """
+    Dispara fluxos do chatbot com trigger 'stage_change' em background.
+    Sessão fresca de DB, não compartilha com a request original.
+    """
+    from app.database import async_session
+    from app.chatbot.engine import start_flow_by_event
+    try:
+        async with async_session() as db:
+            await start_flow_by_event(
+                db,
+                tenant_id=tenant_id,
+                contact_id=contact_id,
+                event_type="stage_change",
+                payload={
+                    "stage_from": stage_from or "",
+                    "stage_to": stage_to or "",
+                },
+            )
+    except Exception:
+        logger.exception(
+            "Falha ao disparar chatbot stage_change "
+            "(tenant=%s, contact=%s, %s -> %s)",
+            tenant_id, contact_id, stage_from, stage_to,
+        )
+
 
 # === Channels ===
 
@@ -839,6 +876,20 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         contact.pipeline_id = req.pipeline_id
 
     await db.commit()
+
+    # Hook: dispara fluxos do chatbot configurados com trigger "stage_change".
+    # Roda em background com sessão fresca — não bloqueia a resposta HTTP e
+    # erros aqui não revertem a mudança de estágio (que já foi commitada).
+    if req.lead_status is not None and req.lead_status != old_status:
+        asyncio.create_task(
+            _trigger_chatbot_stage_change(
+                tenant_id=tenant_id,
+                contact_id=contact.id,
+                stage_from=old_status,
+                stage_to=req.lead_status,
+            )
+        )
+
     return {"status": "updated"}
 
 
