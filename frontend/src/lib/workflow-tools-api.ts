@@ -29,11 +29,11 @@ export interface TestAgentResponse {
 }
 
 export async function fetchAvailableTools(): Promise<ToolDescriptor[]> {
-  const res = await api.get<{ tools: ToolDescriptor[] }>('/api/workflow-tools/available');
+  const res = await api.get<{ tools: ToolDescriptor[] }>('/workflow-tools/available');
   return res.data.tools || [];
 }
 
 export async function testAgentPrompt(body: TestAgentRequest): Promise<TestAgentResponse> {
-  const res = await api.post<TestAgentResponse>('/api/workflow-tools/test', body);
+  const res = await api.post<TestAgentResponse>('/workflow-tools/test', body);
   return res.data;
 }
