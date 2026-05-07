@@ -109,11 +109,31 @@ async def execute_agent_node(
         })
 
     # 3. Contexto do lead pro agent
+    # Snapshot defensivo: capturar tags via SQL direto se a relação não foi carregada
+    # com selectinload (caso do endpoint /test em modo seguro).
+    try:
+        contact_tag_names = [t.name for t in (contact.tags or [])]
+    except Exception:
+        # Lazy load falhou em contexto async — buscar via SQL direto
+        from sqlalchemy import text as _sql_text
+        try:
+            res = await db.execute(
+                _sql_text(
+                    "SELECT t.name FROM tags t "
+                    "JOIN contact_tags ct ON ct.tag_id = t.id "
+                    "WHERE ct.contact_wa_id = :wa_id AND t.tenant_id = :tid"
+                ),
+                {"wa_id": contact.wa_id, "tid": session.tenant_id if session else contact.tenant_id},
+            )
+            contact_tag_names = [row[0] for row in res.all()]
+        except Exception:
+            contact_tag_names = []
+
     lead_snapshot = {
         "name": contact.name,
         "wa_id": contact.wa_id,
         "lead_status": contact.lead_status,
-        "tags": [t.name for t in (contact.tags or [])],
+        "tags": contact_tag_names,
     }
     session_vars = dict(session.variables or {}) if session else {}
 

@@ -119,7 +119,7 @@ async def test_agent_prompt(
     if "get_contact_summary" not in safe_tools and registry.get("get_contact_summary"):
         safe_tools.append("get_contact_summary")
 
-    # 3. Session em memória (NÃO adiciona ao db)
+    # 3. Session em memória (NÃO adiciona ao db; só usada como container de variáveis)
     fake_session = ChatbotSession(
         tenant_id=user.tenant_id,
         flow_id=0,
@@ -129,7 +129,8 @@ async def test_agent_prompt(
         variables={},
     )
 
-    # 4. Executar
+    # 4. Executar com isolamento via SAVEPOINT (rollback nested NÃO invalida o contact)
+    savepoint = await db.begin_nested()
     try:
         result = await execute_agent_node(
             node_data={
@@ -144,9 +145,22 @@ async def test_agent_prompt(
             channel=None,  # sem channel pra impedir send_message mesmo se vazasse
             db=db,
         )
-    finally:
-        # Defensivo: rollback de qualquer mudança que tenha encostado em algo persistido
-        await db.rollback()
+    except Exception as e:
+        logger.exception("workflow-tools/test: execute_agent_node falhou")
+        await savepoint.rollback()
+        return TestAgentResponse(
+            ok=False,
+            outcome="error",
+            agent_text="",
+            tool_calls=[],
+            tokens_in=0,
+            tokens_out=0,
+            error=f"{type(e).__name__}: {str(e)[:300]}",
+            used_contact_id=contact.id,
+        )
+    else:
+        # Sucesso — desfaz qualquer mudança persistida (modo seguro)
+        await savepoint.rollback()
 
     return TestAgentResponse(
         ok=bool(result.get("ok")),
