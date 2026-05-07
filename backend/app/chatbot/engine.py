@@ -19,6 +19,15 @@ from app.models import (
     ChatbotFlow, ChatbotSession, ChatbotScheduledResume,
     ChatbotTriggerLog,
     Channel, Contact, Message, Task, Tag, User,
+    WorkflowRun,
+)
+from app.chatbot.agent_node import execute_agent_node
+from app.workflow_lock import try_acquire_lock, release_lock, peek_lock
+from app.workflow_run_helper import (
+    create_run as _wf_create_run,
+    append_timeline_event as _wf_append_timeline,
+    add_tokens as _wf_add_tokens,
+    complete_run as _wf_complete_run,
 )
 
 logger = logging.getLogger(__name__)
@@ -240,7 +249,11 @@ async def start_flow_by_event(
 
         # Executar o fluxo. Erros aqui não impedem outros flows.
         try:
-            await _advance_from(session, trigger_node, graph, channel, contact, db)
+            await _run_workflow_safely(
+                session, trigger_node, graph, channel, contact, db,
+                trigger_event=event_type,
+                trigger_payload={"contact_id": contact_id},
+            )
             triggered.append(flow.id)
             logger.info(
                 "Flow %s disparado (contact %s, evento %s, session %s)",
@@ -986,11 +999,113 @@ async def _execute_node(
 
         return None, False
 
+    if nt == "agent":
+        # Nó-Agente: chama execute_agent_node (F1.A) e mapeia outcome -> sourceHandle.
+        # Edge sem sourceHandle vira fallback se nenhum handle bater.
+        run = getattr(session, "_current_workflow_run", None)
+        node_started_at = datetime.utcnow().isoformat()
+
+        try:
+            result = await execute_agent_node(
+                node_data=data,
+                session=session,
+                contact=contact,
+                channel=channel,
+                db=db,
+            )
+        except Exception as e:
+            logger.exception("[engine] node 'agent' raised exception")
+            result = {"ok": False, "outcome": "error", "error": str(e)[:300],
+                      "tool_calls": [], "tokens_in": 0, "tokens_out": 0}
+
+        # Auditoria no WorkflowRun (se houver)
+        if run is not None:
+            await _wf_add_tokens(run, result.get("tokens_in") or 0, result.get("tokens_out") or 0, db)
+            await _wf_append_timeline(run, {
+                "node_id": str(node.get("id")),
+                "kind": "agent",
+                "started_at": node_started_at,
+                "outcome": result.get("outcome"),
+                "ok": bool(result.get("ok")),
+                "tool_calls": [tc.get("name") for tc in (result.get("tool_calls") or [])],
+                "error": result.get("error"),
+            }, db)
+
+        # Decidir próximo nó
+        handle = result.get("outcome") or "done"
+        if not result.get("ok"):
+            handle = "error"
+
+        next_node = find_next_node(graph, node["id"], source_handle=handle)
+        if next_node is None:
+            # Fallback: edge default (sem sourceHandle)
+            next_node = find_next_node(graph, node["id"])
+        return next_node, False
+
     if nt == "end":
         return None, False
 
     print(f"⚠️ Chatbot: tipo de nó desconhecido '{nt}' ({node.get('id')}) — pulando")
     return find_next_node(graph, node["id"]), False
+
+
+# ============================================================
+# Wrapper de execução: lock global por lead + WorkflowRun auditável
+# ============================================================
+async def _run_workflow_safely(
+    session: ChatbotSession,
+    start_node: dict,
+    graph: dict,
+    channel: Channel,
+    contact: Contact,
+    db: AsyncSession,
+    *,
+    trigger_event: Optional[str] = None,
+    trigger_payload: Optional[dict] = None,
+):
+    """
+    Envolve _advance_from com:
+      - Lock global por lead (5 min) via LeadAgentContext.locked_until
+      - WorkflowRun pra auditoria de execução (timeline + tokens)
+    """
+    # 1. Cria run em status running
+    run = await _wf_create_run(
+        tenant_id=session.tenant_id,
+        flow_id=session.flow_id,
+        contact_id=contact.id if contact else None,
+        session_id=session.id,
+        trigger_event=trigger_event,
+        trigger_payload=trigger_payload,
+        db=db,
+    )
+    owner = f"workflow_run:{run.id}"
+
+    # 2. Tenta pegar lock
+    acquired = await try_acquire_lock(contact, session.tenant_id, owner, db) if contact else True
+    if not acquired:
+        info = await peek_lock(contact, db) if contact else None
+        await _wf_complete_run(
+            run, "blocked_by_lock", db,
+            error_message=f"locked by {info.get('locked_by') if info else 'unknown'}",
+        )
+        await db.commit()
+        logger.info(f"[engine] run {run.id} bloqueado por lock — owner atual: {info}")
+        return
+
+    # 3. Executa o grafo (atributo dinâmico pra _execute_node ler o run no nó 'agent')
+    session._current_workflow_run = run
+    try:
+        await _advance_from(session, start_node, graph, channel, contact, db)
+        await _wf_complete_run(run, "completed", db)
+    except Exception as e:
+        logger.exception("[engine] _advance_from falhou")
+        await _wf_complete_run(run, "failed", db, error_message=str(e))
+        raise
+    finally:
+        session._current_workflow_run = None
+        if contact:
+            await release_lock(contact, owner, db)
+        await db.commit()
 
 
 # ============================================================
@@ -1203,7 +1318,11 @@ async def handle_inbound_message(
         db.add(session)
         await db.commit()
         await db.refresh(session)
-        await _advance_from(session, trigger, graph, channel, contact, db)
+        await _run_workflow_safely(
+            session, trigger, graph, channel, contact, db,
+            trigger_event="inbound_message",
+            trigger_payload={"text": (text or "")[:200]},
+        )
         return
 
     # COM sessão ativa → processar resposta
@@ -1239,7 +1358,11 @@ async def handle_inbound_message(
         next_node = find_next_node(graph, waiting_node["id"], source_handle=selected.get("id"))
         await db.commit()
         if next_node:
-            await _advance_from(session, next_node, graph, channel, contact, db)
+            await _run_workflow_safely(
+                session, next_node, graph, channel, contact, db,
+                trigger_event="button_response",
+                trigger_payload={"button": selected.get("id")},
+            )
         else:
             session.status = "completed"
             session.completed_at = datetime.utcnow()
@@ -1267,7 +1390,11 @@ async def handle_inbound_message(
         next_node = find_next_node(graph, waiting_node["id"])
         await db.commit()
         if next_node:
-            await _advance_from(session, next_node, graph, channel, contact, db)
+            await _run_workflow_safely(
+                session, next_node, graph, channel, contact, db,
+                trigger_event="input_response",
+                trigger_payload={"input_text": (message_text or "")[:200]},
+            )
         else:
             session.status = "completed"
             session.completed_at = datetime.utcnow()
@@ -1277,7 +1404,11 @@ async def handle_inbound_message(
     print(f"⚠️ Chatbot: sessão {session.id} em nó não-waiting '{nt}' — avançando")
     next_node = find_next_node(graph, waiting_node["id"])
     if next_node:
-        await _advance_from(session, next_node, graph, channel, contact, db)
+        await _run_workflow_safely(
+            session, next_node, graph, channel, contact, db,
+            trigger_event="fallback_advance",
+            trigger_payload={"node_type": nt},
+        )
     else:
         session.status = "completed"
         session.completed_at = datetime.utcnow()
@@ -1351,5 +1482,9 @@ async def resume_session_from_node(
     session.last_interaction_at = datetime.utcnow()
     await db.commit()
 
-    await _advance_from(session, node, graph, channel, contact, db)
+    await _run_workflow_safely(
+        session, node, graph, channel, contact, db,
+        trigger_event="scheduled_resume",
+        trigger_payload={"node_id": str(node.get("id"))},
+    )
     return True
