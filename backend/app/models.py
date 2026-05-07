@@ -171,10 +171,21 @@ class AIConfig(Base):
     model = Column(String(50), default="gpt-5")
     temperature = Column(String(10), default="0.7")
     max_tokens = Column(Integer, default=500)
+
+    # F2.A — Biblioteca de agentes pra Workflow.
+    # NULL = agente nunca foi usado em workflow (intacto pro modo `ai` do canal).
+    tools = Column(JSONB, nullable=True)        # lista de nomes de tools
+    outcomes = Column(JSONB, nullable=True)     # lista de outcomes (handles do nó)
+
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     channel = relationship("Channel", backref="ai_config")
+
+    @property
+    def is_workflow_capable(self) -> bool:
+        """True se o agente foi configurado pra ser usado em workflow."""
+        return self.tools is not None
 
 
 class KnowledgeDocument(Base):

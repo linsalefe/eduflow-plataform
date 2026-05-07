@@ -41,7 +41,10 @@ class ToolsListResponse(BaseModel):
 
 
 class TestAgentBody(BaseModel):
-    prompt: str = Field(..., min_length=1)
+    # Se agent_id setado, prompt/model/tools/outcomes podem ser omitidos —
+    # serão carregados do AIConfig referenciado.
+    agent_id: Optional[int] = None
+    prompt: Optional[str] = None
     model: Optional[str] = "gpt-4o-mini"
     tools: list[str] = Field(default_factory=list)
     outcomes: list[str] = Field(default_factory=list)
@@ -92,6 +95,10 @@ async def test_agent_prompt(
       - Faz rollback no final pra não persistir nada
       - Não toca em LeadAgentContext (sem lock)
     """
+    # 0. Validar: precisa OU prompt inline OU agent_id
+    if not body.agent_id and (not body.prompt or not body.prompt.strip()):
+        raise HTTPException(status_code=400, detail="Forneça 'prompt' inline ou 'agent_id' de um agente salvo")
+
     # 1. Resolver contato pra teste (informado ou primeiro do tenant)
     if body.contact_id:
         c_res = await db.execute(
@@ -134,8 +141,9 @@ async def test_agent_prompt(
     try:
         result = await execute_agent_node(
             node_data={
-                "prompt": body.prompt,
-                "model": body.model or "gpt-4o-mini",
+                "agent_id": body.agent_id,
+                "prompt": body.prompt or "",
+                "model": body.model or "",  # vazio força DEFAULT ou agent.model
                 "tools": safe_tools,
                 "outcomes": body.outcomes,
                 "user_message": body.user_message or "",

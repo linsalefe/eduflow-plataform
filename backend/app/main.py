@@ -31,6 +31,7 @@ from app.task_routes import router as task_router
 from app.automation_routes import router as automation_router
 from app.chatbot.routes import router as chatbot_router
 from app.workflow_tools.routes import router as workflow_tools_router
+from app.agent_routes_workflow import router as agent_routes_workflow_router
 from app.voice_ai_elevenlabs.agent_tools_routes import router as agent_tools_router
 from app.oauth_routes import router as oauth_router
 from app.voice_ai.routes import router as voice_ai_router
@@ -255,6 +256,7 @@ app.include_router(pipeline_router)
 app.include_router(ai_lab_router)
 app.include_router(chatbot_router)
 app.include_router(workflow_tools_router)
+app.include_router(agent_routes_workflow_router)
 app.include_router(agent_router)
 
 @app.get("/webhook")

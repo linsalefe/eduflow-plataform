@@ -15,10 +15,11 @@ import logging
 from typing import Any, Optional
 
 from openai import AsyncOpenAI
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.models import Channel, ChatbotSession, Contact, Tenant
+from app.models import AIConfig, Channel, ChatbotSession, Contact, Tenant
 from app.workflow_tools.base import ToolContext, ToolDef
 from app.workflow_tools.filters import filter_tools_by_names
 
@@ -61,10 +62,51 @@ async def execute_agent_node(
         "error": str | None,
       }
     """
+    # F2.A — Se node_data.agent_id está setado, busca config no AIConfig
+    # e MESCLA com o que veio inline (inline tem prioridade quando ambos presentes).
+    agent_id = node_data.get("agent_id")
+    saved_agent: AIConfig | None = None
+    if agent_id:
+        try:
+            res = await db.execute(
+                select(AIConfig).where(
+                    AIConfig.id == int(agent_id),
+                    AIConfig.tenant_id == session.tenant_id,
+                )
+            )
+            saved_agent = res.scalar_one_or_none()
+        except Exception:
+            saved_agent = None
+        if saved_agent is None:
+            return {
+                "ok": False, "outcome": "error",
+                "error": f"agent_id={agent_id} não encontrado pro tenant",
+                "tool_calls": [], "agent_text": "",
+                "tokens_in": 0, "tokens_out": 0,
+            }
+
+    # Prompt: inline > saved_agent.system_prompt
     prompt = (node_data.get("prompt") or "").strip()
-    model = (node_data.get("model") or DEFAULT_MODEL).strip()
+    if not prompt and saved_agent:
+        prompt = (saved_agent.system_prompt or "").strip()
+
+    # Model: inline > saved_agent.model > DEFAULT_MODEL
+    model = (node_data.get("model") or "").strip()
+    if not model and saved_agent:
+        model = (saved_agent.model or "").strip()
+    if not model:
+        model = DEFAULT_MODEL
+
+    # Tools: inline > saved_agent.tools
     selected_tool_names: list[str] = list(node_data.get("tools") or [])
+    if not selected_tool_names and saved_agent and saved_agent.tools:
+        selected_tool_names = list(saved_agent.tools)
+
+    # Outcomes: inline > saved_agent.outcomes
     outcomes: list[str] = list(node_data.get("outcomes") or [])
+    if not outcomes and saved_agent and saved_agent.outcomes:
+        outcomes = list(saved_agent.outcomes)
+
     user_message = (node_data.get("user_message") or "").strip()
 
     base_result = {
