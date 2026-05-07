@@ -4,7 +4,7 @@
 
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
-  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay' | 'http_request' | 'webhook_out';
+  | 'tag' | 'move_stage' | 'handoff' | 'end' | 'delay' | 'http_request' | 'webhook_out' | 'agent';
 
 export interface FlowNode {
   id: string;
@@ -332,6 +332,20 @@ function executeNode(
         ts: now(),
       });
       return [s, findNextNode(graph, node.id), false];
+    }
+
+    case 'agent': {
+      const outcomes: string[] = Array.isArray(data.outcomes) && data.outcomes.length > 0 ? data.outcomes : ['done'];
+      const firstOutcome = outcomes[0];
+      const promptShort = (data.prompt || '').slice(0, 60);
+      s = pushBubble(s, {
+        kind: 'system',
+        text: `Agente IA decidiu (simulação) → outcome="${firstOutcome}"\nPrompt: "${promptShort}${(data.prompt || '').length > 60 ? '…' : ''}"`,
+        systemIcon: '🤖',
+        ts: now(),
+      });
+      const next = findNextNode(graph, node.id, firstOutcome) || findNextNode(graph, node.id);
+      return [s, next, false];
     }
 
     case 'end':

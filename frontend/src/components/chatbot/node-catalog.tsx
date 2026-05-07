@@ -5,6 +5,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import {
   Zap, MessageSquare, MousePointerClick, TextCursorInput,
   GitBranch, Tag, ArrowRightLeft, UserCheck, Flag, Timer, Globe, Send, UserRoundCog,
+  Bot,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils';
 export type NodeKind =
   | 'trigger' | 'message' | 'buttons' | 'input' | 'condition'
   | 'tag' | 'move_stage' | 'delay' | 'handoff' | 'end' | 'http_request' | 'webhook_out'
-  | 'transfer_to_agent';
+  | 'transfer_to_agent' | 'agent';
 
 export const NODE_META: Record<NodeKind, {
   label: string;
@@ -128,11 +129,19 @@ export const NODE_META: Record<NodeKind, {
     borderClass: 'border-purple-500/30',
     accentClass: 'bg-purple-500',
   },
+  agent: {
+    label: 'Agente IA',
+    description: 'Decide e age dentro do CRM',
+    icon: Bot,
+    colorClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+    borderClass: 'border-emerald-500/30',
+    accentClass: 'bg-emerald-500',
+  },
 };
 
 export const PALETTE_ORDER: NodeKind[] = [
   'trigger', 'message', 'buttons', 'input',
-  'condition', 'http_request', 'webhook_out', 'tag', 'move_stage', 'delay', 'handoff', 'transfer_to_agent', 'end',
+  'condition', 'agent', 'http_request', 'webhook_out', 'tag', 'move_stage', 'delay', 'handoff', 'transfer_to_agent', 'end',
 ];
 
 // ============================================================
@@ -194,6 +203,13 @@ export function createDefaultNodeData(kind: NodeKind): Record<string, unknown> {
     case 'transfer_to_agent':
       return {
         timeout_minutes: 60,
+      };
+    case 'agent':
+      return {
+        prompt: '',
+        model: 'gpt-4o-mini',
+        tools: ['get_contact_summary'],
+        outcomes: ['ok', 'fail'],
       };
   }
 }
@@ -517,6 +533,56 @@ export const TransferToAgentNode = memo(({ data, selected }: NodeProps) => {
 });
 TransferToAgentNode.displayName = 'TransferToAgentNode';
 
+export const AgentNode = memo(({ data, selected }: NodeProps) => {
+  const d = (data || {}) as any;
+  const prompt: string = (d.prompt || '').trim();
+  const model: string = d.model || 'gpt-4o-mini';
+  const tools: string[] = Array.isArray(d.tools) ? d.tools : [];
+  const outcomes: string[] = Array.isArray(d.outcomes) && d.outcomes.length > 0 ? d.outcomes : ['done'];
+  const promptPreview = prompt ? (prompt.length > 60 ? prompt.slice(0, 60) + '\u2026' : prompt) : '';
+
+  // Distribuir handles verticalmente à direita (1 por outcome)
+  const total = outcomes.length;
+  const step = total === 1 ? 50 : 70 / Math.max(1, total - 1);
+  const startTop = total === 1 ? 50 : 15;
+
+  return (
+    <NodeShell kind="agent" selected={selected} minWidth={240}>
+      <Handle type="target" position={Position.Left} style={HANDLE_LEFT} className={cn(HANDLE_CLASS, '!bg-emerald-500')} />
+      <div className="text-[11px] text-muted-foreground bg-muted/40 rounded-md px-2 py-1.5 min-h-[28px]">
+        {promptPreview ? (
+          <span className="text-foreground/80 italic">&ldquo;{promptPreview}&rdquo;</span>
+        ) : (
+          <span className="text-muted-foreground italic">Configure o prompt no inspetor</span>
+        )}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between text-[10px]">
+        <span className="font-mono text-emerald-700 dark:text-emerald-400">{model}</span>
+        <span className="text-muted-foreground">{tools.length} tool{tools.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="mt-1.5 space-y-0.5">
+        {outcomes.map((o, idx) => (
+          <div key={`${o}-${idx}`} className="flex items-center justify-end gap-1.5 text-[10px] text-emerald-700 dark:text-emerald-400">
+            <span className="font-medium">{o}</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          </div>
+        ))}
+      </div>
+      {outcomes.map((o, idx) => (
+        <Handle
+          key={`h-${o}-${idx}`}
+          id={o}
+          type="source"
+          position={Position.Right}
+          className={cn(HANDLE_CLASS, '!bg-emerald-500')}
+          style={{ top: `${startTop + step * idx}%`, right: -7 }}
+        />
+      ))}
+    </NodeShell>
+  );
+});
+AgentNode.displayName = 'AgentNode';
+
 export const WebhookOutNode = memo(({ data, selected }: NodeProps) => {
   const d = (data || {}) as any;
   const url = d.url || '';
@@ -558,6 +624,7 @@ export const nodeTypes = {
   delay: DelayNode,
   handoff: HandoffNode,
   transfer_to_agent: TransferToAgentNode,
+  agent: AgentNode,
   end: EndNode,
   http_request: HttpRequestNode,
   webhook_out: WebhookOutNode,

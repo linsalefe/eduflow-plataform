@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Plus, X, AlertTriangle, ArrowRight, Check, ChevronsUpDown } from 'lucide-react';
+import { Trash2, Plus, X, AlertTriangle, ArrowRight, Check, ChevronsUpDown, Sparkles, Loader2, Bot } from 'lucide-react';
 import { type Node } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +16,14 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command';
 import { NODE_META, type NodeKind } from './node-catalog';
+import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 import { getAgentIcon } from '@/lib/agent-icons';
+import { AGENT_TEMPLATES, type AgentTemplate } from './agent-templates';
+import {
+  fetchAvailableTools, testAgentPrompt,
+  type ToolDescriptor, type TestAgentResponse,
+} from '@/lib/workflow-tools-api';
 
 export interface KanbanCol { key: string; label: string; }
 export interface UserOpt { id: number; name: string; }
@@ -82,6 +88,7 @@ export function NodeInspector({ node, onChange, onDelete, kanbanColumns, users, 
         {kind === 'http_request' && <HttpRequestForm data={data} update={update} />}
         {kind === 'webhook_out' && <WebhookOutForm data={data} update={update} />}
         {kind === 'transfer_to_agent' && <TransferToAgentForm data={data} update={update} channelId={channelId} />}
+        {kind === 'agent' && <AgentForm data={data} update={update} />}
         {kind === 'end' && <p className="text-sm text-muted-foreground">Este nó encerra o fluxo. Sem configurações.</p>}
         <VarHint kind={kind} />
       </div>
@@ -1329,5 +1336,304 @@ function PipelineStageCascade({
         )}
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// Form do nó-Agente (F1.C)
+// ============================================================
+function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
+  const [tools, setTools] = useState<ToolDescriptor[]>([]);
+  const [loadingTools, setLoadingTools] = useState(true);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestAgentResponse | null>(null);
+
+  // Estado local pro campo de outcome novo
+  const [newOutcome, setNewOutcome] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAvailableTools()
+      .then((t) => { if (!cancelled) setTools(t); })
+      .catch(() => { if (!cancelled) setTools([]); })
+      .finally(() => { if (!cancelled) setLoadingTools(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectedTools: string[] = Array.isArray(data.tools) ? data.tools : [];
+  const outcomes: string[] = Array.isArray(data.outcomes) && data.outcomes.length > 0 ? data.outcomes : ['done'];
+
+  const toggleTool = (name: string) => {
+    const next = selectedTools.includes(name)
+      ? selectedTools.filter((t) => t !== name)
+      : [...selectedTools, name];
+    update({ tools: next });
+  };
+
+  const applyTemplate = (tpl: AgentTemplate) => {
+    update({
+      prompt: tpl.prompt,
+      model: tpl.model,
+      tools: [...tpl.tools],
+      outcomes: [...tpl.outcomes],
+    });
+    setShowTemplates(false);
+    setTestResult(null);
+  };
+
+  const addOutcome = () => {
+    const v = newOutcome.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!v) return;
+    if (outcomes.includes(v)) return;
+    update({ outcomes: [...outcomes, v] });
+    setNewOutcome('');
+  };
+
+  const removeOutcome = (idx: number) => {
+    if (outcomes.length <= 1) return; // sempre pelo menos 1
+    update({ outcomes: outcomes.filter((_, i) => i !== idx) });
+  };
+
+  const runTest = async () => {
+    if (!data.prompt || !data.prompt.trim()) {
+      setTestResult({
+        ok: false, outcome: 'error', agent_text: '', tool_calls: [],
+        tokens_in: 0, tokens_out: 0, error: 'Configure o prompt antes de testar.',
+      });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await testAgentPrompt({
+        prompt: data.prompt,
+        model: data.model || 'gpt-4o-mini',
+        tools: selectedTools,
+        outcomes: outcomes,
+      });
+      setTestResult(r);
+    } catch (err: any) {
+      setTestResult({
+        ok: false, outcome: 'error', agent_text: '', tool_calls: [],
+        tokens_in: 0, tokens_out: 0,
+        error: err?.response?.data?.detail || err?.message || 'Erro desconhecido',
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <>
+      {/* === Templates === */}
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2"
+          onClick={() => setShowTemplates((s) => !s)}
+        >
+          <Sparkles className="w-4 h-4 text-emerald-500" />
+          <span>Carregar template</span>
+          <ChevronsUpDown className="w-3 h-3 ml-auto" />
+        </Button>
+        {showTemplates && (
+          <div className="space-y-1.5 border rounded-md p-2 bg-muted/30">
+            {AGENT_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => applyTemplate(tpl)}
+                className="w-full text-left px-2 py-1.5 rounded hover:bg-accent transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{tpl.emoji}</span>
+                  <span className="text-sm font-medium">{tpl.label}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 ml-6">{tpl.description}</p>
+              </button>
+            ))}
+            <p className="text-[10px] text-muted-foreground italic px-2 pt-1 border-t mt-1">
+              Após carregar, edite à vontade — os templates são só ponto de partida.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* === Prompt === */}
+      <div className="space-y-2">
+        <Label>Prompt do agente</Label>
+        <Textarea
+          rows={10}
+          value={data.prompt || ''}
+          onChange={(e) => update({ prompt: e.target.value })}
+          placeholder="Descreva o que o agente deve fazer. Ex: Use get_contact_summary, decida se o lead está qualificado, aplique a tag adequada, finalize com finish_agent."
+          className="font-mono text-xs leading-relaxed"
+        />
+        <p className="text-[10px] text-muted-foreground">
+          Dica: instrua o agente a chamar <code className="font-mono">finish_agent</code> ao final, com um dos outcomes definidos abaixo.
+        </p>
+      </div>
+
+      {/* === Modelo === */}
+      <div className="space-y-2">
+        <Label>Modelo de IA</Label>
+        <Select value={data.model || 'gpt-4o-mini'} onValueChange={(v) => update({ model: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="gpt-4o-mini">GPT-4o mini (mais rápido e barato)</SelectItem>
+            <SelectItem value="gpt-4o">GPT-4o (mais preciso, mais caro)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* === Tools === */}
+      <div className="space-y-2">
+        <Label className="flex items-center justify-between">
+          <span>Ferramentas disponíveis pro agente</span>
+          <span className="text-[10px] font-normal text-muted-foreground">{selectedTools.length} de {tools.length}</span>
+        </Label>
+        {loadingTools ? (
+          <div className="text-xs text-muted-foreground italic py-2">Carregando…</div>
+        ) : tools.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic py-2 px-3 rounded border bg-muted/20">
+            Nenhuma tool disponível pro seu plano.
+          </div>
+        ) : (
+          <div className="space-y-1 border rounded-md p-2 max-h-64 overflow-y-auto">
+            {tools.map((t) => {
+              const checked = selectedTools.includes(t.name);
+              return (
+                <label
+                  key={t.name}
+                  className={cn(
+                    'flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors',
+                    checked ? 'bg-emerald-500/10' : 'hover:bg-accent'
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleTool(t.name)}
+                    className="mt-0.5 accent-emerald-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <code className="text-xs font-mono font-medium">{t.name}</code>
+                      {t.is_action && (
+                        <span className="text-[9px] uppercase font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded">
+                          ação
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t.description}</p>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* === Outcomes === */}
+      <div className="space-y-2">
+        <Label>Saídas possíveis (outcomes)</Label>
+        <div className="space-y-1">
+          {outcomes.map((o, idx) => (
+            <div key={`${o}-${idx}`} className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <code className="text-xs font-mono flex-1">{o}</code>
+              <button
+                type="button"
+                onClick={() => removeOutcome(idx)}
+                disabled={outcomes.length <= 1}
+                className="text-muted-foreground hover:text-destructive disabled:opacity-30"
+                title={outcomes.length <= 1 ? 'Pelo menos 1 outcome é obrigatório' : 'Remover'}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <div className="flex items-center gap-1">
+            <Input
+              value={newOutcome}
+              onChange={(e) => setNewOutcome(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOutcome(); } }}
+              placeholder="ex: qualificado"
+              className="h-7 text-xs"
+            />
+            <Button type="button" size="icon" variant="outline" className="h-7 w-7" onClick={addOutcome}>
+              <Plus className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Cada outcome vira um handle de saída do nó. Conecte cada um ao próximo passo desejado no fluxo.
+        </p>
+      </div>
+
+      {/* === Testar === */}
+      <div className="space-y-2 border-t pt-4">
+        <Button
+          type="button"
+          variant="default"
+          size="sm"
+          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+          onClick={runTest}
+          disabled={testing}
+        >
+          {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+          {testing ? 'Testando…' : 'Testar prompt agora'}
+        </Button>
+        <p className="text-[10px] text-muted-foreground">
+          Modo seguro: só executa <code className="font-mono">get_contact_summary</code>. Nada é enviado nem alterado no CRM.
+        </p>
+
+        {testResult && (
+          <div className={cn(
+            'border rounded-md p-3 space-y-2 text-xs',
+            testResult.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'
+          )}>
+            <div className="flex items-center gap-2">
+              {testResult.ok ? (
+                <Check className="w-4 h-4 text-emerald-600" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+              )}
+              <span className="font-semibold">
+                {testResult.ok ? `Outcome: ${testResult.outcome}` : 'Falhou'}
+              </span>
+              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                {testResult.tokens_in}/{testResult.tokens_out} tk
+              </span>
+            </div>
+            {testResult.error && (
+              <p className="text-rose-700 dark:text-rose-400 font-mono text-[11px]">{testResult.error}</p>
+            )}
+            {testResult.tool_calls && testResult.tool_calls.length > 0 && (
+              <div className="space-y-1">
+                <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground">Ferramentas chamadas</p>
+                {testResult.tool_calls.map((tc, idx) => (
+                  <div key={idx} className="font-mono text-[10px] bg-muted/40 rounded px-2 py-1">
+                    <span className="font-bold">{tc.name}</span>
+                    {tc.args && Object.keys(tc.args).length > 0 && (
+                      <span className="text-muted-foreground"> ({JSON.stringify(tc.args).slice(0, 60)})</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {testResult.agent_text && (
+              <div>
+                <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Texto do agente</p>
+                <p className="italic text-foreground/80">&ldquo;{testResult.agent_text}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

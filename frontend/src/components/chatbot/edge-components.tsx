@@ -24,6 +24,7 @@ const SOURCE_COLOR: Record<NodeKind, string> = {
   http_request: '#0ea5e9',
   webhook_out: '#d946ef',
   transfer_to_agent: '#a855f7',
+  agent: '#10b981',
 };
 
 function CustomEdge(props: EdgeProps) {
@@ -86,6 +87,12 @@ function CustomEdge(props: EdgeProps) {
         </span>
       );
     }
+  } else if (sourceNode?.type === 'agent' && sourceHandleId) {
+    label = (
+      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-medium border border-emerald-500/20 whitespace-nowrap max-w-[140px] truncate font-mono">
+        {sourceHandleId}
+      </span>
+    );
   }
 
   const handleInsertNode = (kind: NodeKind) => {
