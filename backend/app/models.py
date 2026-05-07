@@ -700,3 +700,39 @@ class ChatbotTriggerLog(Base):
     event_type = Column(String(40), nullable=False)
     payload = Column(JSON, nullable=False, default=dict)
     triggered_at = Column(DateTime, nullable=False)
+
+
+class WorkflowRun(Base):
+    """
+    Instância auditável de execução de um fluxo do Workflow Builder.
+    Diferente de ChatbotSession (que é a conversa em si), WorkflowRun
+    é o registro de UMA execução: quais nós rodaram, quanto custou em
+    IA, qual o outcome, erros se houve.
+
+    Criado para suportar o nó-Agente do Workflow (Fase 1 do mini-N8N).
+    """
+    __tablename__ = "workflow_run"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    flow_id = Column(Integer, ForeignKey("chatbot_flows.id", ondelete="CASCADE"), nullable=False)
+    session_id = Column(Integer, ForeignKey("chatbot_sessions.id", ondelete="SET NULL"), nullable=True)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
+
+    trigger_event = Column(String(40), nullable=True)
+    trigger_payload = Column(JSONB, nullable=False, server_default='{}')
+
+    # 'running' | 'completed' | 'failed' | 'blocked_by_lock' | 'cancelled'
+    status = Column(String(20), nullable=False, default="running")
+
+    # Lista de {node_id, node_kind, started_at, completed_at, outcome, error}
+    timeline = Column(JSONB, nullable=False, server_default='[]')
+
+    variables = Column(JSONB, nullable=False, server_default='{}')
+
+    openai_tokens_input = Column(Integer, nullable=False, default=0)
+    openai_tokens_output = Column(Integer, nullable=False, default=0)
+
+    started_at = Column(DateTime, server_default=func.now())
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(Text, nullable=True)
