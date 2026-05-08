@@ -25,6 +25,7 @@ class AIConfigUpdate(BaseModel):
     model: Optional[str] = None
     temperature: Optional[str] = None
     max_tokens: Optional[int] = None
+    force: bool = False  # F2.B — confirmação pra trocar canal de chatbot pra ai
 
 
 class ToggleAIRequest(BaseModel):
@@ -68,14 +69,67 @@ async def update_ai_config(channel_id: int, req: AIConfigUpdate, db: AsyncSessio
     )
     config = result.scalar_one_or_none()
 
+    # Buscar canal pra usar em validação e default name
+    from app.models import Channel as Ch
+    ch_res = await db.execute(
+        select(Ch).where(Ch.id == channel_id, Ch.tenant_id == tenant_id)
+    )
+    ch_obj = ch_res.scalar_one_or_none()
+    if not ch_obj:
+        raise HTTPException(404, "Canal não encontrado")
+
     if not config:
-        # Buscar nome do canal para nome default do agente
-        from app.models import Channel as Ch
-        ch_res = await db.execute(select(Ch).where(Ch.id == channel_id))
-        ch_obj = ch_res.scalar_one_or_none()
         ch_name = ch_obj.name if ch_obj else str(channel_id)
         config = AIConfig(channel_id=channel_id, tenant_id=tenant_id, name=f"Agente - {ch_name}")
         db.add(config)
+
+    # F2.B — Se está ATIVANDO o agente (is_enabled=True) e o canal está em modo chatbot,
+    # exige force=true. Com force, troca canal pra modo ai e cancela sessões.
+    is_activating = req.is_enabled is True
+    if is_activating and ch_obj.operation_mode == "chatbot":
+        if not req.force:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "channel_in_chatbot_mode",
+                    "message": (
+                        f"O canal '{ch_obj.name}' está em modo workflow. "
+                        "Ativar este agente IA vai desativar o workflow."
+                    ),
+                    "channel": {
+                        "id": ch_obj.id,
+                        "name": ch_obj.name,
+                        "operation_mode": ch_obj.operation_mode,
+                        "active_chatbot_flow_id": ch_obj.active_chatbot_flow_id,
+                    },
+                    "requires_confirmation": True,
+                },
+            )
+        # Force aplicado: troca canal pra ai e cancela sessões de chatbot ativas
+        from datetime import datetime as _dt
+        from app.models import ChatbotSession as _CS, ChatbotScheduledResume as _CSR
+        previous_flow_id = ch_obj.active_chatbot_flow_id
+        ch_obj.operation_mode = "ai"
+        ch_obj.active_chatbot_flow_id = None
+        if previous_flow_id:
+            sres = await db.execute(
+                select(_CS).where(
+                    _CS.channel_id == channel_id,
+                    _CS.status.in_(["active", "waiting"]),
+                )
+            )
+            cancelled_sessions = sres.scalars().all()
+            if cancelled_sessions:
+                session_ids = [s.id for s in cancelled_sessions]
+                rres = await db.execute(
+                    select(_CSR).where(_CSR.session_id.in_(session_ids))
+                )
+                for r in rres.scalars().all():
+                    await db.delete(r)
+                for s in cancelled_sessions:
+                    s.status = "cancelled"
+                    s.completed_at = _dt.utcnow()
+                    s.updated_at = _dt.utcnow()
 
     if req.is_enabled is not None:
         config.is_enabled = req.is_enabled

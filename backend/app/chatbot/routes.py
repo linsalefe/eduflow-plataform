@@ -409,6 +409,37 @@ async def update_channel_mode(
         if not flow.is_published:
             raise HTTPException(400, "Fluxo precisa estar publicado antes de ativar no canal")
 
+        # F2.B — Conflito: este canal tem AIConfig isolado ativo (modo `ai`).
+        # Sem force, retorna 409. Com force, desativa o AIConfig (mantém no banco).
+        from app.models import AIConfig as _AIConfig
+        ai_res = await db.execute(
+            select(_AIConfig).where(
+                _AIConfig.channel_id == channel.id,
+                _AIConfig.tenant_id == tenant_id,
+                _AIConfig.is_enabled == True,  # noqa: E712
+            )
+        )
+        isolated_ai = ai_res.scalar_one_or_none()
+        if isolated_ai and not data.force:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "isolated_ai_active",
+                    "message": (
+                        f"Este canal tem o agente IA isolado '{isolated_ai.name}' ativo. "
+                        "Ativar workflow vai desativar esse agente."
+                    ),
+                    "ai_config": {
+                        "id": isolated_ai.id,
+                        "name": isolated_ai.name,
+                        "model": isolated_ai.model,
+                    },
+                    "requires_confirmation": True,
+                },
+            )
+        if isolated_ai and data.force:
+            isolated_ai.is_enabled = False
+
         # Regra: 1 fluxo → 1 canal. Se este fluxo já está ativo noutro canal,
         # desvincula o outro canal (só com force=true pra evitar surpresas).
         other_ch_res = await db.execute(
