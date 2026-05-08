@@ -1347,6 +1347,12 @@ function PipelineStageCascade({
 type AgentMode = 'inline' | 'saved';
 
 function getAgentMode(data: any): AgentMode {
+  // F2.C.3 hotfix — flag explícita tem prioridade.
+  // Fallback pro comportamento antigo (deriva de agent_id) garante retrocompat
+  // pra nós salvos antes desse fix.
+  if (data?.agent_mode === 'saved' || data?.agent_mode === 'inline') {
+    return data.agent_mode;
+  }
   return data?.agent_id ? 'saved' : 'inline';
 }
 
@@ -1356,17 +1362,19 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
   const switchMode = (next: AgentMode) => {
     if (next === mode) return;
     if (next === 'saved') {
-      // Vai pra modo Salvo: limpa campos inline pra evitar contaminação
+      // Vai pra modo Salvo: marca explicitamente + limpa campos inline
       update({
-        agent_id: null,  // será setado quando o user escolher
+        agent_mode: 'saved',
+        agent_id: null,  // será setado quando o user escolher um agente
         prompt: '',
         model: 'gpt-4o-mini',
         tools: [],
         outcomes: ['ok', 'fail'],
       });
     } else {
-      // Volta pra Inline: limpa agent_id
+      // Volta pra Inline: marca explicitamente + limpa agent_id
       update({
+        agent_mode: 'inline',
         agent_id: null,
       });
     }
