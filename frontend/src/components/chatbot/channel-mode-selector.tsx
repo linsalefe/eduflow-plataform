@@ -3,11 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  Sparkles, Workflow, CircleSlash, Loader2, AlertTriangle, ChevronRight,
+  Sparkles, Workflow, CircleSlash, Loader2, AlertTriangle, ChevronRight, Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export type OperationMode = 'ai' | 'chatbot' | 'none';
 
@@ -20,6 +24,26 @@ export interface ChannelModeState {
 export interface PublishedFlow {
   id: number;
   name: string;
+}
+
+type Backend409Detail =
+  | {
+      code: 'isolated_ai_active';
+      message: string;
+      ai_config: { id: number; name: string; model?: string };
+      requires_confirmation: true;
+    }
+  | {
+      code: 'channel_in_chatbot_mode';
+      message: string;
+      channel: { id: number; name: string; operation_mode: string; active_chatbot_flow_id: number | null };
+      requires_confirmation: true;
+    };
+
+interface PendingTransition {
+  nextMode: OperationMode;
+  finalFlowId: number | null;
+  detail: Backend409Detail;
 }
 
 interface Props {
@@ -64,6 +88,7 @@ export function ChannelModeSelector({
   channelId, channelName, mode, publishedFlows, onChange,
 }: Props) {
   const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState<PendingTransition | null>(null);
   const hasPublished = publishedFlows.length > 0;
 
   const apply = async (nextMode: OperationMode, flowId?: number | null) => {
@@ -74,44 +99,23 @@ export function ChannelModeSelector({
       return;
     }
 
-    // Confirmações de exclusividade (só ao TROCAR de modo)
-    const currentMode = mode.operation_mode;
-    if (currentMode !== nextMode) {
-      if (currentMode === 'ai' && nextMode === 'chatbot') {
-        const ok = confirm(
-          `O canal "${channelName}" está com o Agente de IA ativo. `
-          + `Ativar um Workflow vai DESATIVAR a IA neste canal. Continuar?`
-        );
-        if (!ok) return;
-      } else if (currentMode === 'chatbot' && nextMode === 'ai') {
-        const flowName = mode.active_chatbot_flow_name || 'atual';
-        const ok = confirm(
-          `O canal "${channelName}" tem o workflow "${flowName}" rodando. `
-          + `Ativar a IA aqui vai DESATIVAR o workflow e cancelar as sessões em andamento. Continuar?`
-        );
-        if (!ok) return;
-      } else if (currentMode === 'chatbot' && nextMode === 'none') {
-        const flowName = mode.active_chatbot_flow_name || 'atual';
-        const ok = confirm(
-          `Desativar o workflow "${flowName}" em "${channelName}" `
-          + `vai cancelar as sessões em andamento. Continuar?`
-        );
-        if (!ok) return;
-      }
-    }
-
     let finalFlowId: number | null = null;
     if (nextMode === 'chatbot') {
       finalFlowId = flowId ?? mode.active_chatbot_flow_id ?? publishedFlows[0]?.id ?? null;
       if (!finalFlowId) return;
     }
 
+    // Tenta primeiro SEM force; backend retorna 409 com detalhes se houver conflito
+    await applyMode(nextMode, finalFlowId, false);
+  };
+
+  const applyMode = async (nextMode: OperationMode, finalFlowId: number | null, force: boolean) => {
     setSaving(true);
     try {
       const res = await api.put(`/chatbot/channels/${channelId}/mode`, {
         operation_mode: nextMode,
         active_chatbot_flow_id: nextMode === 'chatbot' ? finalFlowId : null,
-        force: true,  // sempre força (a confirmação já foi visual)
+        force,
       });
       const chosenFlow = publishedFlows.find((f) => f.id === finalFlowId);
       onChange({
@@ -120,13 +124,29 @@ export function ChannelModeSelector({
         active_chatbot_flow_name: chosenFlow?.name ?? null,
       });
       toast.success('Modo atualizado');
+      setPending(null);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { detail?: string } } };
-      toast.error(e.response?.data?.detail || 'Erro ao atualizar modo');
+      const e = err as { response?: { status?: number; data?: { detail?: any } } };
+      const status = e.response?.status;
+      const detail = e.response?.data?.detail;
+      if (status === 409 && detail && typeof detail === 'object' && detail.requires_confirmation) {
+        setPending({ nextMode, finalFlowId, detail: detail as Backend409Detail });
+        setSaving(false);
+        return;
+      }
+      const msg = typeof detail === 'string' ? detail : 'Erro ao atualizar modo';
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   };
+
+  const confirmPending = async () => {
+    if (!pending) return;
+    await applyMode(pending.nextMode, pending.finalFlowId, true);
+  };
+
+  const cancelPending = () => setPending(null);
 
   return (
     <div className="mt-4 pt-4 border-t border-gray-100 dark:border-border/50">
@@ -199,6 +219,58 @@ export function ChannelModeSelector({
           )}
         </div>
       )}
+
+      <AlertDialog open={pending !== null} onOpenChange={(open) => !open && cancelPending()}>
+        <AlertDialogContent>
+          {pending?.detail.code === 'isolated_ai_active' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-blue-600" />
+                  Desativar o agente IA atual?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <span className="block">
+                    Este canal tem o agente IA <strong className="font-semibold text-foreground">{pending.detail.ai_config.name}</strong> ativo.
+                  </span>
+                  <span className="block">
+                    Ao ativar o workflow, o agente IA vai ser desativado e parar de responder.
+                    Você pode reabilitá-lo depois pela tela de Agentes.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={cancelPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmPending} className="bg-emerald-600 hover:bg-emerald-700">
+                  Sim, ativar workflow
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+          {pending?.detail.code === 'channel_in_chatbot_mode' && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2">
+                  <Workflow className="w-5 h-5 text-emerald-600" />
+                  Desativar o workflow atual?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <span className="block">
+                    Este canal está rodando um workflow. Ao trocar pra modo &ldquo;Agente IA&rdquo;,
+                    o workflow vai ser desativado e as sessões em andamento canceladas.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={cancelPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmPending} className="bg-emerald-600 hover:bg-emerald-700">
+                  Sim, trocar pra IA
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

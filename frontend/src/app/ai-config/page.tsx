@@ -3,10 +3,15 @@
 import { useEffect, useState } from 'react';
 import {
   Bot, Upload, Trash2, Save, FileText, Settings, ToggleLeft, ToggleRight,
-  Loader2, CheckCircle, AlertCircle, ChevronDown, Sparkles, Database
+  Loader2, CheckCircle, AlertCircle, ChevronDown, Sparkles, Database, Workflow
 } from 'lucide-react';
 import AppShell from "@/components/app-shell";
 import api from '@/lib/api';
+import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface ChannelInfo {
   id: number;
@@ -40,6 +45,11 @@ export function AIConfigContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [conflict409, setConflict409] = useState<{
+    code: 'channel_in_chatbot_mode';
+    message: string;
+    channel: { id: number; name: string; operation_mode: string; active_chatbot_flow_id: number | null };
+  } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -123,7 +133,7 @@ export function AIConfigContent() {
     }
   };
 
-  const saveConfig = async () => {
+  const saveConfig = async (force: boolean = false) => {
     if (!activeChannel || !config) return;
     setSaving(true);
     setSaved(false);
@@ -134,14 +144,29 @@ export function AIConfigContent() {
         model: config.model,
         temperature: config.temperature,
         max_tokens: config.max_tokens,
+        force,
       });
       setSaved(true);
+      setConflict409(null);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 409 && detail && typeof detail === 'object' && detail.requires_confirmation) {
+        setConflict409(detail);
+        setSaving(false);
+        return;
+      }
+      const msg = typeof detail === 'string' ? detail : 'Erro ao salvar configuração';
+      toast.error(msg);
       console.error('Erro ao salvar:', err);
     } finally {
       setSaving(false);
     }
+  };
+
+  const confirmConflict = async () => {
+    await saveConfig(true);
   };
 
   const handleUpload = async () => {
@@ -354,7 +379,7 @@ export function AIConfigContent() {
                   </div>
                 )}
                 <button
-                  onClick={saveConfig}
+                  onClick={() => saveConfig()}
                   disabled={saving}
                   className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 text-white rounded-xl text-[13px] font-medium hover:bg-purple-700 transition-all shadow-sm disabled:opacity-50"
                 >
@@ -624,6 +649,31 @@ export function AIConfigContent() {
             </>
           )}
         </div>
+
+      <AlertDialog open={conflict409 !== null} onOpenChange={(open) => !open && setConflict409(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Workflow className="w-5 h-5 text-emerald-600" />
+              Desativar o workflow atual?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">
+                O canal <strong className="font-semibold text-foreground">{conflict409?.channel.name}</strong> está em modo workflow.
+              </span>
+              <span className="block">
+                Ao ativar o agente IA aqui, o workflow vai ser desativado e as sessões em andamento canceladas.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConflict409(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmConflict} className="bg-blue-600 hover:bg-blue-700">
+              Sim, ativar IA aqui
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
   );
 }
