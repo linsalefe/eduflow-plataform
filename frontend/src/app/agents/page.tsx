@@ -34,6 +34,10 @@ interface Agent {
   temperature: string;
   max_tokens: number;
   knowledge_docs_count: number;
+  // F2.C — biblioteca de Workflow
+  tools: string[] | null;
+  outcomes: string[] | null;
+  is_workflow_capable: boolean;
 }
 
 interface ChannelOption {
@@ -195,6 +199,25 @@ function AgentsContent() {
                         {agent.knowledge_docs_count}
                       </span>
                     </div>
+                  </div>
+
+                  {/* F2.C — Badges de uso */}
+                  <div className="mt-3 flex items-center gap-1.5 flex-wrap">
+                    {agent.channel_id && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20">
+                        Canal
+                      </span>
+                    )}
+                    {agent.is_workflow_capable && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        Biblioteca · {(agent.tools || []).length} tools
+                      </span>
+                    )}
+                    {!agent.channel_id && !agent.is_workflow_capable && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-muted text-muted-foreground border">
+                        Não atribuído
+                      </span>
+                    )}
                   </div>
 
                   {/* Footer */}

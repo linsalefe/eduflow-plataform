@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   ChevronLeft, Save, Trash2, Loader2, Upload, FileText,
-  Radio, Unplug, Settings,
+  Radio, Unplug, Settings, Workflow, Plus, X,
 } from 'lucide-react';
 import AppShell from '@/components/app-shell';
 import api from '@/lib/api';
@@ -24,6 +24,7 @@ import {
 import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@/components/ui/tabs';
+import { fetchAvailableTools } from '@/lib/workflow-tools-api';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -43,6 +44,16 @@ interface Agent {
   temperature: string;
   max_tokens: number;
   knowledge_docs_count: number;
+  // F2.C — biblioteca de Workflow
+  tools: string[] | null;
+  outcomes: string[] | null;
+  is_workflow_capable: boolean;
+}
+
+interface ToolDescriptor {
+  name: string;
+  description: string;
+  is_action: boolean;
 }
 
 interface KnowledgeDoc {
@@ -343,6 +354,15 @@ function AgentDetailContent() {
             <Radio className="w-4 h-4 mr-2" />
             Canal
           </TabsTrigger>
+          <TabsTrigger value="workflow">
+            <Workflow className="w-4 h-4 mr-2" />
+            Workflow
+            {agent.is_workflow_capable && (
+              <span className="ml-2 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-mono">
+                {(agent.tools || []).length}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* ====== GENERAL TAB ====== */}
@@ -599,6 +619,11 @@ function AgentDetailContent() {
             </Card>
           )}
         </TabsContent>
+
+        {/* ====== WORKFLOW TAB (F2.C) ====== */}
+        <TabsContent value="workflow" className="mt-6">
+          <WorkflowAgentTab agent={agent} onSaved={fetchAgent} />
+        </TabsContent>
       </Tabs>
 
       {/* Delete Agent Dialog */}
@@ -635,6 +660,270 @@ function AgentDetailContent() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ============================================================
+// F2.C — Aba Workflow do detalhe do agente
+// ============================================================
+function WorkflowAgentTab({
+  agent,
+  onSaved,
+}: {
+  agent: Agent;
+  onSaved: () => Promise<void> | void;
+}) {
+  const [tools, setTools] = useState<ToolDescriptor[]>([]);
+  const [loadingTools, setLoadingTools] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // Estado local editável (espelha agent.tools / agent.outcomes)
+  const [enabled, setEnabled] = useState<boolean>(agent.is_workflow_capable);
+  const [selectedTools, setSelectedTools] = useState<string[]>(agent.tools || []);
+  const [outcomes, setOutcomes] = useState<string[]>(
+    agent.outcomes && agent.outcomes.length > 0 ? agent.outcomes : ['ok', 'fail']
+  );
+  const [newOutcome, setNewOutcome] = useState('');
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+
+  // Carrega tools disponíveis
+  useEffect(() => {
+    let cancelled = false;
+    fetchAvailableTools()
+      .then((t) => { if (!cancelled) setTools(t); })
+      .catch(() => { if (!cancelled) setTools([]); })
+      .finally(() => { if (!cancelled) setLoadingTools(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Sincroniza com agent quando muda externamente
+  useEffect(() => {
+    setEnabled(agent.is_workflow_capable);
+    setSelectedTools(agent.tools || []);
+    setOutcomes(
+      agent.outcomes && agent.outcomes.length > 0 ? agent.outcomes : ['ok', 'fail']
+    );
+  }, [agent.id, agent.is_workflow_capable, agent.tools, agent.outcomes]);
+
+  const toggleTool = (name: string) => {
+    setSelectedTools((cur) =>
+      cur.includes(name) ? cur.filter((t) => t !== name) : [...cur, name]
+    );
+  };
+
+  const addOutcome = () => {
+    const v = newOutcome.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (!v) return;
+    if (outcomes.includes(v)) return;
+    setOutcomes([...outcomes, v]);
+    setNewOutcome('');
+  };
+
+  const removeOutcome = (idx: number) => {
+    if (outcomes.length <= 1) return;
+    setOutcomes(outcomes.filter((_, i) => i !== idx));
+  };
+
+  const enableWorkflow = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/agents/${agent.id}`, {
+        tools: [],
+        outcomes: ['ok', 'fail'],
+      });
+      await onSaved();
+      toast.success('Agente habilitado pro Workflow');
+    } catch {
+      toast.error('Falha ao habilitar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveConfig = async () => {
+    if (outcomes.length === 0) {
+      toast.error('Configure pelo menos 1 outcome');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put(`/agents/${agent.id}`, {
+        tools: selectedTools,
+        outcomes: outcomes,
+      });
+      await onSaved();
+      toast.success('Configuração de Workflow salva');
+    } catch {
+      toast.error('Falha ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const disableWorkflow = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/agents/${agent.id}`, {
+        tools: ['__clear__'],
+        outcomes: ['__clear__'],
+      });
+      await onSaved();
+      setShowDisableConfirm(false);
+      toast.success('Agente removido da biblioteca de Workflow');
+    } catch {
+      toast.error('Falha ao remover');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Estado: agente nunca foi habilitado pra Workflow
+  if (!enabled) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto">
+            <Workflow className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Habilitar para Workflow</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+              Permite que este agente seja referenciado em fluxos do editor visual,
+              executando ações no CRM (mensagens, tags, tarefas, etc).
+            </p>
+          </div>
+          <Button onClick={enableWorkflow} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+            {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <Workflow className="w-4 h-4 mr-2" />
+            Habilitar agora
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Estado: agente já é workflow-capable, mostrar editor
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          {/* Tools */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Ferramentas disponíveis pro agente</Label>
+              <span className="text-xs text-muted-foreground">{selectedTools.length} de {tools.length}</span>
+            </div>
+            {loadingTools ? (
+              <div className="text-xs text-muted-foreground italic py-3">Carregando…</div>
+            ) : tools.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic py-3 px-3 rounded border bg-muted/20">
+                Nenhuma tool disponível pro seu plano.
+              </div>
+            ) : (
+              <div className="space-y-1 border rounded-md p-2 max-h-72 overflow-y-auto">
+                {tools.map((t) => {
+                  const checked = selectedTools.includes(t.name);
+                  return (
+                    <label
+                      key={t.name}
+                      className={`flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors ${checked ? 'bg-emerald-500/10' : 'hover:bg-accent'}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleTool(t.name)}
+                        className="mt-0.5 accent-emerald-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-xs font-mono font-medium">{t.name}</code>
+                          {t.is_action && (
+                            <span className="text-[9px] uppercase font-bold bg-amber-500/20 text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded">
+                              ação
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{t.description}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Outcomes */}
+          <div className="space-y-2">
+            <Label>Saídas possíveis (outcomes)</Label>
+            <div className="space-y-1">
+              {outcomes.map((o, idx) => (
+                <div key={`${o}-${idx}`} className="flex items-center gap-2 bg-muted/30 rounded px-2 py-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <code className="text-xs font-mono flex-1">{o}</code>
+                  <button
+                    type="button"
+                    onClick={() => removeOutcome(idx)}
+                    disabled={outcomes.length <= 1}
+                    className="text-muted-foreground hover:text-destructive disabled:opacity-30"
+                    title={outcomes.length <= 1 ? 'Pelo menos 1 outcome' : 'Remover'}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex items-center gap-1">
+                <Input
+                  value={newOutcome}
+                  onChange={(e) => setNewOutcome(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOutcome(); } }}
+                  placeholder="ex: qualificado"
+                  className="h-8 text-xs"
+                />
+                <Button type="button" size="icon" variant="outline" className="h-8 w-8" onClick={addOutcome}>
+                  <Plus className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Cada outcome vira um handle de saída quando o agente é usado em workflow.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setShowDisableConfirm(true)}
+          disabled={saving}
+        >
+          Remover da biblioteca
+        </Button>
+        <Button onClick={saveConfig} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
+          {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Salvar configuração
+        </Button>
+      </div>
+
+      <AlertDialog open={showDisableConfirm} onOpenChange={setShowDisableConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover da biblioteca de Workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Workflows que referenciam este agente vão parar de funcionar.
+              Você pode reabilitar depois — as configurações serão perdidas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={disableWorkflow} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

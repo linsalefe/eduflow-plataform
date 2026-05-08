@@ -24,6 +24,9 @@ class AgentCreate(BaseModel):
     model: str = "gpt-5-mini"
     temperature: str = "0.7"
     max_tokens: int = 500
+    # F2.C — biblioteca de agentes pra Workflow (NULL = não usado em workflow)
+    tools: Optional[List[str]] = None
+    outcomes: Optional[List[str]] = None
 
 
 class AgentUpdate(BaseModel):
@@ -35,6 +38,9 @@ class AgentUpdate(BaseModel):
     model: Optional[str] = None
     temperature: Optional[str] = None
     max_tokens: Optional[int] = None
+    # F2.C — usar ["__clear__"] explicitamente pra limpar (None = não tocar)
+    tools: Optional[List[str]] = None
+    outcomes: Optional[List[str]] = None
 
 
 class AgentOut(BaseModel):
@@ -49,6 +55,10 @@ class AgentOut(BaseModel):
     temperature: str
     max_tokens: int
     knowledge_docs_count: int
+    # F2.C
+    tools: Optional[List[str]] = None
+    outcomes: Optional[List[str]] = None
+    is_workflow_capable: bool = False
 
 
 def _agent_out(ac, channel_name: Optional[str], docs_count: int) -> AgentOut:
@@ -64,6 +74,9 @@ def _agent_out(ac, channel_name: Optional[str], docs_count: int) -> AgentOut:
         temperature=ac.temperature,
         max_tokens=ac.max_tokens,
         knowledge_docs_count=docs_count,
+        tools=ac.tools,
+        outcomes=ac.outcomes,
+        is_workflow_capable=(ac.tools is not None),
     )
 
 
@@ -135,6 +148,8 @@ async def create_agent(req: AgentCreate, db: AsyncSession = Depends(get_db), ten
         model=req.model,
         temperature=req.temperature,
         max_tokens=req.max_tokens,
+        tools=req.tools,
+        outcomes=req.outcomes,
     )
     db.add(agent)
     await db.commit()
@@ -164,8 +179,24 @@ async def update_agent(agent_id: int, req: AgentUpdate, db: AsyncSession = Depen
         if existing:
             raise HTTPException(400, f"Canal ja esta associado ao agente '{existing.name}'")
 
-    for field, value in req.model_dump(exclude_unset=True).items():
+    payload = req.model_dump(exclude_unset=True)
+    # F2.C — sentinela ["__clear__"] limpa tools/outcomes (volta pra NULL,
+    # removendo o agente da biblioteca de Workflow). [] permanece como lista vazia válida.
+    if payload.get("tools") == ["__clear__"]:
+        agent.tools = None
+        payload.pop("tools", None)
+    if payload.get("outcomes") == ["__clear__"]:
+        agent.outcomes = None
+        payload.pop("outcomes", None)
+
+    for field, value in payload.items():
         setattr(agent, field, value)
+
+    from sqlalchemy.orm.attributes import flag_modified
+    if "tools" in payload:
+        flag_modified(agent, "tools")
+    if "outcomes" in payload:
+        flag_modified(agent, "outcomes")
 
     await db.commit()
     await db.refresh(agent)
