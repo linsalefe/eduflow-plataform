@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trash2, Plus, X, AlertTriangle, ArrowRight, Check, ChevronsUpDown, Sparkles, Loader2, Bot } from 'lucide-react';
+import { Trash2, Plus, X, AlertTriangle, ArrowRight, Check, ChevronsUpDown, Sparkles, Loader2, Bot, BookOpen, ExternalLink, Pencil } from 'lucide-react';
 import { type Node } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,9 @@ import { getAgentIcon } from '@/lib/agent-icons';
 import { AGENT_TEMPLATES, type AgentTemplate } from './agent-templates';
 import {
   fetchAvailableTools, testAgentPrompt,
+  fetchWorkflowEligibleAgents, fetchWorkflowAgentDetail,
   type ToolDescriptor, type TestAgentResponse,
+  type WorkflowAgentSummary, type WorkflowAgentDetail,
 } from '@/lib/workflow-tools-api';
 
 export interface KanbanCol { key: string; label: string; }
@@ -1340,16 +1342,96 @@ function PipelineStageCascade({
 }
 
 // ============================================================
-// Form do nó-Agente (F1.C)
+// Form do nó-Agente (F1.C + F2.C.3 — modo Inline | Salvo)
 // ============================================================
+type AgentMode = 'inline' | 'saved';
+
+function getAgentMode(data: any): AgentMode {
+  return data?.agent_id ? 'saved' : 'inline';
+}
+
 function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
+  const mode: AgentMode = getAgentMode(data);
+
+  const switchMode = (next: AgentMode) => {
+    if (next === mode) return;
+    if (next === 'saved') {
+      // Vai pra modo Salvo: limpa campos inline pra evitar contaminação
+      update({
+        agent_id: null,  // será setado quando o user escolher
+        prompt: '',
+        model: 'gpt-4o-mini',
+        tools: [],
+        outcomes: ['ok', 'fail'],
+      });
+    } else {
+      // Volta pra Inline: limpa agent_id
+      update({
+        agent_id: null,
+      });
+    }
+  };
+
+  return (
+    <>
+      {/* ===== Toggle de modo ===== */}
+      <div className="space-y-1.5">
+        <Label className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+          Configuração do agente
+        </Label>
+        <div className="grid grid-cols-2 gap-1 p-1 bg-muted/40 rounded-md">
+          <button
+            type="button"
+            onClick={() => switchMode('inline')}
+            className={cn(
+              'text-xs px-3 py-1.5 rounded transition-colors flex items-center justify-center gap-1.5',
+              mode === 'inline'
+                ? 'bg-background text-foreground shadow-sm font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Pencil className="w-3 h-3" />
+            Inline
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode('saved')}
+            className={cn(
+              'text-xs px-3 py-1.5 rounded transition-colors flex items-center justify-center gap-1.5',
+              mode === 'saved'
+                ? 'bg-background text-foreground shadow-sm font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <BookOpen className="w-3 h-3" />
+            Agente salvo
+          </button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          {mode === 'inline'
+            ? 'Configure prompt e tools direto neste nó.'
+            : 'Use um agente reutilizável da sua biblioteca.'}
+        </p>
+      </div>
+
+      {mode === 'inline' ? (
+        <AgentFormInline data={data} update={update} />
+      ) : (
+        <AgentFormSaved data={data} update={update} />
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// Modo INLINE (comportamento original do F1.C)
+// ============================================================
+function AgentFormInline({ data, update }: { data: any; update: (p: any) => void }) {
   const [tools, setTools] = useState<ToolDescriptor[]>([]);
   const [loadingTools, setLoadingTools] = useState(true);
   const [showTemplates, setShowTemplates] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestAgentResponse | null>(null);
-
-  // Estado local pro campo de outcome novo
   const [newOutcome, setNewOutcome] = useState('');
 
   useEffect(() => {
@@ -1391,7 +1473,7 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
   };
 
   const removeOutcome = (idx: number) => {
-    if (outcomes.length <= 1) return; // sempre pelo menos 1
+    if (outcomes.length <= 1) return;
     update({ outcomes: outcomes.filter((_, i) => i !== idx) });
   };
 
@@ -1426,7 +1508,6 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
 
   return (
     <>
-      {/* === Templates === */}
       <div className="space-y-2">
         <Button
           type="button"
@@ -1462,14 +1543,13 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         )}
       </div>
 
-      {/* === Prompt === */}
       <div className="space-y-2">
         <Label>Prompt do agente</Label>
         <Textarea
           rows={10}
           value={data.prompt || ''}
           onChange={(e) => update({ prompt: e.target.value })}
-          placeholder="Descreva o que o agente deve fazer. Ex: Use get_contact_summary, decida se o lead está qualificado, aplique a tag adequada, finalize com finish_agent."
+          placeholder="Descreva o que o agente deve fazer."
           className="font-mono text-xs leading-relaxed"
         />
         <p className="text-[10px] text-muted-foreground">
@@ -1477,7 +1557,6 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         </p>
       </div>
 
-      {/* === Modelo === */}
       <div className="space-y-2">
         <Label>Modelo de IA</Label>
         <Select value={data.model || 'gpt-4o-mini'} onValueChange={(v) => update({ model: v })}>
@@ -1489,7 +1568,6 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         </Select>
       </div>
 
-      {/* === Tools === */}
       <div className="space-y-2">
         <Label className="flex items-center justify-between">
           <span>Ferramentas disponíveis pro agente</span>
@@ -1537,7 +1615,6 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         )}
       </div>
 
-      {/* === Outcomes === */}
       <div className="space-y-2">
         <Label>Saídas possíveis (outcomes)</Label>
         <div className="space-y-1">
@@ -1574,7 +1651,6 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         </p>
       </div>
 
-      {/* === Testar === */}
       <div className="space-y-2 border-t pt-4">
         <Button
           type="button"
@@ -1592,48 +1668,263 @@ function AgentForm({ data, update }: { data: any; update: (p: any) => void }) {
         </p>
 
         {testResult && (
-          <div className={cn(
-            'border rounded-md p-3 space-y-2 text-xs',
-            testResult.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'
-          )}>
-            <div className="flex items-center gap-2">
-              {testResult.ok ? (
-                <Check className="w-4 h-4 text-emerald-600" />
-              ) : (
-                <AlertTriangle className="w-4 h-4 text-rose-600" />
-              )}
-              <span className="font-semibold">
-                {testResult.ok ? `Outcome: ${testResult.outcome}` : 'Falhou'}
-              </span>
-              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                {testResult.tokens_in}/{testResult.tokens_out} tk
-              </span>
-            </div>
-            {testResult.error && (
-              <p className="text-rose-700 dark:text-rose-400 font-mono text-[11px]">{testResult.error}</p>
-            )}
-            {testResult.tool_calls && testResult.tool_calls.length > 0 && (
-              <div className="space-y-1">
-                <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground">Ferramentas chamadas</p>
-                {testResult.tool_calls.map((tc, idx) => (
-                  <div key={idx} className="font-mono text-[10px] bg-muted/40 rounded px-2 py-1">
-                    <span className="font-bold">{tc.name}</span>
-                    {tc.args && Object.keys(tc.args).length > 0 && (
-                      <span className="text-muted-foreground"> ({JSON.stringify(tc.args).slice(0, 60)})</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            {testResult.agent_text && (
-              <div>
-                <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Texto do agente</p>
-                <p className="italic text-foreground/80">&ldquo;{testResult.agent_text}&rdquo;</p>
-              </div>
-            )}
-          </div>
+          <TestResultCard result={testResult} />
         )}
       </div>
     </>
+  );
+}
+
+// ============================================================
+// Modo SALVO — escolhe agente da biblioteca
+// ============================================================
+function AgentFormSaved({ data, update }: { data: any; update: (p: any) => void }) {
+  const [agents, setAgents] = useState<WorkflowAgentSummary[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [detail, setDetail] = useState<WorkflowAgentDetail | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestAgentResponse | null>(null);
+
+  const selectedId: number | null = data?.agent_id ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchWorkflowEligibleAgents()
+      .then((list) => { if (!cancelled) setAgents(list); })
+      .catch(() => { if (!cancelled) setAgents([]); })
+      .finally(() => { if (!cancelled) setLoadingList(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDetail(true);
+    fetchWorkflowAgentDetail(selectedId)
+      .then((d) => { if (!cancelled) setDetail(d); })
+      .catch(() => { if (!cancelled) setDetail(null); })
+      .finally(() => { if (!cancelled) setLoadingDetail(false); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
+  const handleSelect = (idStr: string) => {
+    const id = parseInt(idStr, 10);
+    if (Number.isNaN(id)) return;
+    const chosen = agents.find((a) => a.id === id);
+    if (!chosen) return;
+    // Salva também os outcomes pra que os handles do nó renderizem corretamente
+    fetchWorkflowAgentDetail(id).then((d) => {
+      update({
+        agent_id: id,
+        prompt: '',
+        model: '',
+        tools: [],
+        outcomes: d.outcomes && d.outcomes.length > 0 ? [...d.outcomes] : ['done'],
+      });
+      setTestResult(null);
+    });
+  };
+
+  const runTest = async () => {
+    if (!selectedId) {
+      setTestResult({
+        ok: false, outcome: 'error', agent_text: '', tool_calls: [],
+        tokens_in: 0, tokens_out: 0, error: 'Escolha um agente antes de testar.',
+      });
+      return;
+    }
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await testAgentPrompt({ agent_id: selectedId });
+      setTestResult(r);
+    } catch (err: any) {
+      setTestResult({
+        ok: false, outcome: 'error', agent_text: '', tool_calls: [],
+        tokens_in: 0, tokens_out: 0,
+        error: err?.response?.data?.detail || err?.message || 'Erro desconhecido',
+      });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label>Escolha um agente da biblioteca</Label>
+        {loadingList ? (
+          <div className="text-xs text-muted-foreground italic py-2">Carregando…</div>
+        ) : agents.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic py-3 px-3 rounded border bg-amber-500/5 border-amber-500/20 space-y-2">
+            <p>Nenhum agente da biblioteca disponível.</p>
+            <p>
+              Acesse{' '}
+              <Link href="/agents" target="_blank" className="text-emerald-600 hover:underline inline-flex items-center gap-0.5">
+                Agentes <ExternalLink className="w-3 h-3" />
+              </Link>
+              {' '}pra criar e habilitar um agente pro Workflow.
+            </p>
+          </div>
+        ) : (
+          <Select
+            value={selectedId ? String(selectedId) : ''}
+            onValueChange={handleSelect}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="— Selecione um agente —" />
+            </SelectTrigger>
+            <SelectContent>
+              {agents.map((a) => (
+                <SelectItem key={a.id} value={String(a.id)}>
+                  <div className="flex items-center gap-2">
+                    <span>{a.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      · {a.tools_count} tools · {a.outcomes_count} outcomes
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {selectedId && loadingDetail && (
+        <div className="text-xs text-muted-foreground italic py-2">Carregando configuração…</div>
+      )}
+
+      {selectedId && detail && !loadingDetail && (
+        <div className="space-y-3 border rounded-md p-3 bg-muted/20">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm truncate">{detail.name}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">{detail.model || 'gpt-4o-mini'}</p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-[11px]"
+              onClick={() => window.open(`/agents/${detail.id}`, '_blank')}
+            >
+              <ExternalLink className="w-3 h-3" /> Editar
+            </Button>
+          </div>
+
+          {detail.system_prompt && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Prompt</p>
+              <div className="text-[11px] font-mono bg-background border rounded p-2 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                {detail.system_prompt}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+              Tools ({detail.tools.length})
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {detail.tools.length === 0 ? (
+                <span className="text-[10px] italic text-muted-foreground">Nenhuma</span>
+              ) : (
+                detail.tools.map((t) => (
+                  <code key={t} className="text-[10px] font-mono bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded">
+                    {t}
+                  </code>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">
+              Outcomes ({detail.outcomes.length})
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {detail.outcomes.map((o) => (
+                <span key={o} className="text-[10px] font-mono bg-background border px-1.5 py-0.5 rounded flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500" /> {o}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedId && detail && (
+        <div className="space-y-2 border-t pt-4">
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+            onClick={runTest}
+            disabled={testing}
+          >
+            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
+            {testing ? 'Testando…' : 'Testar agente agora'}
+          </Button>
+          <p className="text-[10px] text-muted-foreground">
+            Modo seguro: só executa <code className="font-mono">get_contact_summary</code>. Nada é enviado nem alterado no CRM.
+          </p>
+
+          {testResult && <TestResultCard result={testResult} />}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// Card de resultado de teste (compartilhado entre Inline e Saved)
+// ============================================================
+function TestResultCard({ result }: { result: TestAgentResponse }) {
+  return (
+    <div className={cn(
+      'border rounded-md p-3 space-y-2 text-xs',
+      result.ok ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-rose-500/30 bg-rose-500/5'
+    )}>
+      <div className="flex items-center gap-2">
+        {result.ok ? (
+          <Check className="w-4 h-4 text-emerald-600" />
+        ) : (
+          <AlertTriangle className="w-4 h-4 text-rose-600" />
+        )}
+        <span className="font-semibold">
+          {result.ok ? `Outcome: ${result.outcome}` : 'Falhou'}
+        </span>
+        <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+          {result.tokens_in}/{result.tokens_out} tk
+        </span>
+      </div>
+      {result.error && (
+        <p className="text-rose-700 dark:text-rose-400 font-mono text-[11px]">{result.error}</p>
+      )}
+      {result.tool_calls && result.tool_calls.length > 0 && (
+        <div className="space-y-1">
+          <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground">Ferramentas chamadas</p>
+          {result.tool_calls.map((tc, idx) => (
+            <div key={idx} className="font-mono text-[10px] bg-muted/40 rounded px-2 py-1">
+              <span className="font-bold">{tc.name}</span>
+              {tc.args && Object.keys(tc.args).length > 0 && (
+                <span className="text-muted-foreground"> ({JSON.stringify(tc.args).slice(0, 60)})</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {result.agent_text && (
+        <div>
+          <p className="font-medium text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Texto do agente</p>
+          <p className="italic text-foreground/80">&ldquo;{result.agent_text}&rdquo;</p>
+        </div>
+      )}
+    </div>
   );
 }

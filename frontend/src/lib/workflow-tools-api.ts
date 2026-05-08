@@ -8,7 +8,8 @@ export interface ToolDescriptor {
 }
 
 export interface TestAgentRequest {
-  prompt: string;
+  agent_id?: number;             // F2.C.3 — modo Salvo
+  prompt?: string;               // opcional quando agent_id está setado
   model?: string;
   tools?: string[];
   outcomes?: string[];
@@ -35,5 +36,37 @@ export async function fetchAvailableTools(): Promise<ToolDescriptor[]> {
 
 export async function testAgentPrompt(body: TestAgentRequest): Promise<TestAgentResponse> {
   const res = await api.post<TestAgentResponse>('/workflow-tools/test', body);
+  return res.data;
+}
+
+// F2.C.3 — Lista agentes da biblioteca (com tools setado)
+export interface WorkflowAgentSummary {
+  id: number;
+  name: string;
+  icon: string | null;
+  model: string | null;
+  has_tools: boolean;
+  tools_count: number;
+  outcomes_count: number;
+  channel_id: number | null;
+  channel_name: string | null;
+  is_isolated: boolean;
+}
+
+export interface WorkflowAgentDetail extends WorkflowAgentSummary {
+  system_prompt: string | null;
+  temperature: string | null;
+  max_tokens: number | null;
+  tools: string[];
+  outcomes: string[];
+}
+
+export async function fetchWorkflowEligibleAgents(): Promise<WorkflowAgentSummary[]> {
+  const res = await api.get<WorkflowAgentSummary[]>('/agents/workflow-eligible');
+  return res.data || [];
+}
+
+export async function fetchWorkflowAgentDetail(id: number): Promise<WorkflowAgentDetail> {
+  const res = await api.get<WorkflowAgentDetail>(`/agents/workflow-eligible/${id}`);
   return res.data;
 }
