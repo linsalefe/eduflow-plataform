@@ -7,9 +7,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ContaContent } from './conta/page';
 import { IntegracoesContent } from '../integracoes/page';
 import { SuporteContent } from '../suporte/page';
+import { MensagensProntasContent } from './mensagens-prontas/page';
 
 const TABS = [
   { value: 'conta', label: 'Minha conta' },
+  { value: 'mensagens-prontas', label: 'Mensagens prontas' },
   { value: 'integracoes', label: 'Integrações' },
   { value: 'suporte', label: 'Central de ajuda' },
 ];
@@ -32,7 +34,7 @@ function ConfiguracoesInner() {
       <div className="mb-5">
         <h1 className="text-[22px] font-medium text-foreground">Configurações</h1>
         <p className="text-[13px] text-muted-foreground mt-1">
-          Sua conta, integrações e central de ajuda
+          Sua conta, mensagens prontas, integrações e central de ajuda
         </p>
       </div>
 
@@ -47,6 +49,10 @@ function ConfiguracoesInner() {
 
         <TabsContent value="conta" className="mt-0">
           <ContaContent />
+        </TabsContent>
+
+        <TabsContent value="mensagens-prontas" className="mt-0">
+          <MensagensProntasContent />
         </TabsContent>
 
         <TabsContent value="integracoes" className="mt-0">
