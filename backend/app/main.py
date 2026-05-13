@@ -27,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from app.voice_ai_elevenlabs.routes import router as voice_ai_el_router
 from app.landing_routes import public_router as landing_public_router
 from app.export_routes import router as export_router
+from app.quick_reply_routes import router as quick_reply_router
 from app.task_routes import router as task_router
 from app.automation_routes import router as automation_router
 from app.chatbot.routes import router as chatbot_router
@@ -249,6 +250,7 @@ app.include_router(webhook_public_router)
 app.include_router(campaign_router)
 app.include_router(schedule_router)
 app.include_router(export_router)
+app.include_router(quick_reply_router)
 app.include_router(jarvis_router)
 app.include_router(composio_router)
 app.include_router(stripe_router)

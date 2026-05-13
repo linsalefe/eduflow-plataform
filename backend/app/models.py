@@ -747,3 +747,20 @@ class WorkflowRun(Base):
     started_at = Column(DateTime, server_default=func.now())
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
+
+
+class QuickReply(Base):
+    """Mensagens prontas (quick replies) compartilhadas no tenant.
+
+    Atalhos digitados após `/` no inbox que se expandem em texto com variáveis
+    dinâmicas substituídas pelo contato (`{nome}`, `{primeiro_nome}`, `{telefone}`).
+    """
+    __tablename__ = "quick_replies"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    shortcut = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
