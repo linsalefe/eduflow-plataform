@@ -5,6 +5,9 @@ from app.database import get_db
 from app.models import LandingPage, FormSubmission, Contact, Channel, Tenant
 from app.auth import get_current_user, get_tenant_id
 import json
+import logging
+
+logger = logging.getLogger("eduflow.lp_submit")
 
 from fastapi import UploadFile, File
 import os, uuid, pathlib
@@ -361,6 +364,11 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
 
     # Verificar se o estágio da LP desliga a IA
     target_stage = page.pipeline_stage or "novo"
+    if not page.pipeline_stage:
+        logger.warning(
+            f"[LP_SUBMIT_NO_STAGE] LP slug={slug} (id={page.id}) sem pipeline_stage configurado — "
+            f"leads vão cair em '{target_stage}'. Configure em /marketing/landing-pages."
+        )
     tenant_result = await db.execute(select(Tenant).where(Tenant.id == page.tenant_id))
     tenant_obj = tenant_result.scalar_one_or_none()
     ai_off_statuses = (tenant_obj.ai_off_statuses if tenant_obj and tenant_obj.ai_off_statuses else [])
@@ -383,10 +391,21 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             notes=json_lib.dumps(notes_data, ensure_ascii=False),
         )
         db.add(contact)
+        logger.info(
+            f"[LP_SUBMIT_CREATE] tenant={page.tenant_id} slug={slug} "
+            f"wa_id={phone_clean} stage={target_stage}"
+        )
     else:
+        # F1.B: sempre sobrescreve o estágio do lead existente para o stage da LP,
+        # mesmo se ele já estiver em estágio avançado (qualificado, fechado, etc).
+        # Garante que TODO submit do formulário registra passagem pelo funil de captura.
+        stage_anterior = contact.lead_status
         contact.ai_active = should_ai_be_active
-        if page.pipeline_stage:
-            contact.lead_status = page.pipeline_stage
+        contact.lead_status = target_stage
+        logger.info(
+            f"[LP_SUBMIT_UPDATE] tenant={page.tenant_id} slug={slug} "
+            f"wa_id={phone_clean} stage_from={stage_anterior} stage_to={target_stage}"
+        )
         try:
             existing_notes = json_lib.loads(contact.notes or "{}")
         except (json_lib.JSONDecodeError, TypeError):
