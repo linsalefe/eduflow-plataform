@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from app.database import get_db
 from app.models import LandingPage, FormSubmission, Contact, Channel, Tenant
 from app.auth import get_current_user, get_tenant_id
@@ -11,6 +11,38 @@ import os, uuid, pathlib
 
 UPLOAD_DIR = pathlib.Path("uploads/lp")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _clean_phone_br(raw: str) -> str:
+    """Remove caracteres de formatação e garante prefixo BR (55)."""
+    if not raw:
+        return ""
+    cleaned = raw.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+    if cleaned and not cleaned.startswith("55"):
+        cleaned = "55" + cleaned
+    return cleaned
+
+
+def _phone_variants_br(clean: str) -> list:
+    """Retorna variações do telefone BR: com e sem o 9º dígito.
+
+    - 13 dígitos (55 + DDD + 9 + 8): também retorna versão sem o 9
+    - 12 dígitos (55 + DDD + 8):     também retorna versão com o 9
+    - outros tamanhos: retorna só o original
+    """
+    if not clean:
+        return []
+    variants = [clean]
+    if len(clean) == 13 and clean.startswith("55"):
+        ddd = clean[2:4]
+        rest = clean[5:]  # pula o 9
+        variants.append(f"55{ddd}{rest}")
+    elif len(clean) == 12 and clean.startswith("55"):
+        ddd = clean[2:4]
+        rest = clean[4:]
+        variants.append(f"55{ddd}9{rest}")
+    return variants
+
 
 router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
 
@@ -153,16 +185,19 @@ async def list_submissions(page_id: int, db: AsyncSession = Depends(get_db), use
 
     items = []
     for s in submissions:
-        # Buscar dados do contato (notas, status)
+        # Buscar dados do contato (notas, status) — usa variantes BR (com/sem 9)
         contact = None
         if s.phone:
-            phone_clean = s.phone.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-            if not phone_clean.startswith("55"):
-                phone_clean = "55" + phone_clean
-            contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id == phone_clean, Contact.tenant_id == tenant_id)
-            )
-            contact = contact_result.scalar_one_or_none()
+            phone_clean = _clean_phone_br(s.phone)
+            variants = _phone_variants_br(phone_clean)
+            if variants:
+                contact_result = await db.execute(
+                    select(Contact).where(
+                        Contact.tenant_id == tenant_id,
+                        or_(*[Contact.wa_id == v for v in variants]),
+                    )
+                )
+                contact = contact_result.scalar_one_or_none()
 
         items.append({
             "id": s.id,
@@ -311,29 +346,9 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
     )
     db.add(submission)
 
-    phone_clean = data.get("phone", "").replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-    if phone_clean and not phone_clean.startswith("55"):
-        phone_clean = "55" + phone_clean
+    phone_clean = _clean_phone_br(data.get("phone", ""))
+    variants = _phone_variants_br(phone_clean)
 
-    # Gerar variações do número (com e sem 9º dígito) para encontrar contato existente
-    def phone_variants(phone: str) -> list:
-        """Retorna variações do telefone BR: com e sem o 9º dígito."""
-        variants = [phone]
-        if len(phone) == 13 and phone.startswith("55"):
-            # 55 + DDD(2) + 9 + 8 dígitos → remover o 9
-            ddd = phone[2:4]
-            rest = phone[5:]  # pula o 9
-            variants.append(f"55{ddd}{rest}")
-        elif len(phone) == 12 and phone.startswith("55"):
-            # 55 + DDD(2) + 8 dígitos → adicionar o 9
-            ddd = phone[2:4]
-            rest = phone[4:]
-            variants.append(f"55{ddd}9{rest}")
-        return variants
-
-    variants = phone_variants(phone_clean)
-
-    from sqlalchemy import or_
     existing_contact = await db.execute(
         select(Contact).where(
             Contact.tenant_id == page.tenant_id,
