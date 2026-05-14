@@ -188,19 +188,24 @@ async def list_submissions(page_id: int, db: AsyncSession = Depends(get_db), use
 
     items = []
     for s in submissions:
-        # Buscar dados do contato (notas, status) — usa variantes BR (com/sem 9)
+        # Buscar dados do contato (notas, status) — usa variantes BR (com/sem 9).
+        # Pode haver duplicata histórica (mesmo telefone salvo em 2 formatos):
+        # pega o mais recente (created_at DESC). HOTFIX-1.
         contact = None
         if s.phone:
             phone_clean = _clean_phone_br(s.phone)
             variants = _phone_variants_br(phone_clean)
             if variants:
                 contact_result = await db.execute(
-                    select(Contact).where(
+                    select(Contact)
+                    .where(
                         Contact.tenant_id == tenant_id,
                         or_(*[Contact.wa_id == v for v in variants]),
                     )
+                    .order_by(Contact.created_at.desc())
+                    .limit(1)
                 )
-                contact = contact_result.scalar_one_or_none()
+                contact = contact_result.scalars().first()
 
         items.append({
             "id": s.id,
