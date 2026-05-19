@@ -265,11 +265,23 @@ async def dashboard_stats(channel_id: Optional[int] = None, db: AsyncSession = D
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
 
-    # Filtro base por tenant + canal
+    # Filtro base por tenant + canal.
+    # F3.A: contato global — quando filtra por canal, contato precisa ter mensagem
+    # naquele canal (não basta Contact.channel_id, que é só o canal de criação).
     contact_filter = [Contact.tenant_id == tenant_id]
     message_filter = [Message.tenant_id == tenant_id]
     if channel_id:
-        contact_filter.append(Contact.channel_id == channel_id)
+        msgs_in_channel_sub = (
+            select(Message.contact_id)
+            .where(
+                Message.tenant_id == tenant_id,
+                Message.channel_id == channel_id,
+                Message.contact_id.isnot(None),
+            )
+            .distinct()
+            .subquery()
+        )
+        contact_filter.append(Contact.id.in_(select(msgs_in_channel_sub.c.contact_id)))
         message_filter.append(Message.channel_id == channel_id)
 
     total_contacts = await db.execute(
@@ -603,7 +615,19 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         .order_by(latest_msg_sub.c.last_ts.desc().nullslast())
     )
     if channel_id:
-        query = query.where(Contact.channel_id == channel_id)
+        # F3.A: contato global — filtra por existência de mensagem no canal,
+        # não por Contact.channel_id (que é só o canal de criação).
+        msgs_in_channel_sub = (
+            select(Message.contact_id)
+            .where(
+                Message.tenant_id == tenant_id,
+                Message.channel_id == channel_id,
+                Message.contact_id.isnot(None),
+            )
+            .distinct()
+            .subquery()
+        )
+        query = query.where(Contact.id.in_(select(msgs_in_channel_sub.c.contact_id)))
     if pipeline_id:
         query = query.where(Contact.pipeline_id == pipeline_id)
 
@@ -1354,10 +1378,21 @@ async def dashboard_advanced(channel_id: Optional[int] = None, db: AsyncSession 
     seven_days_ago = today_start - timedelta(days=7)
     fourteen_days_ago = today_start - timedelta(days=14)
 
+    # F3.A: contato global — filtro por canal via existência de mensagem.
     contact_filter = [Contact.tenant_id == tenant_id]
     message_filter = [Message.tenant_id == tenant_id]
     if channel_id:
-        contact_filter.append(Contact.channel_id == channel_id)
+        msgs_in_channel_sub = (
+            select(Message.contact_id)
+            .where(
+                Message.tenant_id == tenant_id,
+                Message.channel_id == channel_id,
+                Message.contact_id.isnot(None),
+            )
+            .distinct()
+            .subquery()
+        )
+        contact_filter.append(Contact.id.in_(select(msgs_in_channel_sub.c.contact_id)))
         message_filter.append(Message.channel_id == channel_id)
 
     # --- Métricas por atendente ---
