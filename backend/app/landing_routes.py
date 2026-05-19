@@ -364,6 +364,9 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         )
     )
     contact = existing_contact.scalar_one_or_none()
+    # HOTFIX-1: captura stage anterior pro trigger 'stage_change' do chatbot.
+    # Pra contato novo é None; pra existente é o lead_status atual antes do submit.
+    stage_from_for_trigger = contact.lead_status if contact else None
 
     import json as json_lib
 
@@ -386,19 +389,24 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
             "source": "landing_page",
             **extra_data,
         }
+        # HOTFIX-1: resolve pipeline_id (default do canal ou default do tenant).
+        # Sem isso o card não aparece no Kanban mesmo com lead_status correto.
+        from app.routes import resolve_pipeline_id
+        new_pipeline_id = await resolve_pipeline_id(page.channel_id, page.tenant_id, db)
         contact = Contact(
             tenant_id=page.tenant_id,
             wa_id=phone_clean,
             name=data.get("name", ""),
             lead_status=target_stage,
             channel_id=page.channel_id,
+            pipeline_id=new_pipeline_id,
             ai_active=should_ai_be_active,
             notes=json_lib.dumps(notes_data, ensure_ascii=False),
         )
         db.add(contact)
         logger.info(
             f"[LP_SUBMIT_CREATE] tenant={page.tenant_id} slug={slug} "
-            f"wa_id={phone_clean} stage={target_stage}"
+            f"wa_id={phone_clean} stage={target_stage} pipeline_id={new_pipeline_id}"
         )
     else:
         # F1.B: sempre sobrescreve o estágio do lead existente para o stage da LP,
@@ -456,10 +464,50 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
                 first_name = full_name.strip().split()[0] if full_name.strip() else full_name
                 message_text = page.whatsapp_message.replace("{nome}", first_name)
                 await evo_client.send_text(channel_obj.instance_name, phone_clean, message_text)
+                # HOTFIX-2: persistir Message no banco pra mensagem da LP
+                # aparecer no inbox da conversa (mesmo padrão de chatbot/engine.py:_send_text).
+                from app.models import Message
+                from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+                _SP_TZ = _tz(_td(hours=-3))
+                lp_msg = Message(
+                    tenant_id=page.tenant_id,
+                    wa_message_id=f"lp_{uuid.uuid4().hex[:16]}",
+                    contact_id=contact.id,
+                    channel_id=page.channel_id,
+                    direction="outbound",
+                    message_type="text",
+                    content=message_text,
+                    timestamp=_dt.now(_SP_TZ).replace(tzinfo=None),
+                    status="sent",
+                    sent_by_ai=False,
+                )
+                db.add(lp_msg)
+                logger.info(
+                    f"[LP_SUBMIT_MSG] tenant={page.tenant_id} slug={slug} "
+                    f"contact_id={contact.id} wa_id={phone_clean}"
+                )
         except Exception as e:
-            print(f"Erro WhatsApp: {e}")
+            logger.exception(f"[LP_SUBMIT_MSG_ERROR] erro send/persist WhatsApp: {e}")
     await db.commit()
 
+    # HOTFIX-3: dispara fluxos do chatbot com trigger 'stage_change' (gatilho
+    # "Mudança de estágio do funil"). Roda em background com sessão fresca —
+    # não bloqueia a resposta HTTP. Não dispara se o stage não mudou (idempotente).
+    if (stage_from_for_trigger or "") != (target_stage or ""):
+        import asyncio
+        from app.routes import _trigger_chatbot_stage_change
+        asyncio.create_task(
+            _trigger_chatbot_stage_change(
+                tenant_id=page.tenant_id,
+                contact_id=contact.id,
+                stage_from=stage_from_for_trigger,
+                stage_to=target_stage,
+            )
+        )
+        logger.info(
+            f"[LP_SUBMIT_TRIGGER] tenant={page.tenant_id} contact_id={contact.id} "
+            f"stage_from={stage_from_for_trigger} -> stage_to={target_stage}"
+        )
 
     # === VOICE AI: Disparar ligação automática para o lead ===
     try:
