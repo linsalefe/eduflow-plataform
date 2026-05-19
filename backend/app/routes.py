@@ -1002,14 +1002,24 @@ async def remove_tag_from_contact(wa_id: str, tag_id: int, db: AsyncSession = De
 # === Mensagens ===
 
 @router.get("/contacts/{wa_id}/messages")
-async def get_messages(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+async def get_messages(
+    wa_id: str,
+    channel_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
     contact = (await db.execute(
         select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id)
     )).scalar_one_or_none()
     if not contact:
         return []
+    # F3.B: contato global mas histórico isolado por canal.
+    # Quando channel_id é informado, mostra só as mensagens trocadas naquele canal.
+    msg_filters = [Message.contact_id == contact.id]
+    if channel_id:
+        msg_filters.append(Message.channel_id == channel_id)
     result = await db.execute(
-        select(Message).where(Message.contact_id == contact.id).order_by(Message.timestamp.asc())
+        select(Message).where(*msg_filters).order_by(Message.timestamp.asc())
     )
     messages = result.scalars().all()
 

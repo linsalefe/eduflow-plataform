@@ -335,6 +335,12 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       setMessages([]);
       loadMessages(selectedContact.wa_id);
       api.post(`/contacts/${selectedContact.wa_id}/read`);
+      // Atualizar unread localmente para que o filtro "Não lidos" reflita imediatamente
+      if (selectedContact.unread > 0) {
+        setContacts(prev => prev.map(c =>
+          c.wa_id === selectedContact.wa_id ? { ...c, unread: 0 } : c
+        ));
+      }
       setNotesValue(selectedContact.notes || '');
       const interval = setInterval(() => loadMessages(selectedContact.wa_id), 10000);
       return () => clearInterval(interval);
@@ -389,17 +395,39 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     try {
       const params = activeChannel ? `?channel_id=${activeChannel.id}` : '';
       const res = await api.get(`/contacts${params}`);
+      // DEBUG: verificar o que o backend retorna no campo unread
+      const apiContacts = res.data;
+      const comUnreadApi = apiContacts.filter((c: any) => c.unread > 0);
+      const semCampo = apiContacts.filter((c: any) => c.unread === undefined);
+      console.log('[DEBUG API /contacts]', {
+        total: apiContacts.length,
+        comUnread: comUnreadApi.length,
+        semCampoUnread: semCampo.length,
+        amostraComUnread: comUnreadApi.slice(0, 3).map((c: any) => ({ wa_id: c.wa_id, unread: c.unread })),
+        amostraTodos: apiContacts.slice(0, 3).map((c: any) => ({ wa_id: c.wa_id, unread: c.unread, unreadType: typeof c.unread })),
+      });
       setContacts(res.data);
       if (selectedContact) {
         const updated = res.data.find((c: Contact) => c.wa_id === selectedContact.wa_id);
-        if (updated) setSelectedContact(updated);
+        if (updated) {
+          const changed =
+            updated.unread !== selectedContact.unread ||
+            updated.last_message !== selectedContact.last_message ||
+            updated.last_message_time !== selectedContact.last_message_time ||
+            updated.lead_status !== selectedContact.lead_status ||
+            updated.ai_active !== selectedContact.ai_active ||
+            updated.assigned_to !== selectedContact.assigned_to ||
+            updated.notes !== selectedContact.notes ||
+            updated.name !== selectedContact.name;
+          if (changed) setSelectedContact(updated);
+        }
       }
       if (activeChannel) {
         res.data.forEach((c: Contact) => {
           if (!loadedPicsRef.current.has(c.wa_id)) {
             loadedPicsRef.current.add(c.wa_id);
             if (c.profile_picture_url) {
-              setProfilePics(prev => ({ ...prev, [c.wa_id]: c.profile_picture_url }));
+              setProfilePics(prev => ({ ...prev, [c.wa_id]: c.profile_picture_url || null }));
             }
           }
         });
@@ -423,7 +451,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
 
   const loadMessages = async (waId: string) => {
     try {
-      const res = await api.get(`/contacts/${waId}/messages`);
+      // F3.B: passa channel_id pra isolar histórico por canal (contato global).
+      const params = activeChannel ? `?channel_id=${activeChannel.id}` : '';
+      const res = await api.get(`/contacts/${waId}/messages${params}`);
       const newMsgs: Message[] = res.data;
 
       if (prevMsgCountRef.current > 0 && newMsgs.length > prevMsgCountRef.current) {
@@ -767,6 +797,14 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   /*  Filters & Bulk                                                   */
   /* ================================================================ */
 
+  // DEBUG: diagnóstico do filtro "Não lidos"
+  console.log('[DEBUG filtro]', {
+    total: contacts.length,
+    comUnread: contacts.filter(c => c.unread > 0).length,
+    unreadFilter,
+    amostra: contacts.slice(0, 5).map(c => ({ wa_id: c.wa_id, unread: c.unread, unreadType: typeof c.unread })),
+  });
+
   const filteredContacts = contacts.filter(c => {
     const ms = c.name.toLowerCase().includes(search.toLowerCase()) || c.wa_id.includes(search);
     const mst = statusFilter === 'todos' || c.lead_status === statusFilter;
@@ -777,6 +815,12 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       || (assignFilter === 'mine' && c.assigned_to === user?.id)
       || (assignFilter === 'unassigned' && !c.assigned_to)
       || (typeof assignFilter === 'number' && c.assigned_to === assignFilter);
+
+    // DEBUG: quando filtro ativo, logar cada contato que passa/falha no filtro unread
+    if (unreadFilter) {
+      console.log('[DEBUG mur]', { wa_id: c.wa_id, name: c.name, unread: c.unread, mur, passa: ms && mst && mtag && mur && mai && masn });
+    }
+
     return ms && mst && mtag && mur && mai && masn;
   });
 
