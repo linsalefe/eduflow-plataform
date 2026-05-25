@@ -384,7 +384,12 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       setChannels(res.data);
       const messagingChannels = res.data.filter((ch: ChannelInfo) => ch.type === 'whatsapp' || ch.type === 'instagram');
       if (messagingChannels.length > 0 && !activeChannel) {
-        setActiveChannel(messagingChannels[0]);
+        // Respeita ?channel_id=X da URL (vindo do pipeline -> "Abrir Conversa")
+        const urlChannelId = searchParams.get('channel_id');
+        const fromUrl = urlChannelId
+          ? messagingChannels.find((c: ChannelInfo) => c.id === Number(urlChannelId))
+          : null;
+        setActiveChannel(fromUrl || messagingChannels[0]);
       }
     } catch (err) {
       // silent
