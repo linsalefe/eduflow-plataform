@@ -70,3 +70,53 @@ export function getStatusConfig(s: string) {
 export function getTagColorConfig(c: string) {
   return tagColors.find(x => x.value === c) || tagColors[0];
 }
+
+/* ------------------------------------------------------------------ */
+/*  Pipeline column helpers                                            */
+/* ------------------------------------------------------------------ */
+
+import type { Pipeline, PipelineColumn } from '@/types/conversations';
+
+/**
+ * Retorna as colunas do funil ao qual o lead pertence.
+ * Fallback: se o lead não tiver pipeline_id ou se o pipeline não for encontrado,
+ * retorna os 6 status legacy (leadStatuses) convertidos pro formato PipelineColumn.
+ */
+export function getLeadColumns(
+  pipelineId: number | null | undefined,
+  pipelines: Pipeline[],
+): PipelineColumn[] {
+  if (pipelineId && pipelines.length > 0) {
+    const found = pipelines.find((p) => p.id === pipelineId);
+    if (found && found.columns && found.columns.length > 0) {
+      return [...found.columns].sort((a, b) => a.order - b.order);
+    }
+  }
+  // Fallback legacy: mapeia leadStatuses para o shape PipelineColumn
+  const legacyColors: Record<string, string> = {
+    novo: '#3b82f6',
+    em_contato: '#f59e0b',
+    qualificado: '#a855f7',
+    negociando: '#06b6d4',
+    convertido: '#10b981',
+    perdido: '#ef4444',
+  };
+  return leadStatuses.map((s, idx) => ({
+    key: s.value,
+    label: s.label,
+    color: legacyColors[s.value] || '#64748b',
+    order: idx,
+  }));
+}
+
+/**
+ * Converte HEX para rgba com alpha.
+ */
+export function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(100,100,100,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
+}

@@ -41,10 +41,26 @@ export interface Contact {
   deal_value: number | null;
   created_at: string | null;
   channel_id: number | null;
+  pipeline_id: number | null;
   assigned_to: number | null;
   profile_picture_url?: string | null;
   ai_memory?: AIMemory | null;
   ai_memory_updated_at?: string | null;
+}
+
+export interface PipelineColumn {
+  key: string;
+  label: string;
+  color: string; // HEX (#RRGGBB) vindo do banco
+  order: number;
+}
+
+export interface Pipeline {
+  id: number;
+  name: string;
+  is_default: boolean;
+  order: number;
+  columns: PipelineColumn[];
 }
 
 export interface TeamUser {

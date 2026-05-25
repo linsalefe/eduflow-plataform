@@ -36,6 +36,7 @@ import { MemoryPanel } from '@/components/ai-lab/memory-panel';
 import { useAuth } from '@/contexts/auth-context';
 import { Suspense, useState } from 'react';
 import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig } from '@/lib/inbox-constants';
+import { LeadStatusDropdown } from '@/components/conversations/lead-status-dropdown';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
 
@@ -53,6 +54,7 @@ function ConversationsContent() {
   const {
     user,
     channels, activeChannel, setActiveChannel, showChannelMenu, setShowChannelMenu,
+    pipelines,
     contacts, selectedContact, setSelectedContact, loading, setLoading, profilePics, setProfilePics,
     newMessage, setNewMessage, sending, loadingMessages, groupedMessages,
     search, handleSearchChange, exactLeadResults, showLeadSuggestions, setShowLeadSuggestions, selectExactLead,
@@ -891,31 +893,13 @@ function ConversationsContent() {
                       {/* Status do Lead */}
                       <div>
                         <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Status do Lead</p>
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowStatusMenu(!showStatusMenu)}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border ${getStatusConfig(selectedContact.lead_status).border} ${getStatusConfig(selectedContact.lead_status).bg} transition-all hover:shadow-sm`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(selectedContact.lead_status).color}`} />
-                              <span className={`text-[13px] font-medium ${getStatusConfig(selectedContact.lead_status).text}`}>
-                                {getStatusConfig(selectedContact.lead_status).label}
-                              </span>
-                            </div>
-                            <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
-                          </button>
-
-                          {showStatusMenu && (
-                            <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
-                              {leadStatuses.map(s => (
-                                <button key={s.value} onClick={() => updateLeadStatus(s.value)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left">
-                                  <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
-                                  <span className="text-[13px] text-[#e9edef]">{s.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <LeadStatusDropdown
+                          contact={selectedContact}
+                          pipelines={pipelines}
+                          showMenu={showStatusMenu}
+                          setShowMenu={setShowStatusMenu}
+                          onUpdate={updateLeadStatus}
+                        />
                       </div>
 
                       {/* Valor do Lead */}
@@ -1232,31 +1216,13 @@ function ConversationsContent() {
                 {/* Status do Lead */}
                 <div>
                   <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wider mb-2">Status do Lead</p>
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowStatusMenu(!showStatusMenu)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border ${getStatusConfig(selectedContact.lead_status).border} ${getStatusConfig(selectedContact.lead_status).bg} transition-all hover:shadow-sm`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${getStatusConfig(selectedContact.lead_status).color}`} />
-                        <span className={`text-[13px] font-medium ${getStatusConfig(selectedContact.lead_status).text}`}>
-                          {getStatusConfig(selectedContact.lead_status).label}
-                        </span>
-                      </div>
-                      <ChevronDown className={`w-4 h-4 text-[#8696a0] transition-transform duration-200 ${showStatusMenu ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {showStatusMenu && (
-                      <div className="absolute top-full left-0 right-0 mt-1.5 bg-[#233138] rounded-xl border border-[#2a3942] shadow-lg z-10 overflow-hidden">
-                        {leadStatuses.map(s => (
-                          <button key={s.value} onClick={() => updateLeadStatus(s.value)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-[#182229] transition-colors text-left">
-                            <div className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
-                            <span className="text-[13px] text-[#e9edef]">{s.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <LeadStatusDropdown
+                    contact={selectedContact}
+                    pipelines={pipelines}
+                    showMenu={showStatusMenu}
+                    setShowMenu={setShowStatusMenu}
+                    onUpdate={updateLeadStatus}
+                  />
                 </div>
 
                 {/* Valor do Lead */}

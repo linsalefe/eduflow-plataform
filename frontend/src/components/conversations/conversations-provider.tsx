@@ -21,6 +21,7 @@ import type {
   ContactTag,
   ExactLeadResult,
   Message,
+  Pipeline,
   TeamUser,
 } from '@/types/conversations';
 
@@ -38,6 +39,9 @@ interface ConversationsContextType {
   setActiveChannel: (ch: ChannelInfo | null) => void;
   showChannelMenu: boolean;
   setShowChannelMenu: (v: boolean) => void;
+
+  // Pipelines (para refletir colunas do funil no dropdown de status)
+  pipelines: Pipeline[];
 
   // Contacts
   contacts: Contact[];
@@ -194,6 +198,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [activeChannel, setActiveChannel] = useState<ChannelInfo | null>(null);
   const [showChannelMenu, setShowChannelMenu] = useState(false);
 
+  // ── Pipelines ─────────────────────────────────────────────────────
+  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+
   // ── Contacts ──────────────────────────────────────────────────────
   const [contacts, setContacts] = useState<Contact[]>([]);
   const searchParams = useSearchParams();
@@ -304,6 +311,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   // Carregar dados iniciais
   useEffect(() => {
     loadChannels();
+    loadPipelines();
     loadTags();
     loadTeamUsers();
   }, []);
@@ -393,6 +401,15 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       // silent
+    }
+  };
+
+  const loadPipelines = async () => {
+    try {
+      const res = await api.get('/pipelines');
+      setPipelines(res.data || []);
+    } catch (err) {
+      // silent — dropdown cai no fallback legacy
     }
   };
 
@@ -905,6 +922,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const value: ConversationsContextType = {
     user,
     channels, activeChannel, setActiveChannel, showChannelMenu, setShowChannelMenu,
+    pipelines,
     contacts, selectedContact, setSelectedContact, loading, setLoading, profilePics, setProfilePics,
     messages, newMessage, setNewMessage, sending, loadingMessages, groupedMessages,
     search, handleSearchChange, exactLeadResults, showLeadSuggestions, setShowLeadSuggestions, searchingLeads, selectExactLead,
