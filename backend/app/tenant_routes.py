@@ -491,14 +491,6 @@ async def update_kanban_columns(
     await db.commit()
     return {"message": "Colunas atualizadas", "kanban_columns": tenant.kanban_columns}
 
-_REOPEN_DEFAULT = {
-    "enabled": False,
-    "from_statuses": ["matriculado", "perdido"],
-    "to_status": "novo",
-    "cooldown_days": 7,
-}
-
-
 @tenant_router.get("/reopen-config")
 async def get_reopen_config(
     db: AsyncSession = Depends(get_db),
@@ -508,7 +500,7 @@ async def get_reopen_config(
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
-    return tenant.reopen_config or _REOPEN_DEFAULT
+    return tenant.reopen_config or {}
 
 
 @tenant_router.patch("/reopen-config")
@@ -518,46 +510,61 @@ async def update_reopen_config(
     current_user: User = Depends(get_current_user),
     tenant_id: int = Depends(get_tenant_id),
 ):
+    """Salva config de reabertura para uma pipeline específica.
+    Body: { "pipeline_id": <int>, "config": { enabled, from_statuses, to_status, cooldown_days } }
+    """
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant não encontrado")
 
-    # Validação
-    cfg = {**_REOPEN_DEFAULT, **(tenant.reopen_config or {}), **data}
-    from_statuses = cfg.get("from_statuses", [])
-    to_status = cfg.get("to_status", "novo")
-    cooldown = cfg.get("cooldown_days", 7)
+    pipeline_id = data.get("pipeline_id")
+    cfg = data.get("config", {})
+    if not pipeline_id:
+        raise HTTPException(status_code=422, detail="pipeline_id é obrigatório")
 
-    if not isinstance(from_statuses, list) or not from_statuses:
-        raise HTTPException(status_code=422, detail="from_statuses deve ser uma lista não vazia")
-    if not to_status:
-        raise HTTPException(status_code=422, detail="to_status é obrigatório")
-    if to_status in from_statuses:
-        raise HTTPException(status_code=422, detail="to_status não pode estar em from_statuses (evita loop)")
-    if not isinstance(cooldown, int) or cooldown < 0:
-        raise HTTPException(status_code=422, detail="cooldown_days deve ser inteiro >= 0")
-
-    # Validar que os status existem nas kanban_columns do tenant
-    columns = []
-    pipeline_result = await db.execute(
-        select(Pipeline).where(Pipeline.tenant_id == tenant_id, Pipeline.is_default == True)
+    # Carregar a pipeline e verificar que pertence ao tenant
+    p_result = await db.execute(
+        select(Pipeline).where(Pipeline.id == pipeline_id, Pipeline.tenant_id == tenant_id)
     )
-    default_pipeline = pipeline_result.scalar_one_or_none()
-    if default_pipeline and default_pipeline.columns:
-        columns = [c["key"] for c in default_pipeline.columns]
-    elif tenant.kanban_columns:
-        columns = [c["key"] for c in tenant.kanban_columns]
+    pipeline = p_result.scalar_one_or_none()
+    if not pipeline:
+        raise HTTPException(status_code=404, detail="Pipeline não encontrada neste tenant")
 
-    if columns:
-        invalid_from = [s for s in from_statuses if s not in columns]
-        if invalid_from:
-            raise HTTPException(status_code=422, detail=f"from_statuses inválidos: {invalid_from}")
-        if to_status not in columns:
-            raise HTTPException(status_code=422, detail=f"to_status '{to_status}' não existe nas colunas")
+    # Validação dos campos da config
+    from_statuses = cfg.get("from_statuses", [])
+    to_status = cfg.get("to_status", "")
+    cooldown = cfg.get("cooldown_days", 7)
+    enabled = cfg.get("enabled", False)
+
+    if enabled:
+        if not isinstance(from_statuses, list) or not from_statuses:
+            raise HTTPException(status_code=422, detail="from_statuses deve ser uma lista não vazia")
+        if not to_status:
+            raise HTTPException(status_code=422, detail="to_status é obrigatório")
+        if to_status in from_statuses:
+            raise HTTPException(status_code=422, detail="to_status não pode estar em from_statuses (evita loop)")
+        if not isinstance(cooldown, int) or cooldown < 0:
+            raise HTTPException(status_code=422, detail="cooldown_days deve ser inteiro >= 0")
+
+        # Validar que os status existem nas colunas DESTA pipeline
+        col_keys = [c["key"] for c in (pipeline.columns or [])]
+        if col_keys:
+            invalid_from = [s for s in from_statuses if s not in col_keys]
+            if invalid_from:
+                raise HTTPException(status_code=422, detail=f"from_statuses inválidos para esta pipeline: {invalid_from}")
+            if to_status not in col_keys:
+                raise HTTPException(status_code=422, detail=f"to_status '{to_status}' não existe nas colunas desta pipeline")
 
     from sqlalchemy.orm.attributes import flag_modified
-    tenant.reopen_config = cfg
+    all_cfg = dict(tenant.reopen_config or {})
+    all_cfg[str(pipeline_id)] = {
+        "enabled": enabled,
+        "from_statuses": from_statuses,
+        "to_status": to_status,
+        "cooldown_days": cooldown,
+    }
+    tenant.reopen_config = all_cfg
     flag_modified(tenant, "reopen_config")
 
     await db.commit()

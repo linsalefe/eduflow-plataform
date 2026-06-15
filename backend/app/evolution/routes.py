@@ -534,7 +534,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                         contact.last_inbound_at = _now_sp
                         contact.reengagement_count = 0
 
-                        # === REABERTURA AUTOMÁTICA ===
+                        # === REABERTURA AUTOMÁTICA (por pipeline) ===
                         if _ccs and not is_group:
                             try:
                                 from app.models import Tenant as _TenantModel
@@ -542,44 +542,52 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                     select(_TenantModel).where(_TenantModel.id == tenant_id)
                                 )
                                 _tenant_obj = _t_result.scalar_one_or_none()
-                                _cfg = (_tenant_obj.reopen_config if _tenant_obj else None) or {}
-                                if _cfg.get("enabled"):
-                                    _from_sts = _cfg.get("from_statuses", [])
-                                    _to_st = _cfg.get("to_status", "novo")
-                                    _cooldown = _cfg.get("cooldown_days", 7)
-                                    _cur_status = _ccs.lead_status or "novo"
+                                _all_reopen = (_tenant_obj.reopen_config if _tenant_obj else None) or {}
 
-                                    if (
-                                        _cur_status in _from_sts
-                                        and _cur_status != _to_st  # guard anti-loop
-                                    ):
-                                        # Checar cooldown
-                                        _should_reopen = False
-                                        if _prev_last_inbound is None:
-                                            _should_reopen = True
-                                        else:
-                                            _days_since = (_now_sp - _prev_last_inbound).days
-                                            _should_reopen = _days_since >= _cooldown
+                                # Resolver pipeline do canal: estado do canal > default do canal
+                                _pip_id = _ccs.pipeline_id
+                                if not _pip_id and channel:
+                                    _pip_id = getattr(channel, "default_pipeline_id", None)
 
-                                        if _should_reopen:
-                                            _old_status = _cur_status
-                                            # Escrita dupla: estado por canal + Contact legado
-                                            _ccs.lead_status = _to_st
-                                            contact.lead_status = _to_st
-                                            print(f"🔄 Reabertura auto: {contact.wa_id} canal={channel_id} {_old_status}→{_to_st}")
+                                if _pip_id and str(_pip_id) in _all_reopen:
+                                    _cfg = _all_reopen[str(_pip_id)]
+                                    if _cfg.get("enabled"):
+                                        _from_sts = _cfg.get("from_statuses", [])
+                                        _to_st = _cfg.get("to_status", "novo")
+                                        _cooldown = _cfg.get("cooldown_days", 7)
+                                        _cur_status = _ccs.lead_status or "novo"
 
-                                            # Registrar atividade
-                                            try:
-                                                from app.models import Activity
-                                                _act = Activity(
-                                                    tenant_id=tenant_id,
-                                                    contact_id=contact.id,
-                                                    type="reabertura_automatica",
-                                                    description=f"Lead reaberto: {_old_status} → {_to_st} (canal {channel_id}, após {_cooldown}+ dias sem contato)",
-                                                )
-                                                db.add(_act)
-                                            except Exception as _ae:
-                                                print(f"⚠️ Erro ao registrar atividade de reabertura: {_ae}")
+                                        if (
+                                            _cur_status in _from_sts
+                                            and _cur_status != _to_st  # guard anti-loop
+                                        ):
+                                            # Checar cooldown
+                                            _should_reopen = False
+                                            if _prev_last_inbound is None:
+                                                _should_reopen = True
+                                            else:
+                                                _days_since = (_now_sp - _prev_last_inbound).days
+                                                _should_reopen = _days_since >= _cooldown
+
+                                            if _should_reopen:
+                                                _old_status = _cur_status
+                                                # Escrita dupla: estado por canal + Contact legado
+                                                _ccs.lead_status = _to_st
+                                                contact.lead_status = _to_st
+                                                print(f"🔄 Reabertura auto: {contact.wa_id} canal={channel_id} pipeline={_pip_id} {_old_status}→{_to_st}")
+
+                                                # Registrar atividade
+                                                try:
+                                                    from app.models import Activity
+                                                    _act = Activity(
+                                                        tenant_id=tenant_id,
+                                                        contact_id=contact.id,
+                                                        type="reabertura_automatica",
+                                                        description=f"Lead reaberto: {_old_status} → {_to_st} (canal {channel_id}, pipeline {_pip_id}, após {_cooldown}+ dias sem contato)",
+                                                    )
+                                                    db.add(_act)
+                                                except Exception as _ae:
+                                                    print(f"⚠️ Erro ao registrar atividade de reabertura: {_ae}")
                             except Exception as _re:
                                 print(f"⚠️ Erro na reabertura automática (não afeta mensagem): {_re}")
 

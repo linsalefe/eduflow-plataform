@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Save, X } from 'lucide-react';
+import { Loader2, Save, X, Check } from 'lucide-react';
 import api from '@/lib/api';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,13 @@ interface KanbanColumn {
   order: number;
 }
 
+interface PipelineInfo {
+  id: number;
+  name: string;
+  is_default: boolean;
+  columns: KanbanColumn[];
+}
+
 interface ReopenConfig {
   enabled: boolean;
   from_statuses: string[];
@@ -29,10 +36,10 @@ interface ReopenConfig {
   cooldown_days: number;
 }
 
-const DEFAULT_CONFIG: ReopenConfig = {
+const EMPTY_CONFIG: ReopenConfig = {
   enabled: false,
-  from_statuses: ['matriculado', 'perdido'],
-  to_status: 'novo',
+  from_statuses: [],
+  to_status: '',
   cooldown_days: 7,
 };
 
@@ -46,8 +53,10 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export function PipelineContent() {
-  const [config, setConfig] = useState<ReopenConfig>(DEFAULT_CONFIG);
-  const [columns, setColumns] = useState<KanbanColumn[]>([]);
+  const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
+  const [activePipeline, setActivePipeline] = useState<PipelineInfo | null>(null);
+  const [allConfigs, setAllConfigs] = useState<Record<string, ReopenConfig>>({});
+  const [config, setConfig] = useState<ReopenConfig>(EMPTY_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -58,16 +67,23 @@ export function PipelineContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [cfgRes, colRes] = await Promise.all([
+      const [pipRes, cfgRes] = await Promise.all([
+        api.get('/pipelines'),
         api.get('/tenant/reopen-config'),
-        api.get('/tenant/kanban-columns'),
       ]);
-      setConfig({ ...DEFAULT_CONFIG, ...cfgRes.data });
-      setColumns(
-        [...(colRes.data || [])].sort(
-          (a: KanbanColumn, b: KanbanColumn) => a.order - b.order
-        )
+      const sorted = [...(pipRes.data || [])].sort(
+        (a: PipelineInfo, b: PipelineInfo) => (a.is_default ? -1 : b.is_default ? 1 : 0)
       );
+      setPipelines(sorted);
+      const cfgs = cfgRes.data || {};
+      setAllConfigs(cfgs);
+
+      // Select default pipeline
+      const def = sorted.find((p: PipelineInfo) => p.is_default) || sorted[0];
+      if (def) {
+        setActivePipeline(def);
+        setConfig({ ...EMPTY_CONFIG, ...(cfgs[String(def.id)] || {}) });
+      }
     } catch {
       toast.error('Erro ao carregar configuracao');
     } finally {
@@ -75,18 +91,30 @@ export function PipelineContent() {
     }
   };
 
+  const switchPipeline = (p: PipelineInfo) => {
+    setActivePipeline(p);
+    setConfig({ ...EMPTY_CONFIG, ...(allConfigs[String(p.id)] || {}) });
+  };
+
   const handleSave = async () => {
-    if (config.from_statuses.length === 0) {
-      toast.error('Selecione pelo menos uma coluna de origem');
-      return;
-    }
-    if (!config.to_status) {
-      toast.error('Selecione a coluna de destino');
-      return;
+    if (!activePipeline) return;
+    if (config.enabled) {
+      if (config.from_statuses.length === 0) {
+        toast.error('Selecione pelo menos uma coluna de origem');
+        return;
+      }
+      if (!config.to_status) {
+        toast.error('Selecione a coluna de destino');
+        return;
+      }
     }
     setSaving(true);
     try {
-      await api.patch('/tenant/reopen-config', config);
+      const res = await api.patch('/tenant/reopen-config', {
+        pipeline_id: activePipeline.id,
+        config,
+      });
+      setAllConfigs(res.data.reopen_config || {});
       toast.success('Configuracao salva');
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erro ao salvar');
@@ -112,21 +140,20 @@ export function PipelineContent() {
     );
   }
 
-  if (columns.length === 0) {
+  if (pipelines.length === 0) {
     return (
       <div className="text-center py-16 text-muted-foreground">
-        <p className="text-sm">Nenhuma coluna configurada no pipeline.</p>
+        <p className="text-sm">Nenhuma pipeline configurada.</p>
         <p className="text-xs mt-1">
-          Configure as colunas na tela de Pipeline antes de usar esta funcionalidade.
+          Crie uma pipeline na tela de Pipeline antes de usar esta funcionalidade.
         </p>
       </div>
     );
   }
 
-  // Colunas disponiveis para destino (excluindo as de origem)
-  const availableToColumns = columns.filter(
-    (c) => !config.from_statuses.includes(c.key)
-  );
+  const columns = activePipeline
+    ? [...(activePipeline.columns || [])].sort((a, b) => a.order - b.order)
+    : [];
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -138,60 +165,38 @@ export function PipelineContent() {
           <p className="text-[13px] text-muted-foreground mt-1">
             Quando um lead em coluna final voltar a mandar mensagem apos um periodo sem
             contato, ele e movido automaticamente para o inicio do funil.
+            Configuracao por pipeline.
           </p>
         </div>
 
-        {/* Toggle */}
-        <div className="flex items-center justify-between py-3 border-y border-border">
-          <div>
-            <p className="text-[13px] font-medium text-foreground">Ativar reabertura</p>
-            <p className="text-[11px] text-muted-foreground">
-              Vale para todos os canais. So reabre quando o cliente envia mensagem.
-            </p>
-          </div>
-          <Switch
-            checked={config.enabled}
-            onCheckedChange={(v) => setConfig((p) => ({ ...p, enabled: v }))}
-          />
-        </div>
-
-        {/* From statuses */}
+        {/* Pipeline selector */}
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Reabrir leads que estejam em
+            Pipeline
           </p>
           <div className="flex flex-wrap gap-2">
-            {columns.map((col) => {
-              const selected = config.from_statuses.includes(col.key);
-              // Nao pode selecionar a coluna de destino
-              const disabled = col.key === config.to_status;
+            {pipelines.map((p) => {
+              const isActive = activePipeline?.id === p.id;
+              const hasRule = allConfigs[String(p.id)]?.enabled;
               return (
                 <button
-                  key={col.key}
-                  onClick={() => !disabled && toggleFromStatus(col.key)}
-                  disabled={disabled}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={
-                    selected
-                      ? {
-                          backgroundColor: hexToRgba(col.color, 0.15),
-                          borderColor: hexToRgba(col.color, 0.4),
-                          color: col.color,
-                        }
-                      : {
-                          backgroundColor: 'var(--muted)',
-                          borderColor: 'var(--border)',
-                          color: 'var(--muted-foreground)',
-                        }
-                  }
+                  key={p.id}
+                  onClick={() => switchPipeline(p)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
                 >
-                  <div
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: col.color }}
-                  />
-                  {col.label}
-                  {selected && (
-                    <X className="w-3 h-3 ml-0.5 opacity-60" />
+                  {p.name}
+                  {p.is_default && (
+                    <span className="text-[10px] opacity-70">(Principal)</span>
+                  )}
+                  {hasRule && !isActive && (
+                    <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" title="Reabertura ativa" />
+                  )}
+                  {hasRule && isActive && (
+                    <Check className="w-3 h-3 opacity-70" />
                   )}
                 </button>
               );
@@ -199,79 +204,142 @@ export function PipelineContent() {
           </div>
         </div>
 
-        {/* To status */}
-        <div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Mover para
-          </p>
-          <Select
-            value={config.to_status}
-            onValueChange={(v) =>
-              setConfig((p) => ({
-                ...p,
-                to_status: v,
-                // Remover da from_statuses se estava la
-                from_statuses: p.from_statuses.filter((s) => s !== v),
-              }))
-            }
-          >
-            <SelectTrigger className="w-64">
-              <SelectValue placeholder="Selecionar coluna..." />
-            </SelectTrigger>
-            <SelectContent>
-              {columns.map((col) => (
-                <SelectItem key={col.key} value={col.key}>
-                  <span className="flex items-center gap-2">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full inline-block"
-                      style={{ backgroundColor: col.color }}
-                    />
-                    {col.label}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Cooldown */}
-        <div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            So reabrir apos
-          </p>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              min={0}
-              max={365}
-              value={config.cooldown_days}
-              onChange={(e) =>
-                setConfig((p) => ({
-                  ...p,
-                  cooldown_days: Math.max(0, parseInt(e.target.value) || 0),
-                }))
-              }
-              className="w-24 h-9"
-            />
-            <span className="text-[13px] text-muted-foreground">dias sem contato</span>
+        {columns.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">Esta pipeline nao tem colunas configuradas.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* Toggle */}
+            <div className="flex items-center justify-between py-3 border-y border-border">
+              <div>
+                <p className="text-[13px] font-medium text-foreground">
+                  Ativar reabertura nesta pipeline
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Vale para todos os canais que usam esta pipeline.
+                  So reabre quando o cliente envia mensagem.
+                </p>
+              </div>
+              <Switch
+                checked={config.enabled}
+                onCheckedChange={(v) => setConfig((p) => ({ ...p, enabled: v }))}
+              />
+            </div>
 
-        {/* Save */}
-        <div className="flex items-center gap-3 pt-2">
-          <Button onClick={handleSave} disabled={saving} size="sm">
-            {saving ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-1.5" />
-            )}
-            Salvar
-          </Button>
-          <Button variant="outline" size="sm" onClick={loadData}>
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Recarregar
-          </Button>
-        </div>
+            {/* From statuses */}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Reabrir leads que estejam em
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {columns.map((col) => {
+                  const selected = config.from_statuses.includes(col.key);
+                  const disabled = col.key === config.to_status;
+                  return (
+                    <button
+                      key={col.key}
+                      onClick={() => !disabled && toggleFromStatus(col.key)}
+                      disabled={disabled}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={
+                        selected
+                          ? {
+                              backgroundColor: hexToRgba(col.color, 0.15),
+                              borderColor: hexToRgba(col.color, 0.4),
+                              color: col.color,
+                            }
+                          : {
+                              backgroundColor: 'var(--muted)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--muted-foreground)',
+                            }
+                      }
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: col.color }}
+                      />
+                      {col.label}
+                      {selected && <X className="w-3 h-3 ml-0.5 opacity-60" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* To status */}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Mover para
+              </p>
+              <Select
+                value={config.to_status || undefined}
+                onValueChange={(v) =>
+                  setConfig((p) => ({
+                    ...p,
+                    to_status: v,
+                    from_statuses: p.from_statuses.filter((s) => s !== v),
+                  }))
+                }
+              >
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Selecionar coluna..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {columns.map((col) => (
+                    <SelectItem key={col.key} value={col.key}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full inline-block"
+                          style={{ backgroundColor: col.color }}
+                        />
+                        {col.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Cooldown */}
+            <div>
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                So reabrir apos
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={365}
+                  value={config.cooldown_days}
+                  onChange={(e) =>
+                    setConfig((p) => ({
+                      ...p,
+                      cooldown_days: Math.max(0, parseInt(e.target.value) || 0),
+                    }))
+                  }
+                  className="w-24 h-9"
+                />
+                <span className="text-[13px] text-muted-foreground">
+                  dias sem contato
+                </span>
+              </div>
+            </div>
+
+            {/* Save */}
+            <div className="flex items-center gap-3 pt-2">
+              <Button onClick={handleSave} disabled={saving} size="sm">
+                {saving ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-1.5" />
+                )}
+                Salvar
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
