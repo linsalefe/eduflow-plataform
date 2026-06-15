@@ -8,10 +8,12 @@ import { ContaContent } from './conta/page';
 import { IntegracoesContent } from '../integracoes/page';
 import { SuporteContent } from '../suporte/page';
 import { MensagensProntasContent } from './mensagens-prontas/page';
+import { PipelineContent } from '@/components/configuracoes/reopen-config';
 
 const TABS = [
   { value: 'conta', label: 'Minha conta' },
   { value: 'mensagens-prontas', label: 'Mensagens prontas' },
+  { value: 'pipeline', label: 'Pipeline' },
   { value: 'integracoes', label: 'Integrações' },
   { value: 'suporte', label: 'Central de ajuda' },
 ];
@@ -53,6 +55,10 @@ function ConfiguracoesInner() {
 
         <TabsContent value="mensagens-prontas" className="mt-0">
           <MensagensProntasContent />
+        </TabsContent>
+
+        <TabsContent value="pipeline" className="mt-0">
+          <PipelineContent />
         </TabsContent>
 
         <TabsContent value="integracoes" className="mt-0">
