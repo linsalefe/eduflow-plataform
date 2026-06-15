@@ -30,6 +30,7 @@ class AIConfigUpdate(BaseModel):
 
 class ToggleAIRequest(BaseModel):
     ai_active: bool
+    channel_id: int | None = None
 
 
 # === Config da IA por Canal ===
@@ -155,7 +156,14 @@ async def toggle_contact_ai(wa_id: str, req: ToggleAIRequest, db: AsyncSession =
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
 
+    # Escrita dupla: Contact legado + estado por canal
     contact.ai_active = req.ai_active
+    if req.channel_id:
+        from app.channel_state import get_or_create_channel_state
+        _ccs = await get_or_create_channel_state(
+            db, tenant_id=tenant_id, contact_id=contact.id, channel_id=req.channel_id,
+        )
+        _ccs.ai_active = req.ai_active
 
     # Se desligou a IA, atualizar o summary do kanban e desligar handoff
     if not req.ai_active:

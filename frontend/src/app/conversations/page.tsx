@@ -35,7 +35,7 @@ import { ConversationsProvider, useConversations } from '@/components/conversati
 import { MemoryPanel } from '@/components/ai-lab/memory-panel';
 import { useAuth } from '@/contexts/auth-context';
 import { Suspense, useState } from 'react';
-import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig } from '@/lib/inbox-constants';
+import { leadStatuses, tagColors, getInitials, getAvatarColor, formatTime, formatFullDate, formatRecordingTime, getStatusConfig, getTagColorConfig, hexToRgba } from '@/lib/inbox-constants';
 import { LeadStatusDropdown } from '@/components/conversations/lead-status-dropdown';
 
 const EmojiPicker = dynamic(() => import('emoji-picker-react'), { ssr: false });
@@ -54,7 +54,7 @@ function ConversationsContent() {
   const {
     user,
     channels, activeChannel, setActiveChannel, showChannelMenu, setShowChannelMenu,
-    pipelines,
+    pipelines, defaultPipeline,
     contacts, selectedContact, setSelectedContact, loading, setLoading, profilePics, setProfilePics,
     newMessage, setNewMessage, sending, loadingMessages, groupedMessages,
     search, handleSearchChange, exactLeadResults, showLeadSuggestions, setShowLeadSuggestions, selectExactLead,
@@ -209,18 +209,27 @@ function ConversationsContent() {
                 Todos ({contacts.length})
               </button>
 
-              {leadStatuses.map(s => {
+              {(defaultPipeline?.columns?.length
+                ? [...defaultPipeline.columns]
+                    .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+                    .map((col: any) => ({ value: col.key, label: col.label, color: col.color }))
+                : leadStatuses.map((s: any) => ({ value: s.value, label: s.label, color: s.color }))
+              ).map((s: any) => {
                 const count = contacts.filter(c => c.lead_status === s.value).length;
-                if (count === 0) return null;
+                const isActive = statusFilter === s.value;
                 return (
                   <button
                     key={s.value}
                     onClick={() => setStatusFilter(s.value)}
                     className={`px-3 py-1.5 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
-                      statusFilter === s.value
-                        ? `${s.bg} ${s.text}`
+                      isActive
+                        ? ''
                         : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
                     }`}
+                    style={isActive ? {
+                      backgroundColor: hexToRgba(s.color || '#64748b', 0.2),
+                      color: s.color || '#64748b',
+                    } : undefined}
                   >
                     {s.label} ({count})
                   </button>

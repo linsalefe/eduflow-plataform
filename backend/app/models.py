@@ -79,6 +79,30 @@ class Contact(Base):
     )
     channel = relationship("Channel", back_populates="contacts")
 
+class ContactChannelState(Base):
+    __tablename__ = "contact_channel_state"
+    __table_args__ = (
+        UniqueConstraint("contact_id", "channel_id", name="uq_ccs_contact_channel"),
+    )
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    contact_id = Column(BigInteger, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False)
+    channel_id = Column(Integer, ForeignKey("channels.id", ondelete="CASCADE"), nullable=False)
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id", ondelete="SET NULL"), nullable=True)
+    lead_status = Column(String(30), nullable=False, default="novo")
+    ai_active = Column(Boolean, nullable=False, default=False)
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
+    deal_value = Column(Numeric(10, 2), nullable=True, default=0)
+    last_inbound_at = Column(DateTime, nullable=True)
+    reengagement_count = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    contact = relationship("Contact", backref="channel_states", foreign_keys=[contact_id])
+    channel = relationship("Channel", backref="contact_states", foreign_keys=[channel_id])
+
+
 class Message(Base):
     __tablename__ = "messages"
 

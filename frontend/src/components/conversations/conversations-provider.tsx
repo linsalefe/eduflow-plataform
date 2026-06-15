@@ -42,6 +42,7 @@ interface ConversationsContextType {
 
   // Pipelines (para refletir colunas do funil no dropdown de status)
   pipelines: Pipeline[];
+  defaultPipeline: Pipeline | null;
 
   // Contacts
   contacts: Contact[];
@@ -537,7 +538,10 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     setTogglingAI(true);
     try {
       const newValue = !selectedContact.ai_active;
-      await api.patch(`/ai/contacts/${selectedContact.wa_id}/toggle`, { ai_active: newValue });
+      await api.patch(`/ai/contacts/${selectedContact.wa_id}/toggle`, {
+        ai_active: newValue,
+        channel_id: activeChannel?.id || null,
+      });
       setSelectedContact({ ...selectedContact, ai_active: newValue });
       toast.success(newValue ? 'IA ativada' : 'IA desativada');
       loadContacts();
@@ -551,7 +555,10 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   const updateLeadStatus = async (status: string) => {
     if (!selectedContact) return;
     try {
-      await api.patch(`/contacts/${selectedContact.wa_id}`, { lead_status: status });
+      await api.patch(`/contacts/${selectedContact.wa_id}`, {
+        lead_status: status,
+        channel_id: activeChannel?.id || null,
+      });
       setShowStatusMenu(false);
       toast.success('Status atualizado');
       await loadContacts();
@@ -898,6 +905,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
   /*  Computed                                                         */
   /* ================================================================ */
 
+  // Pipeline padrão (is_default) — usada para gerar os filtros do inbox
+  const defaultPipeline = pipelines?.find((p: Pipeline) => p.is_default) || null;
+
   const groupedMessages: { date: string; msgs: Message[] }[] = [];
   messages.forEach((msg) => {
     const date = formatDate(msg.timestamp);
@@ -923,6 +933,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     user,
     channels, activeChannel, setActiveChannel, showChannelMenu, setShowChannelMenu,
     pipelines,
+    defaultPipeline,
     contacts, selectedContact, setSelectedContact, loading, setLoading, profilePics, setProfilePics,
     messages, newMessage, setNewMessage, sending, loadingMessages, groupedMessages,
     search, handleSearchChange, exactLeadResults, showLeadSuggestions, setShowLeadSuggestions, searchingLeads, selectExactLead,

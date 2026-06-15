@@ -13,8 +13,9 @@ import json
 import logging
 
 logger = logging.getLogger(__name__)
-from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission
+from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, ContactChannelState
 from app.evolution import client
+from app.channel_state import get_or_create_channel_state
 
 
 router = APIRouter(prefix="/api/evolution", tags=["Evolution API"])
@@ -170,12 +171,23 @@ async def _process_ai_for_contact(
     """
     try:
         async with async_session() as db:
-            # Verificar se IA está ativa para este contato
+            # Verificar se IA está ativa para este contato (por canal)
             contact_check = await db.execute(
                 select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
             )
             ct = contact_check.scalar_one_or_none()
-            if not ct or not ct.ai_active:
+            if not ct:
+                return
+
+            # Checar ai_active do estado por canal (fallback ao Contact legado)
+            ccs = (await db.execute(
+                select(ContactChannelState).where(
+                    ContactChannelState.contact_id == ct.id,
+                    ContactChannelState.channel_id == channel_id,
+                )
+            )).scalar_one_or_none()
+            _ai_active = ccs.ai_active if ccs else ct.ai_active
+            if not _ai_active:
                 return
 
             # Verificar se o agente está ativado no canal
@@ -205,13 +217,18 @@ async def _process_ai_for_contact(
             # Mover lead para "em_contato" no primeiro atendimento da IA
             try:
                 from app.models import Tenant
-                if ct and ct.lead_status == "novo":
+                # Usar status do canal se disponível, senão do Contact legado
+                _current_status = ccs.lead_status if ccs else ct.lead_status
+                if ct and _current_status == "novo":
                     tenant_result_move = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
                     tenant_move = tenant_result_move.scalar_one_or_none()
                     moves = (tenant_move.agent_pipeline_moves or {}) if tenant_move else {}
                     target = moves.get("on_first_contact", "")
                     if target:
+                        # Escrita dupla: estado por canal + Contact legado
                         ct.lead_status = target
+                        if ccs:
+                            ccs.lead_status = target
                         await db.commit()
                         print(f"📊 Pipeline: lead {ct.id} movido de 'novo' → '{target}'")
             except Exception as e:
@@ -292,9 +309,13 @@ async def _process_ai_for_contact(
                             try:
                                 moves = (tenant_obj.agent_pipeline_moves or {}) if tenant_obj else {}
                                 target_status = moves.get("on_schedule_call", "")
-                                if target_status and ct.lead_status != target_status:
-                                    old_status = ct.lead_status
+                                _cur_status = ccs.lead_status if ccs else ct.lead_status
+                                if target_status and _cur_status != target_status:
+                                    old_status = _cur_status
+                                    # Escrita dupla: estado por canal + Contact legado
                                     ct.lead_status = target_status
+                                    if ccs:
+                                        ccs.lead_status = target_status
                                     await db.commit()
                                     print(f"📊 Pipeline: lead {ct.id} movido de '{old_status}' → '{target_status}'")
                             except Exception as e:
@@ -476,13 +497,35 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                         )
                         db.add(contact)
                         await db.flush()
+                        # Criar estado por canal para o novo contato
+                        if contact.id and channel_id:
+                            _new_ccs = ContactChannelState(
+                                tenant_id=tenant_id,
+                                contact_id=contact.id,
+                                channel_id=channel_id,
+                                pipeline_id=_pipeline_id,
+                                lead_status="novo",
+                                ai_active=False if is_group else True,
+                                last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),
+                                reengagement_count=0,
+                            )
+                            db.add(_new_ccs)
                         print(f"👤 Novo contato: {sender_name} ({contact_phone})")
                     # Atualizar last_inbound_at para reengajamento
                     if not from_me:
                         from datetime import datetime, timezone, timedelta
                         SP_TZ = timezone(timedelta(hours=-3))
-                        contact.last_inbound_at = datetime.now(SP_TZ).replace(tzinfo=None)
+                        _now_sp = datetime.now(SP_TZ).replace(tzinfo=None)
+                        # Escrita dupla: Contact legado + estado por canal
+                        contact.last_inbound_at = _now_sp
                         contact.reengagement_count = 0
+                        if contact.id and channel_id:
+                            _ccs = await get_or_create_channel_state(
+                                db, tenant_id=tenant_id,
+                                contact_id=contact.id, channel_id=channel_id,
+                            )
+                            _ccs.last_inbound_at = _now_sp
+                            _ccs.reengagement_count = 0
 
                 # Verificar duplicata
                 existing = await db.execute(
@@ -723,12 +766,22 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     continue
 
                 # === Modo 'ai' (default) — agendar com debounce de 15s ===
-                # Verificação rápida de ai_active antes de agendar
+                # Verificação rápida de ai_active antes de agendar (por canal)
                 contact_check = await db.execute(
                     select(Contact).where(Contact.wa_id == phone, Contact.tenant_id == tenant_id)
                 )
                 ct = contact_check.scalar_one_or_none()
-                if not ct or not ct.ai_active:
+                if not ct:
+                    continue
+                # Checar ai_active do estado por canal (fallback ao Contact legado)
+                _ccs_check = (await db.execute(
+                    select(ContactChannelState).where(
+                        ContactChannelState.contact_id == ct.id,
+                        ContactChannelState.channel_id == channel_id,
+                    )
+                )).scalar_one_or_none()
+                _ai_on = _ccs_check.ai_active if _ccs_check else ct.ai_active
+                if not _ai_on:
                     continue
 
                 try:

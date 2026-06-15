@@ -122,6 +122,7 @@ export default function PipelinePage() {
     try {
       const params: any = {};
       if (activePipeline) params.pipeline_id = activePipeline.id;
+      if (filters.channelId) params.channel_id = filters.channelId;
       const res = await api.get('/contacts', { params });
       setLeads(res.data);
     } catch (err) {
@@ -129,7 +130,7 @@ export default function PipelinePage() {
     } finally {
       setLoading(false);
     }
-  }, [activePipeline]);
+  }, [activePipeline, filters.channelId]);
 
   // Initial load: fetch pipelines
   useEffect(() => {
@@ -265,7 +266,10 @@ export default function PipelinePage() {
       setSelectedLead((prev) => (prev ? { ...prev, lead_status: newStatus } : null));
     }
     try {
-      await api.patch(`/contacts/${waId}`, { lead_status: newStatus });
+      await api.patch(`/contacts/${waId}`, {
+        lead_status: newStatus,
+        channel_id: filters.channelId || null,
+      });
     } catch (err) {
       console.error(err);
       loadLeads();
@@ -639,7 +643,11 @@ export default function PipelinePage() {
           activePipelineId={activePipeline?.id}
           onMoveToPipeline={async (waId, pipelineId) => {
             try {
-              await api.patch(`/contacts/${waId}`, { pipeline_id: pipelineId, lead_status: 'novo' });
+              await api.patch(`/contacts/${waId}`, {
+                pipeline_id: pipelineId,
+                lead_status: 'novo',
+                channel_id: filters.channelId || null,
+              });
               setSelectedLead(null);
               loadLeads();
             } catch (err: any) {

@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 SP_TZ = timezone(timedelta(hours=-3))
 
 from app.database import get_db
-from app.models import Channel, Contact, Message, Tag, contact_tags, Activity, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, Schedule, User
+from app.models import Channel, Contact, Message, Tag, contact_tags, Activity, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, Schedule, User, ContactChannelState
+from app.channel_state import get_or_create_channel_state
 from app.whatsapp import send_text_message, send_template_message
 from app.auth import get_current_user, get_tenant_id
 
@@ -61,6 +62,7 @@ class UpdateContactRequest(BaseModel):
     notes: Optional[str] = None
     assigned_to: Optional[int] = None
     pipeline_id: Optional[int] = None
+    channel_id: Optional[int] = None
 
 
 class UpdateAIMemoryRequest(BaseModel):
@@ -629,7 +631,30 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         )
         query = query.where(Contact.id.in_(select(msgs_in_channel_sub.c.contact_id)))
     if pipeline_id:
-        query = query.where(Contact.pipeline_id == pipeline_id)
+        if channel_id:
+            # Filtrar pelo pipeline do estado por canal
+            ccs_pipeline_sub = (
+                select(ContactChannelState.contact_id)
+                .where(
+                    ContactChannelState.channel_id == channel_id,
+                    ContactChannelState.pipeline_id == pipeline_id,
+                )
+                .subquery()
+            )
+            # Fallback: se não tem estado, usa Contact.pipeline_id
+            query = query.where(
+                Contact.id.in_(select(ccs_pipeline_sub.c.contact_id))
+                | (
+                    ~Contact.id.in_(
+                        select(ContactChannelState.contact_id).where(
+                            ContactChannelState.channel_id == channel_id
+                        )
+                    )
+                    & (Contact.pipeline_id == pipeline_id)
+                )
+            )
+        else:
+            query = query.where(Contact.pipeline_id == pipeline_id)
 
     result = await db.execute(query)
     contacts = result.scalars().all()
@@ -640,10 +665,13 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
     # Buscar todos os IDs de uma vez
     contact_ids = [c.id for c in contacts]
 
-    # Batch: última mensagem de todos os contatos (1 query)
+    # Batch: última mensagem por contato (filtrada por canal se channel_id)
+    last_msg_filters = [Message.contact_id.in_(contact_ids), Message.tenant_id == tenant_id]
+    if channel_id:
+        last_msg_filters.append(Message.channel_id == channel_id)
     last_msgs_result = await db.execute(
         select(Message)
-        .where(Message.contact_id.in_(contact_ids), Message.tenant_id == tenant_id)
+        .where(*last_msg_filters)
         .distinct(Message.contact_id)
         .order_by(Message.contact_id, Message.timestamp.desc())
     )
@@ -660,28 +688,45 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         tag, _cid = row
         tags_map.setdefault(_cid, []).append({"id": tag.id, "name": tag.name, "color": tag.color})
 
-    # Batch: unread count de todos os contatos (1 query)
+    # Batch: unread count de todos os contatos (filtrada por canal se channel_id)
+    unread_filters = [
+        Message.contact_id.in_(contact_ids),
+        Message.tenant_id == tenant_id,
+        Message.direction == "inbound",
+        Message.status == "received",
+    ]
+    if channel_id:
+        unread_filters.append(Message.channel_id == channel_id)
     unread_result = await db.execute(
         select(Message.contact_id, func.count(Message.id))
-        .where(
-            Message.contact_id.in_(contact_ids),
-            Message.tenant_id == tenant_id,
-            Message.direction == "inbound",
-            Message.status == "received"
-        )
+        .where(*unread_filters)
         .group_by(Message.contact_id)
     )
     unread_map = dict(unread_result.all())
+
+    # Batch: estados por canal (se channel_id informado)
+    ccs_map: dict[int, ContactChannelState] = {}
+    if channel_id:
+        ccs_result = await db.execute(
+            select(ContactChannelState).where(
+                ContactChannelState.contact_id.in_(contact_ids),
+                ContactChannelState.channel_id == channel_id,
+            )
+        )
+        for ccs in ccs_result.scalars().all():
+            ccs_map[ccs.contact_id] = ccs
 
     # Montar resposta
     contacts_list = []
     for c in contacts:
         last_msg = last_msgs.get(c.id)
+        # Se temos estado por canal, usar; senão fallback ao Contact legado
+        _ccs = ccs_map.get(c.id)
         contacts_list.append({
             "id": c.id,
             "wa_id": c.wa_id,
             "name": c.name or c.wa_id,
-            "lead_status": c.lead_status or "novo",
+            "lead_status": (_ccs.lead_status if _ccs else c.lead_status) or "novo",
             "notes": c.notes,
             "channel_id": c.channel_id,
             "last_message": last_msg.content if last_msg else "",
@@ -689,10 +734,11 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "direction": last_msg.direction if last_msg else None,
             "tags": tags_map.get(c.id, []),
             "unread": unread_map.get(c.id, 0),
-            "ai_active": c.ai_active or False,
+            "ai_active": (_ccs.ai_active if _ccs else c.ai_active) or False,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
-            "assigned_to": c.assigned_to,
-            "pipeline_id": c.pipeline_id,
+            "assigned_to": _ccs.assigned_to if _ccs else c.assigned_to,
+            "pipeline_id": _ccs.pipeline_id if _ccs else c.pipeline_id,
+            "deal_value": float(_ccs.deal_value) if _ccs and _ccs.deal_value else (float(c.deal_value) if c.deal_value else 0),
             "profile_picture_url": c.profile_picture_url,
         })
     return contacts_list
@@ -811,7 +857,7 @@ async def mark_as_read(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id
     return {"status": "ok"}
 
 @router.get("/contacts/{wa_id}")
-async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+async def get_contact(wa_id: str, channel_id: Optional[int] = None, db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
     result = await db.execute(select(Contact).where(Contact.wa_id == wa_id, Contact.tenant_id == tenant_id))
     contact = result.scalar_one_or_none()
     if not contact:
@@ -824,13 +870,26 @@ async def get_contact(wa_id: str, db: AsyncSession = Depends(get_db), tenant_id:
 
     msg_count = await db.execute(select(func.count(Message.id)).where(Message.contact_id == contact.id))
 
+    # Estado por canal (fallback ao Contact legado)
+    _ccs = None
+    if channel_id:
+        _ccs = (await db.execute(
+            select(ContactChannelState).where(
+                ContactChannelState.contact_id == contact.id,
+                ContactChannelState.channel_id == channel_id,
+            )
+        )).scalar_one_or_none()
+
     return {
         "wa_id": contact.wa_id,
         "name": contact.name,
-        "lead_status": contact.lead_status,
+        "lead_status": (_ccs.lead_status if _ccs else contact.lead_status) or "novo",
         "notes": contact.notes,
         "channel_id": contact.channel_id,
-        "ai_active": contact.ai_active or False,
+        "ai_active": (_ccs.ai_active if _ccs else contact.ai_active) or False,
+        "assigned_to": _ccs.assigned_to if _ccs else contact.assigned_to,
+        "pipeline_id": _ccs.pipeline_id if _ccs else contact.pipeline_id,
+        "deal_value": float(_ccs.deal_value) if _ccs and _ccs.deal_value else (float(contact.deal_value) if contact.deal_value else 0),
         "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags],
         "total_messages": msg_count.scalar(),
         "ai_memory": contact.ai_memory if isinstance(contact.ai_memory, dict) else {},
@@ -846,20 +905,34 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
     if not contact:
         raise HTTPException(status_code=404, detail="Contato não encontrado")
 
+    # Resolver estado por canal (se channel_id informado)
+    _ccs = None
+    if req.channel_id and contact.id:
+        _ccs = await get_or_create_channel_state(
+            db, tenant_id=tenant_id, contact_id=contact.id, channel_id=req.channel_id,
+        )
+
     if req.name is not None:
         contact.name = req.name
     if req.lead_status is not None:
-        old_status = contact.lead_status
+        old_status = (_ccs.lead_status if _ccs else contact.lead_status) or "novo"
+        # Escrita dupla: Contact legado + estado por canal
         contact.lead_status = req.lead_status
-        await log_activity(db, wa_id, "status_change", f"Status: {old_status or 'novo'} → {req.lead_status}", tenant_id=tenant_id, contact_id=contact.id if contact else None)
+        if _ccs:
+            _ccs.lead_status = req.lead_status
+        await log_activity(db, wa_id, "status_change", f"Status: {old_status} → {req.lead_status}", tenant_id=tenant_id, contact_id=contact.id if contact else None)
         # Desligar IA automaticamente (configurável por tenant)
         try:
             from app.models import Tenant as TenantModel
             t_result = await db.execute(select(TenantModel).where(TenantModel.id == tenant_id))
             t_obj = t_result.scalar_one_or_none()
             off_statuses = (t_obj.ai_off_statuses if t_obj and t_obj.ai_off_statuses else ["qualificado", "desqualificado", "matriculado", "perdido"])
-            if req.lead_status in off_statuses and contact.ai_active:
+            _ai_on = _ccs.ai_active if _ccs else contact.ai_active
+            if req.lead_status in off_statuses and _ai_on:
+                # Escrita dupla: desligar IA no Contact e no estado por canal
                 contact.ai_active = False
+                if _ccs:
+                    _ccs.ai_active = False
                 print(f"🤖 IA desligada para {wa_id} (movido para {req.lead_status})")
         except Exception as e:
             print(f"⚠️ Erro ao verificar ai_off_statuses: {e}")
@@ -887,7 +960,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         await notify_all_users(
             db, "status_change",
             f"{contact.name or wa_id} → {req.lead_status}",
-            f"Lead movido de {old_status or 'novo'} para {req.lead_status}",
+            f"Lead movido de {old_status} para {req.lead_status}",
             f"/conversations",
             wa_id,
             tenant_id=tenant_id,
@@ -897,7 +970,10 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         contact.notes = req.notes
         await log_activity(db, wa_id, "note", "Notas atualizadas", tenant_id=tenant_id, contact_id=contact.id if contact else None)
     if req.pipeline_id is not None:
+        # Escrita dupla
         contact.pipeline_id = req.pipeline_id
+        if _ccs:
+            _ccs.pipeline_id = req.pipeline_id
 
     await db.commit()
 

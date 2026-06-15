@@ -134,10 +134,18 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
         contact_wa_id = None
         if to_number:
             phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
+            # Tentar match exato primeiro, fallback pra últimos 8 dígitos
             contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:])).limit(1)
+                select(Contact).where(Contact.wa_id == phone_clean).limit(1)
             )
             contact = contact_result.scalar_one_or_none()
+            if not contact:
+                contact_result = await db.execute(
+                    select(Contact).where(
+                        Contact.wa_id.contains(phone_clean[-8:])
+                    ).order_by(Contact.id.desc()).limit(1)
+                )
+                contact = contact_result.scalar_one_or_none()
             if contact:
                 tenant_id = contact.tenant_id
                 contact_wa_id = contact.wa_id
@@ -188,11 +196,20 @@ async def post_call_webhook(request: Request, db: AsyncSession = Depends(get_db)
             from app.agents.orchestrator.orchestrator import orchestrator, AgentEvent
             
 
-            phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
-            contact_result = await db.execute(
-                select(Contact).where(Contact.wa_id.contains(phone_clean[-8:])).limit(1)
-            )
-            contact = contact_result.scalar_one_or_none()
+            # Reutilizar contact já resolvido acima (match exato + fallback)
+            if not contact and to_number:
+                phone_clean = to_number.replace("+", "").replace("-", "").replace(" ", "")
+                contact_result = await db.execute(
+                    select(Contact).where(Contact.wa_id == phone_clean).limit(1)
+                )
+                contact = contact_result.scalar_one_or_none()
+                if not contact:
+                    contact_result = await db.execute(
+                        select(Contact).where(
+                            Contact.wa_id.contains(phone_clean[-8:])
+                        ).order_by(Contact.id.desc()).limit(1)
+                    )
+                    contact = contact_result.scalar_one_or_none()
 
             if contact:
                 await orchestrator.on_event(
