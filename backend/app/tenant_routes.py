@@ -511,7 +511,8 @@ async def update_reopen_config(
     tenant_id: int = Depends(get_tenant_id),
 ):
     """Salva config de reabertura para uma pipeline específica.
-    Body: { "pipeline_id": <int>, "config": { enabled, from_statuses, to_status, cooldown_days } }
+    Body: { "pipeline_id": <int>, "config": { enabled, from_statuses, to_status, cooldown_seconds } }
+    Aceita cooldown_days como entrada legada (converte para segundos no servidor).
     """
     result = await db.execute(select(Tenant).where(Tenant.id == tenant_id))
     tenant = result.scalar_one_or_none()
@@ -531,10 +532,17 @@ async def update_reopen_config(
     if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline não encontrada neste tenant")
 
+    # Resolver cooldown em segundos (aceita cooldown_seconds ou cooldown_days legado)
+    if "cooldown_seconds" in cfg:
+        cooldown_seconds = cfg["cooldown_seconds"]
+    elif "cooldown_days" in cfg:
+        cooldown_seconds = int(cfg["cooldown_days"]) * 86400
+    else:
+        cooldown_seconds = 604800  # 7 dias
+
     # Validação dos campos da config
     from_statuses = cfg.get("from_statuses", [])
     to_status = cfg.get("to_status", "")
-    cooldown = cfg.get("cooldown_days", 7)
     enabled = cfg.get("enabled", False)
 
     if enabled:
@@ -544,8 +552,8 @@ async def update_reopen_config(
             raise HTTPException(status_code=422, detail="to_status é obrigatório")
         if to_status in from_statuses:
             raise HTTPException(status_code=422, detail="to_status não pode estar em from_statuses (evita loop)")
-        if not isinstance(cooldown, int) or cooldown < 0:
-            raise HTTPException(status_code=422, detail="cooldown_days deve ser inteiro >= 0")
+        if not isinstance(cooldown_seconds, int) or cooldown_seconds < 0:
+            raise HTTPException(status_code=422, detail="cooldown_seconds deve ser inteiro >= 0")
 
         # Validar que os status existem nas colunas DESTA pipeline
         col_keys = [c["key"] for c in (pipeline.columns or [])]
@@ -562,7 +570,7 @@ async def update_reopen_config(
         "enabled": enabled,
         "from_statuses": from_statuses,
         "to_status": to_status,
-        "cooldown_days": cooldown,
+        "cooldown_seconds": cooldown_seconds,
     }
     tenant.reopen_config = all_cfg
     flag_modified(tenant, "reopen_config")

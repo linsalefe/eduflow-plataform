@@ -554,20 +554,23 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                     if _cfg.get("enabled"):
                                         _from_sts = _cfg.get("from_statuses", [])
                                         _to_st = _cfg.get("to_status", "novo")
-                                        _cooldown = _cfg.get("cooldown_days", 7)
+                                        # Suporta cooldown_seconds (novo) e cooldown_days (legado)
+                                        _cooldown_secs = _cfg.get("cooldown_seconds")
+                                        if _cooldown_secs is None:
+                                            _cooldown_secs = _cfg.get("cooldown_days", 7) * 86400
                                         _cur_status = _ccs.lead_status or "novo"
 
                                         if (
                                             _cur_status in _from_sts
                                             and _cur_status != _to_st  # guard anti-loop
                                         ):
-                                            # Checar cooldown
+                                            # Checar cooldown em segundos
                                             _should_reopen = False
                                             if _prev_last_inbound is None:
                                                 _should_reopen = True
                                             else:
-                                                _days_since = (_now_sp - _prev_last_inbound).days
-                                                _should_reopen = _days_since >= _cooldown
+                                                _elapsed_secs = (_now_sp - _prev_last_inbound).total_seconds()
+                                                _should_reopen = _elapsed_secs >= _cooldown_secs
 
                                             if _should_reopen:
                                                 _old_status = _cur_status
@@ -583,7 +586,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                                         tenant_id=tenant_id,
                                                         contact_id=contact.id,
                                                         type="reabertura_automatica",
-                                                        description=f"Lead reaberto: {_old_status} → {_to_st} (canal {channel_id}, pipeline {_pip_id}, após {_cooldown}+ dias sem contato)",
+                                                        description=f"Lead reaberto: {_old_status} → {_to_st} (canal {channel_id}, pipeline {_pip_id}, cooldown {_cooldown_secs}s)",
                                                     )
                                                     db.add(_act)
                                                 except Exception as _ae:

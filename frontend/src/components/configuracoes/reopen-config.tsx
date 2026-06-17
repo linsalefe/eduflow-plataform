@@ -33,15 +33,42 @@ interface ReopenConfig {
   enabled: boolean;
   from_statuses: string[];
   to_status: string;
-  cooldown_days: number;
+  cooldown_seconds: number;
 }
 
 const EMPTY_CONFIG: ReopenConfig = {
   enabled: false,
   from_statuses: [],
   to_status: '',
-  cooldown_days: 7,
+  cooldown_seconds: 604800,
 };
+
+const UNIT_OPTIONS = [
+  { value: '1', label: 'segundos' },
+  { value: '60', label: 'minutos' },
+  { value: '3600', label: 'horas' },
+  { value: '86400', label: 'dias' },
+] as const;
+
+/** Decomposes seconds into the largest exact unit, falling back to seconds. */
+function decompose(totalSeconds: number): { value: number; factor: number } {
+  if (totalSeconds === 0) return { value: 0, factor: 86400 };
+  for (const f of [86400, 3600, 60]) {
+    if (totalSeconds % f === 0) return { value: totalSeconds / f, factor: f };
+  }
+  return { value: totalSeconds, factor: 1 };
+}
+
+function unitLabel(factor: number, n: number): string {
+  const map: Record<number, [string, string]> = {
+    1: ['segundo', 'segundos'],
+    60: ['minuto', 'minutos'],
+    3600: ['hora', 'horas'],
+    86400: ['dia', 'dias'],
+  };
+  const [singular, plural] = map[factor] || ['segundo', 'segundos'];
+  return n === 1 ? singular : plural;
+}
 
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
@@ -60,9 +87,20 @@ export function PipelineContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // UI-only state for the cooldown input
+  const [cdValue, setCdValue] = useState(7);
+  const [cdFactor, setCdFactor] = useState(86400);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  /** Sync cdValue/cdFactor from a config's cooldown_seconds */
+  const applyCooldown = (cfg: ReopenConfig) => {
+    const { value, factor } = decompose(cfg.cooldown_seconds);
+    setCdValue(value);
+    setCdFactor(factor);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -78,11 +116,12 @@ export function PipelineContent() {
       const cfgs = cfgRes.data || {};
       setAllConfigs(cfgs);
 
-      // Select default pipeline
       const def = sorted.find((p: PipelineInfo) => p.is_default) || sorted[0];
       if (def) {
         setActivePipeline(def);
-        setConfig({ ...EMPTY_CONFIG, ...(cfgs[String(def.id)] || {}) });
+        const merged = { ...EMPTY_CONFIG, ...(cfgs[String(def.id)] || {}) };
+        setConfig(merged);
+        applyCooldown(merged);
       }
     } catch {
       toast.error('Erro ao carregar configuracao');
@@ -93,7 +132,9 @@ export function PipelineContent() {
 
   const switchPipeline = (p: PipelineInfo) => {
     setActivePipeline(p);
-    setConfig({ ...EMPTY_CONFIG, ...(allConfigs[String(p.id)] || {}) });
+    const merged = { ...EMPTY_CONFIG, ...(allConfigs[String(p.id)] || {}) };
+    setConfig(merged);
+    applyCooldown(merged);
   };
 
   const handleSave = async () => {
@@ -110,9 +151,10 @@ export function PipelineContent() {
     }
     setSaving(true);
     try {
+      const cooldown_seconds = cdValue * cdFactor;
       const res = await api.patch('/tenant/reopen-config', {
         pipeline_id: activePipeline.id,
-        config,
+        config: { ...config, cooldown_seconds },
       });
       setAllConfigs(res.data.reopen_config || {});
       toast.success('Configuracao salva');
@@ -154,6 +196,13 @@ export function PipelineContent() {
   const columns = activePipeline
     ? [...(activePipeline.columns || [])].sort((a, b) => a.order - b.order)
     : [];
+
+  // Summary phrase
+  const totalSeconds = cdValue * cdFactor;
+  const summaryPhrase =
+    totalSeconds === 0
+      ? 'Reabre assim que o cliente mandar qualquer mensagem.'
+      : `Reabre ${cdValue} ${unitLabel(cdFactor, cdValue)} apos a ultima mensagem do cliente.`;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -302,7 +351,7 @@ export function PipelineContent() {
               </Select>
             </div>
 
-            {/* Cooldown */}
+            {/* Cooldown — number + unit selector */}
             <div>
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                 So reabrir apos
@@ -311,20 +360,31 @@ export function PipelineContent() {
                 <Input
                   type="number"
                   min={0}
-                  max={365}
-                  value={config.cooldown_days}
-                  onChange={(e) =>
-                    setConfig((p) => ({
-                      ...p,
-                      cooldown_days: Math.max(0, parseInt(e.target.value) || 0),
-                    }))
-                  }
+                  step={1}
+                  value={cdValue}
+                  onChange={(e) => setCdValue(Math.max(0, parseInt(e.target.value) || 0))}
                   className="w-24 h-9"
                 />
-                <span className="text-[13px] text-muted-foreground">
-                  dias sem contato
-                </span>
+                <Select
+                  value={String(cdFactor)}
+                  onValueChange={(v) => setCdFactor(Number(v))}
+                >
+                  <SelectTrigger className="w-36 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {UNIT_OPTIONS.map((u) => (
+                      <SelectItem key={u.value} value={u.value}>
+                        {u.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-[13px] text-muted-foreground">sem contato</span>
               </div>
+              <p className="text-[13px] font-medium text-foreground mt-2">
+                {summaryPhrase}
+              </p>
             </div>
 
             {/* Save */}

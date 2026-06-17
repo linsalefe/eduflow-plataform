@@ -500,7 +500,7 @@ class Tenant(Base):
     ai_off_statuses = Column(JSON, default=["qualificado", "desqualificado", "matriculado", "perdido"])
     ai_off_statuses = Column(JSON, default=["qualificado", "desqualificado", "matriculado", "perdido"])
     reengagement_config = Column(JSON, default={})
-    reopen_config = Column(JSONB, default={})
+    reopen_config = Column(JSONB, default={})  # per-pipeline: { cooldown_seconds, enabled, from_statuses, to_status }
     monthly_goal = Column(Float, default=0)
     monthly_lead_goal = Column(Integer, default=0)
     monthly_schedule_goal = Column(Integer, default=0)
