@@ -444,7 +444,9 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                     )
                     contact = contact_result.scalar_one_or_none()
 
+                    _is_new_contact = False
                     if not contact:
+                        _is_new_contact = True
                         from datetime import datetime, timezone, timedelta
                         SP_TZ = timezone(timedelta(hours=-3))
 
@@ -497,19 +499,7 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                         )
                         db.add(contact)
                         await db.flush()
-                        # Criar estado por canal para o novo contato
-                        if contact.id and channel_id:
-                            _new_ccs = ContactChannelState(
-                                tenant_id=tenant_id,
-                                contact_id=contact.id,
-                                channel_id=channel_id,
-                                pipeline_id=_pipeline_id,
-                                lead_status="novo",
-                                ai_active=False if is_group else True,
-                                last_inbound_at=datetime.now(SP_TZ).replace(tzinfo=None),
-                                reengagement_count=0,
-                            )
-                            db.add(_new_ccs)
+                        # Estado por canal será criado abaixo por get_or_create_channel_state
                         print(f"👤 Novo contato: {sender_name} ({contact_phone})")
                     # Atualizar last_inbound_at para reengajamento
                     if not from_me:
@@ -524,6 +514,10 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
                                 db, tenant_id=tenant_id,
                                 contact_id=contact.id, channel_id=channel_id,
                             )
+                            # Novo contato não-grupo: IA ativa por padrão
+                            if _is_new_contact and not is_group:
+                                _ccs.ai_active = True
+
                             # Guardar last_inbound anterior (base do cooldown de reabertura)
                             _prev_last_inbound = _ccs.last_inbound_at
 
