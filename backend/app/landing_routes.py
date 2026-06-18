@@ -384,6 +384,8 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
 
     if not contact:
         extra_data = data.get("extra", {}) or {}
+        nome_responsavel = (extra_data.get("nome_responsavel") or "").strip()
+        contact_name = nome_responsavel or data.get("name", "")
         notes_data = {
             "course": data.get("course", ""),
             "source": "landing_page",
@@ -396,7 +398,7 @@ async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db))
         contact = Contact(
             tenant_id=page.tenant_id,
             wa_id=phone_clean,
-            name=data.get("name", ""),
+            name=contact_name,
             lead_status=target_stage,
             channel_id=page.channel_id,
             pipeline_id=new_pipeline_id,
