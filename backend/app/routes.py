@@ -716,12 +716,38 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         for ccs in ccs_result.scalars().all():
             ccs_map[ccs.contact_id] = ccs
 
+    # Batch: nomes dos responsáveis (assigned_to → User.name)
+    assigned_ids = set()
+    for c in contacts:
+        _ccs = ccs_map.get(c.id)
+        uid = _ccs.assigned_to if _ccs else c.assigned_to
+        if uid:
+            assigned_ids.add(uid)
+    users_map: dict[int, str] = {}
+    if assigned_ids:
+        from app.models import User
+        users_result = await db.execute(
+            select(User.id, User.name).where(User.id.in_(list(assigned_ids)))
+        )
+        for uid, uname in users_result.all():
+            users_map[uid] = uname or ""
+
+    def _initials(name: str) -> str:
+        parts = name.strip().split()
+        if not parts:
+            return "?"
+        if len(parts) == 1:
+            return parts[0][0].upper()
+        return (parts[0][0] + parts[-1][0]).upper()
+
     # Montar resposta
     contacts_list = []
     for c in contacts:
         last_msg = last_msgs.get(c.id)
         # Se temos estado por canal, usar; senão fallback ao Contact legado
         _ccs = ccs_map.get(c.id)
+        _assigned_id = _ccs.assigned_to if _ccs else c.assigned_to
+        _assigned_name = users_map.get(_assigned_id, "") if _assigned_id else ""
         contacts_list.append({
             "id": c.id,
             "wa_id": c.wa_id,
@@ -736,7 +762,9 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "unread": unread_map.get(c.id, 0),
             "ai_active": (_ccs.ai_active if _ccs else c.ai_active) or False,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
-            "assigned_to": _ccs.assigned_to if _ccs else c.assigned_to,
+            "assigned_to": _assigned_id,
+            "assigned_to_name": _assigned_name or None,
+            "assigned_to_initials": _initials(_assigned_name) if _assigned_name else None,
             "pipeline_id": _ccs.pipeline_id if _ccs else c.pipeline_id,
             "deal_value": float(_ccs.deal_value) if _ccs and _ccs.deal_value else (float(c.deal_value) if c.deal_value else 0),
             "profile_picture_url": c.profile_picture_url,

@@ -1,7 +1,7 @@
 'use client';
 
 import { Droppable, Draggable } from '@hello-pangea/dnd';
-import { KanbanCard, Lead } from './kanban-card';
+import { KanbanCard, Lead, Density } from './kanban-card';
 import { LucideIcon, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -13,6 +13,7 @@ interface KanbanColumnProps {
   leads: Lead[];
   onCardClick: (lead: Lead) => void;
   index?: number;
+  density?: Density;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -24,6 +25,9 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
 export function KanbanColumn({
   columnKey,
   label,
@@ -32,10 +36,13 @@ export function KanbanColumn({
   leads,
   onCardClick,
   index = 0,
+  density = 'detailed',
 }: KanbanColumnProps) {
+  const totalValue = leads.reduce((sum, l) => sum + (l.deal_value || 0), 0);
+
   return (
     <motion.div
-      className="min-w-[260px] w-[260px] flex-shrink-0 flex flex-col h-full"
+      className="min-w-[280px] w-[280px] flex-shrink-0 flex flex-col h-full"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -44,10 +51,10 @@ export function KanbanColumn({
         ease: [0.25, 0.46, 0.45, 0.94],
       }}
     >
-      {/* Column Header */}
-      <div className="px-3.5 py-2.5 rounded-xl mb-2 bg-muted/50 border border-border/40">
+      {/* Column Header — fixed */}
+      <div className="px-3.5 py-2.5 rounded-xl mb-2 bg-muted/50 border border-border/40 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div
               className="w-[6px] h-[6px] rounded-full flex-shrink-0"
               style={{ backgroundColor: color }}
@@ -56,13 +63,23 @@ export function KanbanColumn({
               {label}
             </span>
           </div>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {leads.length}
-          </span>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[11px] text-muted-foreground tabular-nums">
+              {leads.length}
+            </span>
+            {totalValue > 0 && (
+              <>
+                <span className="text-[10px] text-muted-foreground/50">·</span>
+                <span className="text-[10px] font-medium text-emerald-600 tabular-nums whitespace-nowrap">
+                  {formatBRL(totalValue)}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Drop Zone */}
+      {/* Drop Zone — scrollable */}
       <Droppable droppableId={columnKey}>
         {(provided, snapshot) => (
           <div
@@ -106,6 +123,7 @@ export function KanbanColumn({
                       color={color}
                       onClick={() => onCardClick(lead)}
                       isDragging={snapshot.isDragging}
+                      density={density}
                     />
                   </div>
                 )}

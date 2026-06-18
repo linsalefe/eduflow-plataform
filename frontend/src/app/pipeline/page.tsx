@@ -5,7 +5,7 @@ import {
   Users, UserPlus, MessageCircle, CheckCircle, XCircle,
   RefreshCw, Search, Sparkles, FileText, Settings2,
   GripVertical, Trash2, Plus, X, Save, AlertTriangle, Loader2,
-  MoreVertical, Check, Tag as TagIcon,
+  MoreVertical, Check, Tag as TagIcon, LayoutGrid, List,
 } from 'lucide-react';
 import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { motion } from 'framer-motion';
@@ -23,7 +23,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { KanbanColumn } from '@/components/pipeline/kanban-column';
-import { KanbanCard, Lead } from '@/components/pipeline/kanban-card';
+import { KanbanCard, Lead, Density } from '@/components/pipeline/kanban-card';
 import { LeadDetailSheet } from '@/components/pipeline/lead-detail-sheet';
 import { KanbanSkeleton } from '@/components/skeletons/kanban-skeleton';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -84,6 +84,7 @@ interface ChannelOption {
   name: string;
 }
 
+const DENSITY_STORAGE_KEY = 'eduflow:pipeline:density';
 const FILTERS_STORAGE_KEY = 'eduflow:pipeline:filters';
 const DEFAULT_FILTERS: FilterState = {
   tagIds: [],
@@ -112,6 +113,9 @@ export default function PipelinePage() {
   const [newPipelineName, setNewPipelineName] = useState('');
   const [savingPipeline, setSavingPipeline] = useState(false);
   const [showPipelineMenu, setShowPipelineMenu] = useState(false);
+
+  // === Densidade ===
+  const [density, setDensity] = useState<Density>('detailed');
 
   // === Filtros ===
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
@@ -193,6 +197,19 @@ export default function PipelinePage() {
       // ignore quota errors
     }
   }, [filters]);
+
+  // Load density from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DENSITY_STORAGE_KEY);
+      if (saved === 'compact' || saved === 'detailed') setDensity(saved);
+    } catch {}
+  }, []);
+
+  // Persist density
+  useEffect(() => {
+    try { localStorage.setItem(DENSITY_STORAGE_KEY, density); } catch {}
+  }, [density]);
 
   // Load channels for filter dropdown
   useEffect(() => {
@@ -351,7 +368,7 @@ export default function PipelinePage() {
 
   return (
     <AppShell>
-      <div className="flex-1 overflow-hidden flex flex-col" data-density="medium">
+      <div className="flex-1 overflow-hidden flex flex-col" data-density={density}>
         {/* Header */}
         <div className="px-4 lg:px-6 py-4 border-b border-border bg-card flex-shrink-0">
           <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
@@ -378,6 +395,26 @@ export default function PipelinePage() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
+              </div>
+              <div className="flex items-center rounded-lg border border-border overflow-hidden h-9">
+                <button
+                  onClick={() => setDensity('compact')}
+                  className={`px-2.5 h-full flex items-center justify-center transition-colors ${
+                    density === 'compact' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                  title="Compacto"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setDensity('detailed')}
+                  className={`px-2.5 h-full flex items-center justify-center transition-colors ${
+                    density === 'detailed' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                  title="Detalhado"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
               </div>
               <Button
                 variant="outline"
@@ -625,6 +662,7 @@ export default function PipelinePage() {
                       leads={getLeadsByStatus(col.key)}
                       onCardClick={setSelectedLead}
                       index={i}
+                      density={density}
                     />
                   );
                 })}

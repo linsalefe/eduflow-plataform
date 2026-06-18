@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Sparkles, MessageCircle } from 'lucide-react';
+import { Clock, Sparkles, User } from 'lucide-react';
 
 interface Tag {
   id: number;
@@ -19,13 +19,20 @@ export interface Lead {
   updated_at: string;
   tags: Tag[];
   pipeline_id: number | null;
+  deal_value?: number;
+  assigned_to_name?: string | null;
+  assigned_to_initials?: string | null;
+  profile_picture_url?: string | null;
 }
+
+export type Density = 'compact' | 'detailed';
 
 interface KanbanCardProps {
   lead: Lead;
   color: string;
   onClick: () => void;
   isDragging?: boolean;
+  density?: Density;
 }
 
 function getRelativeTime(d: string): string {
@@ -58,15 +65,10 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function sanitizeNotes(notes: string | null): string | null {
-  if (!notes) return null;
-  const trimmed = notes.trim();
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) return null;
-  if (trimmed.length < 3) return null;
-  return trimmed;
-}
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
-export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanCardProps) {
+export function KanbanCard({ lead, color, onClick, isDragging = false, density = 'detailed' }: KanbanCardProps) {
   const time = lead.updated_at
     ? getRelativeTime(lead.updated_at)
     : lead.created_at
@@ -74,9 +76,11 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
     : '';
 
   const initials = getInitials(lead.name);
-  const visibleTags = lead.tags?.slice(0, 2) ?? [];
+  const isDetailed = density === 'detailed';
+  const visibleTags = isDetailed ? (lead.tags?.slice(0, 4) ?? []) : [];
   const extraTags = (lead.tags?.length ?? 0) - visibleTags.length;
-  const notes = sanitizeNotes(lead.notes);
+  const hasDealValue = isDetailed && lead.deal_value && lead.deal_value > 0;
+  const hasAssigned = isDetailed && lead.assigned_to_name;
 
   return (
     <div
@@ -87,15 +91,26 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
           : 'hover:shadow-md hover:-translate-y-0.5'
       }`}
     >
-      <div className="p-3 space-y-2.5">
-        {/* Row 1: Avatar + Name + Time */}
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-medium"
+      <div className="p-3 space-y-2">
+        {/* Row 1: Avatar + Name + Value/Time */}
+        <div className="flex items-start gap-2.5">
+          {/* Avatar */}
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center text-[11px] font-medium"
             style={{ background: '#E6F1FB', color: '#0C447C' }}
           >
-            {initials}
+            {lead.profile_picture_url ? (
+              <img
+                src={lead.profile_picture_url}
+                alt={lead.name}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.textContent = initials; }}
+              />
+            ) : (
+              initials
+            )}
           </div>
+
+          {/* Name + time */}
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-gray-900 truncate" title={lead.name || 'Sem nome'}>
               {lead.name || 'Sem nome'}
@@ -107,27 +122,29 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
               </span>
             )}
           </div>
-          {lead.ai_active && (
-            <div
-              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-muted"
-              title="IA ativa"
-            >
-              <Sparkles className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] font-medium text-muted-foreground">IA</span>
-            </div>
-          )}
+
+          {/* Deal value (detailed only) or AI badge */}
+          <div className="flex-shrink-0 flex items-center gap-1.5">
+            {hasDealValue && (
+              <span className="text-[11px] font-semibold text-emerald-600 whitespace-nowrap">
+                {formatBRL(lead.deal_value!)}
+              </span>
+            )}
+            {lead.ai_active && (
+              <div
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted"
+                title="IA ativa"
+              >
+                <Sparkles className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] font-medium text-muted-foreground">IA</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Row 2: Notes */}
-        {notes && (
-          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 pl-[42px]">
-            {notes}
-          </p>
-        )}
-
-        {/* Row 3: Tags */}
+        {/* Row 2: Tags (detailed only) */}
         {visibleTags.length > 0 && (
-          <div className="flex items-center gap-1.5 pl-[42px]">
+          <div className="flex items-center gap-1.5 pl-[42px] flex-wrap">
             {visibleTags.map((tag) => (
               <span
                 key={tag.id}
@@ -143,6 +160,20 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
             {extraTags > 0 && (
               <span className="text-[10px] text-gray-400">+{extraTags}</span>
             )}
+          </div>
+        )}
+
+        {/* Row 3: Footer — Assigned + AI badge (detailed only) */}
+        {hasAssigned && (
+          <div className="flex items-center justify-between pl-[42px]">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[9px] font-semibold">
+                {lead.assigned_to_initials || '?'}
+              </div>
+              <span className="text-[10px] text-gray-500 truncate">
+                {lead.assigned_to_name}
+              </span>
+            </div>
           </div>
         )}
       </div>
