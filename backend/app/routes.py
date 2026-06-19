@@ -965,7 +965,7 @@ async def update_contact(wa_id: str, req: UpdateContactRequest, db: AsyncSession
         except Exception as e:
             print(f"⚠️ Erro ao verificar ai_off_statuses: {e}")
         from app.automation_scheduler import trigger_automations_for_contact, cancel_automations_for_contact
-        await cancel_automations_for_contact(wa_id, db)
+        await cancel_automations_for_contact(wa_id, db, tenant_id=tenant_id)
         await trigger_automations_for_contact(wa_id, req.lead_status, tenant_id, db, pipeline_id=contact.pipeline_id)
         # Kanban triggers → orquestrador
         try:

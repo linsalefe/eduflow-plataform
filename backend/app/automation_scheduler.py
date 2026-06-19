@@ -101,7 +101,7 @@ async def cancel_automations_for_contact(contact_wa_id: str, db: AsyncSession, t
     _cq = select(Contact).where(Contact.wa_id == contact_wa_id)
     if tenant_id:
         _cq = _cq.where(Contact.tenant_id == tenant_id)
-    ct = (await db.execute(_cq)).scalar_one_or_none()
+    ct = (await db.execute(_cq)).scalars().first()
     if not ct:
         logger.warning(f"⚠️ Contact não encontrado para wa_id={contact_wa_id} — nada a cancelar")
         return
