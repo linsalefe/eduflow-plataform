@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 from app.models import Channel, Contact, Message, Schedule, AIConfig, KnowledgeDocument, AIConversationSummary, CallLog, LandingPage, FormSubmission, ContactChannelState
 from app.evolution import client
 from app.channel_state import get_or_create_channel_state
+from app.phone_utils import find_contact_by_phone
 
 
 router = APIRouter(prefix="/api/evolution", tags=["Evolution API"])
@@ -433,16 +434,10 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Para mensagens outbound (from_me=True), apenas buscar o contato existente
                 if from_me and not is_group:
-                    _outbound_contact = await db.execute(
-                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
-                    )
-                    contact = _outbound_contact.scalar_one_or_none()
+                    contact = await find_contact_by_phone(db, tenant_id, contact_phone)
                 # Criar ou atualizar contato (só pra mensagens recebidas)
                 if not from_me:
-                    contact_result = await db.execute(
-                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
-                    )
-                    contact = contact_result.scalar_one_or_none()
+                    contact = await find_contact_by_phone(db, tenant_id, contact_phone)
 
                     _is_new_contact = False
                     if not contact:
@@ -674,14 +669,11 @@ async def webhook(instance_name: str, request: Request, db: AsyncSession = Depen
 
                 # Atualizar updated_at do contato
                 if not from_me:
-                    contact_update = await db.execute(
-                        select(Contact).where(Contact.wa_id == contact_phone, Contact.tenant_id == tenant_id)
-                    )
-                    ct = contact_update.scalar_one_or_none()
+                    ct = await find_contact_by_phone(db, tenant_id, contact_phone)
                     if ct:
                         ct.updated_at = msg_time
                         from app.automation_scheduler import cancel_automations_for_contact
-                        await cancel_automations_for_contact(contact_phone, db, tenant_id=tenant_id)
+                        await cancel_automations_for_contact(ct.wa_id, db, tenant_id=tenant_id)
 
                 print(f"💬 {'📤' if from_me else '📥'} [{instance_name}] {sender_name} ({contact_phone}): {text[:100]}")
 

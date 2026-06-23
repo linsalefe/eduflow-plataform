@@ -16,35 +16,12 @@ UPLOAD_DIR = pathlib.Path("uploads/lp")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _clean_phone_br(raw: str) -> str:
-    """Remove caracteres de formatação e garante prefixo BR (55)."""
-    if not raw:
-        return ""
-    cleaned = raw.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-    if cleaned and not cleaned.startswith("55"):
-        cleaned = "55" + cleaned
-    return cleaned
-
-
-def _phone_variants_br(clean: str) -> list:
-    """Retorna variações do telefone BR: com e sem o 9º dígito.
-
-    - 13 dígitos (55 + DDD + 9 + 8): também retorna versão sem o 9
-    - 12 dígitos (55 + DDD + 8):     também retorna versão com o 9
-    - outros tamanhos: retorna só o original
-    """
-    if not clean:
-        return []
-    variants = [clean]
-    if len(clean) == 13 and clean.startswith("55"):
-        ddd = clean[2:4]
-        rest = clean[5:]  # pula o 9
-        variants.append(f"55{ddd}{rest}")
-    elif len(clean) == 12 and clean.startswith("55"):
-        ddd = clean[2:4]
-        rest = clean[4:]
-        variants.append(f"55{ddd}9{rest}")
-    return variants
+# Lógica de telefone BR centralizada em app/phone_utils.py (evita divergência
+# entre formulário e webhook — causa raiz da duplicação de contatos).
+from app.phone_utils import (
+    clean_phone_br as _clean_phone_br,
+    phone_variants_br as _phone_variants_br,
+)
 
 
 router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
