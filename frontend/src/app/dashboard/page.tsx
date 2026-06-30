@@ -148,10 +148,7 @@ export default function DashboardPage() {
               <>
                 <JarvisHeroCard />
 
-                <FunnelHero
-                  statusCounts={stats.status_counts}
-                  totalContacts={stats.total_contacts}
-                />
+                <FunnelHero />
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   <KPICard label="Total de contatos" value={stats.total_contacts} index={0} />

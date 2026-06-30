@@ -352,6 +352,48 @@ async def dashboard_stats(channel_id: Optional[int] = None, db: AsyncSession = D
     }
 
 
+@router.get("/dashboard/funnel")
+async def dashboard_funnel(
+    pipeline_id: Optional[int] = None,
+    db: AsyncSession = Depends(get_db),
+    tenant_id: int = Depends(get_tenant_id),
+):
+    """Breakdown do funil por estágio (lead_status), coerente com o Kanban sem
+    canal selecionado: conta Contact e soma deal_value, filtrando por
+    Contact.pipeline_id quando informado. Retorna contagem + valor por status."""
+    filters = [Contact.tenant_id == tenant_id]
+    if pipeline_id:
+        filters.append(Contact.pipeline_id == pipeline_id)
+
+    result = await db.execute(
+        select(
+            Contact.lead_status,
+            func.count(Contact.id),
+            func.coalesce(func.sum(Contact.deal_value), 0),
+        )
+        .where(*filters)
+        .group_by(Contact.lead_status)
+    )
+
+    stages: dict[str, dict] = {}
+    total_count = 0
+    total_value = 0.0
+    for status, count, value in result.all():
+        key = status or "novo"
+        c = int(count or 0)
+        v = float(value or 0)
+        stages[key] = {"count": c, "value": v}
+        total_count += c
+        total_value += v
+
+    return {
+        "pipeline_id": pipeline_id,
+        "stages": stages,
+        "total_count": total_count,
+        "total_value": total_value,
+    }
+
+
 # === Envio de Mensagens ===
 
 async def get_channel(channel_id: int, db: AsyncSession, tenant_id: int) -> Channel:
