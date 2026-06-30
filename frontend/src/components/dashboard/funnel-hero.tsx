@@ -18,7 +18,18 @@ interface FunnelData {
 }
 
 const STORAGE_KEY = 'eduflow:dashboard:funnel:pipeline';
-const WON_KEYS = new Set(['convertido', 'matriculado', 'ganho', 'vendido', 'fechado', 'venda', 'won']);
+
+// Classificação por nome (heurística v1). O tipo explícito por coluna vem no próximo passo.
+const LOST_HINTS = ['perdido', 'perdida', 'desqualific', 'descartad', 'cancelad', 'recusad', 'lost'];
+const WON_HINTS = ['convertido', 'fechado', 'ganho', 'ganha', 'matriculad', 'vendid', 'venda', 'won'];
+
+type StageType = 'active' | 'won' | 'lost';
+function classify(key: string): StageType {
+  const k = (key || '').toLowerCase();
+  if (LOST_HINTS.some((h) => k.includes(h))) return 'lost';
+  if (WON_HINTS.some((h) => k.includes(h))) return 'won';
+  return 'active';
+}
 
 const brl = (n: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(n || 0);
@@ -56,15 +67,29 @@ export function FunnelHero() {
       .catch(() => setData(null));
   }, [selected]);
 
-  const columns = useMemo(
+  const cols = useMemo(
     () => (selected?.columns ? [...selected.columns].sort((a, b) => a.order - b.order) : []),
     [selected]
   );
 
-  const total = data?.total_count ?? 0;
-  const wonCol = columns.find((c) => WON_KEYS.has(c.key.toLowerCase()));
-  const wonCount = wonCol ? (data?.stages?.[wonCol.key]?.count ?? 0) : 0;
-  const conversion = wonCol && total > 0 ? ((wonCount / total) * 100).toFixed(1) : null;
+  const all = cols.map((c) => ({
+    ...c,
+    type: classify(c.key),
+    count: data?.stages?.[c.key]?.count ?? 0,
+    value: data?.stages?.[c.key]?.value ?? 0,
+  }));
+  const active = all.filter((s) => s.type === 'active');
+  const won = all.filter((s) => s.type === 'won');
+  const lost = all.filter((s) => s.type === 'lost');
+
+  const activeTotal = active.reduce((s, x) => s + x.count, 0);
+  const wonTotal = won.reduce((s, x) => s + x.count, 0);
+  const lostTotal = lost.reduce((s, x) => s + x.count, 0);
+  const closedTotal = wonTotal + lostTotal;
+  const maxActive = Math.max(1, ...active.map((s) => s.count));
+  const decided = wonTotal + lostTotal;
+  const winRate = decided > 0 ? ((wonTotal / decided) * 100).toFixed(1) : null;
+  const hasValue = (data?.total_value ?? 0) > 0;
 
   const onChange = (v: string) => {
     const p = pipelines.find((x) => String(x.id) === v);
@@ -81,11 +106,12 @@ export function FunnelHero() {
       transition={{ duration: 0.3 }}
       className="bg-card border border-border/60 rounded-xl p-4 lg:p-5"
     >
-      <div className="flex items-start justify-between gap-3 mb-3">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <h2 className="text-[16px] font-medium text-foreground">Funil de vendas</h2>
           <p className="text-[12px] text-muted-foreground mt-0.5">
-            {total} leads · {brl(data?.total_value ?? 0)}
+            {activeTotal} ativos · {closedTotal} encerrados{hasValue ? ` · ${brl(data?.total_value ?? 0)}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -111,41 +137,67 @@ export function FunnelHero() {
       </div>
 
       {loading || !selected ? (
-        <div className="h-[88px] rounded-lg bg-muted/40 animate-pulse" />
-      ) : columns.length === 0 ? (
+        <div className="space-y-2">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-6 rounded bg-muted/40 animate-pulse" />)}
+        </div>
+      ) : active.length === 0 && closedTotal === 0 ? (
         <p className="text-[13px] text-muted-foreground py-6 text-center">
-          Esse funil ainda não tem colunas configuradas.
+          Esse funil ainda não tem leads.
         </p>
       ) : (
         <>
-          <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}
-          >
-            {columns.map((col) => {
-              const count = data?.stages?.[col.key]?.count ?? 0;
-              const value = data?.stages?.[col.key]?.value ?? 0;
-              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-              return (
-                <div key={col.key} className="rounded-lg p-3 bg-background-secondary/40 border border-border/50">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
-                    <p className="text-[11px] leading-none text-muted-foreground truncate">{col.label}</p>
+          {/* Funil ativo: barras proporcionais, na ordem do funil */}
+          {active.length > 0 ? (
+            <div className="space-y-2">
+              {active.map((s) => {
+                const pct = activeTotal > 0 ? Math.round((s.count / activeTotal) * 100) : 0;
+                const width = (s.count / maxActive) * 100;
+                return (
+                  <div key={s.key} className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                    <span className="text-[12px] text-foreground w-28 lg:w-36 truncate flex-shrink-0">{s.label}</span>
+                    <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden min-w-[40px]">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${width}%`, backgroundColor: s.color, opacity: 0.85 }}
+                      />
+                    </div>
+                    <span className="text-[13px] font-medium tabular-nums text-foreground w-10 text-right flex-shrink-0">{s.count}</span>
+                    {hasValue && (
+                      <span className="text-[11px] tabular-nums text-muted-foreground w-20 text-right flex-shrink-0 hidden sm:inline">{brl(s.value)}</span>
+                    )}
+                    <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right flex-shrink-0">{pct}%</span>
                   </div>
-                  <p className="text-[24px] font-medium leading-none tabular-nums text-foreground">{count}</p>
-                  <p className="text-[11px] mt-1.5 leading-none text-muted-foreground tabular-nums">{brl(value)}</p>
-                  <p className="text-[10px] mt-1 leading-none text-muted-foreground/70">{pct}%</p>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[12px] text-muted-foreground py-2">Nenhum lead em estágio ativo.</p>
+          )}
 
-          {conversion !== null && (
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/60">
-              <span className="text-[12px] text-muted-foreground">Taxa de conversão</span>
-              <span className="text-[13px] font-medium tabular-nums">
-                {conversion}% · {wonCount} de {total}
-              </span>
+          {/* Encerrados: ganhos + perdidos, compactos e apagados */}
+          {closedTotal > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/60">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Encerrados</span>
+                {winRate !== null && (
+                  <span className="text-[12px] text-muted-foreground">
+                    Taxa de ganho · <span className="font-medium text-foreground tabular-nums">{winRate}%</span> ({wonTotal} de {decided})
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[...won, ...lost].map((s) => (
+                  <span
+                    key={s.key}
+                    className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground bg-muted/40 rounded-md px-2 py-1"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                    <span className="font-medium text-foreground tabular-nums">{s.count}</span>
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </>
