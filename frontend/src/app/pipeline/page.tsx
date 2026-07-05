@@ -351,7 +351,7 @@ export default function PipelinePage() {
 
   return (
     <AppShell>
-      <div className="flex-1 overflow-hidden flex flex-col" data-density="medium">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col" data-density="medium">
         {/* Header */}
         <div className="px-4 lg:px-6 py-4 border-b border-border bg-card flex-shrink-0">
           <div className="flex items-start lg:items-center justify-between gap-3 flex-wrap">
@@ -607,7 +607,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Board */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden p-4 lg:p-6">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden p-4 lg:p-6">
           {loading ? (
             <KanbanSkeleton columns={columns.length} />
           ) : (
