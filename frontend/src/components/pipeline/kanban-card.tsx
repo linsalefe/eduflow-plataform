@@ -81,10 +81,10 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 bg-card border border-border/60 ${
+      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 bg-card border border-border/50 shadow-sm ${
         isDragging
           ? 'opacity-90 scale-[0.97] shadow-xl shadow-black/15 rotate-[1.5deg]'
-          : 'hover:shadow-md hover:-translate-y-0.5'
+          : 'hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40'
       }`}
     >
       <div className="p-3 space-y-2.5">

@@ -35,7 +35,7 @@ export function KanbanColumn({
 }: KanbanColumnProps) {
   return (
     <motion.div
-      className="min-w-[260px] w-[260px] flex-shrink-0 flex flex-col h-full"
+      className="min-w-[260px] w-[260px] flex-shrink-0 flex flex-col h-full bg-muted/50 rounded-2xl"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -45,7 +45,7 @@ export function KanbanColumn({
       }}
     >
       {/* Column Header */}
-      <div className="px-3.5 py-2.5 rounded-xl mb-2 bg-muted/50 border border-border/40">
+      <div className="px-3.5 pt-3 pb-2 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
@@ -56,7 +56,7 @@ export function KanbanColumn({
               {label}
             </span>
           </div>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
+          <span className="bg-card rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground shadow-sm">
             {leads.length}
           </span>
         </div>

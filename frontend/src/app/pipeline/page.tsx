@@ -350,7 +350,7 @@ export default function PipelinePage() {
   const clearFilters = () => setFilters(DEFAULT_FILTERS);
 
   return (
-    <AppShell>
+    <AppShell fullWidth>
       <div className="flex-1 overflow-hidden flex flex-col" data-density="medium">
         {/* Header */}
         <div className="px-4 lg:px-6 py-4 border-b border-border bg-card flex-shrink-0">
@@ -612,7 +612,7 @@ export default function PipelinePage() {
             <KanbanSkeleton columns={columns.length} />
           ) : (
             <DragDropContext onDragEnd={onDragEnd}>
-              <div className="flex gap-3 h-full w-full">
+              <div className="flex gap-4 h-full w-full">
                 {columns.map((col, i) => {
                   const Icon = ICON_MAP[col.key] || Users;
                   return (
