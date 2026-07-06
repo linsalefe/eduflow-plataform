@@ -336,8 +336,13 @@ export default function PipelinePage() {
     [search, filters]
   );
 
+  // Ordena cada coluna por chegada (created_at DESC, mais novo no topo).
+  // A pipeline nao segue a ordem do /contacts (que e por ultima mensagem, p/ o inbox).
   const getLeadsByStatus = (status: string) =>
-    leads.filter((l) => l.lead_status === status).filter(matchesFilters);
+    leads
+      .filter((l) => l.lead_status === status)
+      .filter(matchesFilters)
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
   const totalFiltered = leads.filter(matchesFilters).length;
 
