@@ -326,14 +326,37 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     }
   }, [activeChannel]);
 
-  // Auto-selecionar contato via query param ?wa_id=
+  // Auto-selecionar contato via query param ?wa_id= — INCLUI contato SEM conversa.
+  // Ref garante que só abre 1x por wa_id (o effect re-dispara a cada poll de contacts).
+  const autoOpenedWaIdRef = useRef<string | null>(null);
   useEffect(() => {
     const waIdParam = searchParams.get('wa_id');
-    if (waIdParam && contacts.length > 0 && !selectedContact) {
-      const found = contacts.find((c) => c.wa_id === waIdParam);
-      if (found) setSelectedContact(found);
+    if (!waIdParam || loading) return;                    // espera a 1ª carga terminar
+    if (autoOpenedWaIdRef.current === waIdParam) return;  // já abrimos esse wa_id
+
+    // Contato COM conversa: já está na lista → seleciona direto.
+    const found = contacts.find((c) => c.wa_id === waIdParam);
+    if (found) {
+      autoOpenedWaIdRef.current = waIdParam;
+      setSelectedContact(found);
+      return;
     }
-  }, [contacts, searchParams]);
+
+    // Contato SEM conversa: busca avulso e abre a conversa vazia.
+    autoOpenedWaIdRef.current = waIdParam;
+    const channelIdParam = searchParams.get('channel_id') || (activeChannel ? String(activeChannel.id) : '');
+    const qs = channelIdParam ? `?channel_id=${channelIdParam}` : '';
+    api.get(`/contacts/${waIdParam}${qs}`)
+      .then((res) => {
+        const c = { ...res.data, unread: 0, last_message: null, last_message_time: null } as Contact;
+        setContacts((prev) => (prev.some((x) => x.wa_id === c.wa_id) ? prev : [c, ...prev]));
+        setSelectedContact(c);
+      })
+      .catch(() => {
+        autoOpenedWaIdRef.current = null;                 // permite nova tentativa se falhou
+        toast.error('Não foi possível abrir a conversa desse contato.');
+      });
+  }, [contacts, searchParams, activeChannel, loading]);
 
   // Carregar mensagens ao selecionar contato
   useEffect(() => {
