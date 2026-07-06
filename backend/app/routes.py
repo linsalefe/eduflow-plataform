@@ -656,7 +656,7 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
         select(Contact)
         .outerjoin(latest_msg_sub, Contact.id == latest_msg_sub.c.contact_id)
         .where(Contact.tenant_id == tenant_id)
-        .order_by(latest_msg_sub.c.last_ts.desc().nullslast())
+        .order_by(latest_msg_sub.c.last_ts.desc().nullslast(), Contact.created_at.desc())
     )
     if channel_id:
         # F3.A: contato global — filtra por existência de mensagem no canal,
