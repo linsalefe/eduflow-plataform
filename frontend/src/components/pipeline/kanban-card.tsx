@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Sparkles, MessageCircle } from 'lucide-react';
+import { Clock, Sparkles } from 'lucide-react';
 
 interface Tag {
   id: number;
@@ -42,13 +42,6 @@ function getRelativeTime(d: string): string {
   return `${diffD}d`;
 }
 
-function getInitials(name: string): string {
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16);
@@ -66,14 +59,13 @@ function sanitizeNotes(notes: string | null): string | null {
   return trimmed;
 }
 
-export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanCardProps) {
+export function KanbanCard({ lead, onClick, isDragging = false }: KanbanCardProps) {
   const time = lead.updated_at
     ? getRelativeTime(lead.updated_at)
     : lead.created_at
     ? getRelativeTime(lead.created_at)
     : '';
 
-  const initials = getInitials(lead.name);
   const visibleTags = lead.tags?.slice(0, 2) ?? [];
   const extraTags = (lead.tags?.length ?? 0) - visibleTags.length;
   const notes = sanitizeNotes(lead.notes);
@@ -81,59 +73,56 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
   return (
     <div
       onClick={onClick}
-      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none group transition-all duration-200 bg-card border border-border/60 ${
+      className={`relative rounded-xl cursor-grab active:cursor-grabbing select-none bg-card border transition-all duration-150 ${
         isDragging
-          ? 'opacity-90 scale-[0.97] shadow-xl shadow-black/15 rotate-[1.5deg]'
-          : 'hover:shadow-md hover:-translate-y-0.5'
+          ? 'opacity-90 scale-[0.98] shadow-xl shadow-black/15 rotate-[1.5deg] border-primary'
+          : 'border-border/70 shadow-sm hover:border-primary hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
-      <div className="p-3 space-y-2.5">
-        {/* Row 1: Avatar + Name + Time */}
-        <div className="flex items-center gap-2.5">
-          <div
-            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-medium"
-            style={{ background: '#E6F1FB', color: '#0C447C' }}
+      <div className="p-3 space-y-2">
+        {/* Row 1: Name + IA */}
+        <div className="flex items-start justify-between gap-2">
+          <p
+            className="text-[13px] font-semibold text-foreground truncate leading-snug"
+            title={lead.name || 'Sem nome'}
           >
-            {initials}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-gray-900 truncate" title={lead.name || 'Sem nome'}>
-              {lead.name || 'Sem nome'}
-            </p>
-            {time && (
-              <span className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-                <Clock className="w-2.5 h-2.5" />
-                {time}
-              </span>
-            )}
-          </div>
+            {lead.name || 'Sem nome'}
+          </p>
           {lead.ai_active && (
-            <div
-              className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-muted"
+            <span
+              className="flex-shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary"
               title="IA ativa"
             >
-              <Sparkles className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] font-medium text-muted-foreground">IA</span>
-            </div>
+              <Sparkles className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">IA</span>
+            </span>
           )}
         </div>
 
-        {/* Row 2: Notes */}
+        {/* Row 2: Time */}
+        {time && (
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>{time}</span>
+          </div>
+        )}
+
+        {/* Row 3: Notes */}
         {notes && (
-          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 pl-[42px]">
+          <p className="text-[11px] text-muted-foreground/80 leading-relaxed line-clamp-1">
             {notes}
           </p>
         )}
 
-        {/* Row 3: Tags */}
+        {/* Row 4: Tags */}
         {visibleTags.length > 0 && (
-          <div className="flex items-center gap-1.5 pl-[42px]">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {visibleTags.map((tag) => (
               <span
                 key={tag.id}
-                className="inline-flex items-center h-[18px] px-2 rounded-md text-[10px] font-medium"
+                className="inline-flex items-center h-[18px] px-2 rounded-full text-[10px] font-semibold"
                 style={{
-                  backgroundColor: hexToRgba(tag.color, 0.12),
+                  backgroundColor: hexToRgba(tag.color, 0.14),
                   color: tag.color,
                 }}
               >
@@ -141,7 +130,7 @@ export function KanbanCard({ lead, color, onClick, isDragging = false }: KanbanC
               </span>
             ))}
             {extraTags > 0 && (
-              <span className="text-[10px] text-gray-400">+{extraTags}</span>
+              <span className="text-[10px] text-muted-foreground">+{extraTags}</span>
             )}
           </div>
         )}

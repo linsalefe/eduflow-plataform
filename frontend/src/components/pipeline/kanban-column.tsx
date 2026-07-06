@@ -2,7 +2,7 @@
 
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { KanbanCard, Lead } from './kanban-card';
-import { LucideIcon, Users } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface KanbanColumnProps {
@@ -35,7 +35,7 @@ export function KanbanColumn({
 }: KanbanColumnProps) {
   return (
     <motion.div
-      className="min-w-[260px] w-[260px] flex-shrink-0 flex flex-col h-full"
+      className="min-w-[272px] w-[272px] flex-shrink-0 flex flex-col h-full min-h-0 rounded-2xl bg-muted/60 border border-border"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
@@ -45,21 +45,19 @@ export function KanbanColumn({
       }}
     >
       {/* Column Header */}
-      <div className="px-3.5 py-2.5 rounded-xl mb-2 bg-muted/50 border border-border/40">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-[12px] font-medium text-foreground truncate">
-              {label}
-            </span>
-          </div>
-          <span className="text-[11px] text-muted-foreground tabular-nums">
-            {leads.length}
+      <div className="flex items-center justify-between px-3.5 py-3 flex-shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
+          <span className="text-[11.5px] font-bold uppercase tracking-wide text-foreground/70 truncate">
+            {label}
           </span>
         </div>
+        <span className="inline-flex items-center justify-center min-w-[22px] h-5 px-1.5 rounded-full text-[11px] font-bold tabular-nums bg-card text-foreground border border-border flex-shrink-0">
+          {leads.length}
+        </span>
       </div>
 
       {/* Drop Zone */}
@@ -68,28 +66,24 @@ export function KanbanColumn({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 rounded-xl p-2 space-y-2 overflow-y-auto transition-all duration-200 min-h-[100px]"
+            className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 space-y-2 rounded-b-2xl transition-colors duration-200"
             style={
               snapshot.isDraggingOver
-                ? {
-                    background: `linear-gradient(180deg, ${hexToRgba(color, 0.08)}, ${hexToRgba(color, 0.02)})`,
-                    border: `2px dashed ${hexToRgba(color, 0.35)}`,
-                  }
-                : {
-                    background: 'transparent',
-                    border: '2px dashed transparent',
-                  }
+                ? { background: hexToRgba(color, 0.07) }
+                : undefined
             }
           >
             {leads.length === 0 && !snapshot.isDraggingOver && (
               <div className="text-center py-8">
                 <div
-                  className="w-10 h-10 mx-auto mb-2 rounded-xl flex items-center justify-center"
-                  style={{ background: hexToRgba(color, 0.06) }}
+                  className="w-9 h-9 mx-auto mb-2 rounded-xl flex items-center justify-center"
+                  style={{ background: hexToRgba(color, 0.08) }}
                 >
-                  <Users className="w-4 h-4" style={{ color, opacity: 0.35 }} />
+                  <Icon className="w-4 h-4" style={{ color, opacity: 0.4 }} />
                 </div>
-                <p className="text-[11px] text-muted-foreground/40">Nenhum lead</p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  Arraste um lead para aqui
+                </p>
               </div>
             )}
 
