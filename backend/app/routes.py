@@ -777,6 +777,7 @@ async def list_contacts(channel_id: Optional[int] = None, pipeline_id: Optional[
             "tags": tags_map.get(c.id, []),
             "unread": unread_map.get(c.id, 0),
             "ai_active": (_ccs.ai_active if _ccs else c.ai_active) or False,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
             "updated_at": c.updated_at.isoformat() if c.updated_at else (c.created_at.isoformat() if c.created_at else None),
             "assigned_to": _ccs.assigned_to if _ccs else c.assigned_to,
             "pipeline_id": _ccs.pipeline_id if _ccs else c.pipeline_id,
