@@ -52,6 +52,9 @@ export default function ChannelsPage() {
   const [qrStatus, setQrStatus] = useState<'loading' | 'scanning' | 'connected' | 'error'>('loading');
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: '', message: '', onConfirm: () => {} });
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pollFailuresRef = useRef(0);
+  // instance_name -> true quando o polling desistiu de verificar o status
+  const [statusError, setStatusError] = useState<Record<string, boolean>>({});
   const [pipelines, setPipelines] = useState<{id: number; name: string; is_default: boolean}[]>([]);
 
   // ── Chatbot mode (opt-in feature) ──────────────────────
@@ -170,12 +173,17 @@ export default function ChannelsPage() {
   // ============================================================
   // POLLING DE STATUS
   // ============================================================
+  const MAX_POLL_FAILURES = 3;
+
   const startPolling = (instanceName: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
+    pollFailuresRef.current = 0;
+    setStatusError(prev => ({ ...prev, [instanceName]: false }));
 
     pollingRef.current = setInterval(async () => {
       try {
         const res = await api.get(`/evolution/instances/${instanceName}/status`);
+        pollFailuresRef.current = 0;
         if (res.data.is_connected) {
           setQrStatus('connected');
           if (pollingRef.current) clearInterval(pollingRef.current);
@@ -188,8 +196,21 @@ export default function ChannelsPage() {
             setFormName('');
           }, 2000);
         }
-      } catch (err) {
-        // silent polling error
+      } catch (err: any) {
+        pollFailuresRef.current += 1;
+        const detail = err?.response?.data?.detail || err?.message || 'erro desconhecido';
+        console.error(
+          `[canais] falha ${pollFailuresRef.current}/${MAX_POLL_FAILURES} em ` +
+          `GET /evolution/instances/${instanceName}/status: ${detail}`
+        );
+
+        // Para de tentar após N falhas seguidas — antes o loop era infinito e silencioso.
+        if (pollFailuresRef.current >= MAX_POLL_FAILURES) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          setQrStatus('error');
+          setStatusError(prev => ({ ...prev, [instanceName]: true }));
+          toast.error('Não foi possível verificar o status do canal');
+        }
       }
     }, 3000);
   };
@@ -375,9 +396,18 @@ export default function ChannelsPage() {
                       </select>
                     )}
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
-                      ch.is_connected ? 'bg-emerald-50' : 'bg-red-50'
+                      ch.instance_name && statusError[ch.instance_name]
+                        ? 'bg-amber-50'
+                        : ch.is_connected ? 'bg-emerald-50' : 'bg-red-50'
                     }`}>
-                      {ch.is_connected ? (
+                      {ch.instance_name && statusError[ch.instance_name] ? (
+                        <>
+                          <WifiOff className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-[12px] font-medium text-amber-700">
+                            Não foi possível verificar o status
+                          </span>
+                        </>
+                      ) : ch.is_connected ? (
                         <>
                           <Wifi className="w-3.5 h-3.5 text-emerald-500" />
                           <span className="text-[12px] font-medium text-emerald-700">Conectado</span>

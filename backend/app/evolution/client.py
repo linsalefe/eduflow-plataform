@@ -3,13 +3,41 @@ Client para Evolution API v2.x
 Gerencia instâncias, QR code, status e envio de mensagens.
 """
 import httpx
+import logging
 from app.evolution.config import EVOLUTION_API_URL, EVOLUTION_API_KEY, EDUFLOW_WEBHOOK_URL
+
+logger = logging.getLogger(__name__)
 
 
 HEADERS = {
     "apikey": EVOLUTION_API_KEY,
     "Content-Type": "application/json",
 }
+
+
+class EvolutionAPIError(RuntimeError):
+    """
+    Erro vindo da Evolution API: status HTTP >= 400 ou corpo que não é JSON.
+
+    Existe porque a Evolution responde erros com JSON válido (ex.: 403
+    "This name is already in use"). Sem checar o status_code, res.json()
+    tem sucesso e o erro passa despercebido.
+    """
+
+    def __init__(self, status_code: int, body: str):
+        self.status_code = status_code
+        self.body = body
+        super().__init__(f"Evolution API respondeu {status_code}: {body}")
+
+
+def _check(res: httpx.Response) -> dict:
+    """Valida a resposta da Evolution API e devolve o JSON decodificado."""
+    if res.status_code >= 400:
+        raise EvolutionAPIError(res.status_code, res.text[:300])
+    try:
+        return res.json()
+    except ValueError:
+        raise EvolutionAPIError(res.status_code, f"resposta não-JSON: {res.text[:300]}")
 
 
 async def create_instance(instance_name: str) -> dict:
@@ -31,10 +59,10 @@ async def create_instance(instance_name: str) -> dict:
                 "syncFullHistory": False,
             },
         )
-        data = res.json()
+        data = _check(res)
 
         # Configurar webhook
-        await client.post(
+        wh_res = await client.post(
             f"{EVOLUTION_API_URL}/webhook/set/{instance_name}",
             headers=HEADERS,
             json={
@@ -54,6 +82,18 @@ async def create_instance(instance_name: str) -> dict:
             },
         )
 
+        # Webhook falhando não invalida a instância recém-criada: levantar aqui
+        # deixaria uma instância órfã no Evolution (sem canal correspondente no
+        # banco), que é justamente o tipo de inconsistência que queremos evitar.
+        # Sinalizamos no retorno para o chamador poder avisar o usuário.
+        if wh_res.status_code >= 400:
+            logger.warning(
+                "Falha ao configurar webhook da instância %s: %s %s",
+                instance_name, wh_res.status_code, wh_res.text[:300],
+            )
+        if isinstance(data, dict):
+            data["webhook_configured"] = wh_res.status_code < 400
+
         return data
 
 
@@ -64,7 +104,7 @@ async def get_instance_status(instance_name: str) -> dict:
             f"{EVOLUTION_API_URL}/instance/connectionState/{instance_name}",
             headers=HEADERS,
         )
-        return res.json()
+        return _check(res)
 
 
 async def get_qrcode(instance_name: str) -> dict:
@@ -74,7 +114,7 @@ async def get_qrcode(instance_name: str) -> dict:
             f"{EVOLUTION_API_URL}/instance/connect/{instance_name}",
             headers=HEADERS,
         )
-        return res.json()
+        return _check(res)
 
 
 async def delete_instance(instance_name: str) -> dict:
@@ -84,7 +124,7 @@ async def delete_instance(instance_name: str) -> dict:
             f"{EVOLUTION_API_URL}/instance/delete/{instance_name}",
             headers=HEADERS,
         )
-        return res.json()
+        return _check(res)
 
 
 async def logout_instance(instance_name: str) -> dict:
@@ -94,7 +134,7 @@ async def logout_instance(instance_name: str) -> dict:
             f"{EVOLUTION_API_URL}/instance/logout/{instance_name}",
             headers=HEADERS,
         )
-        return res.json()
+        return _check(res)
 
 
 async def send_text(instance_name: str, to: str, text: str) -> dict:

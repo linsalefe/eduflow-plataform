@@ -31,18 +31,47 @@ class CreateInstanceRequest(BaseModel):
 # INSTÂNCIAS
 # ============================================================
 
+def build_instance_name(name: str, tenant_id: int) -> str:
+    """
+    Monta o instance_name a partir do nome amigável, prefixado pelo tenant.
+
+    O prefixo garante unicidade global no Evolution mesmo quando dois tenants
+    escolhem o mesmo nome amigável (ex.: "teste"), que foi a origem da
+    duplicação de canais.
+    """
+    slug = name.strip().lower().replace(" ", "_").replace("-", "_")
+    return f"t{tenant_id}_{slug}"
+
+
 @router.post("/instances")
 async def create_instance(req: CreateInstanceRequest, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Cria uma instância Evolution e salva como canal."""
-    # Gera nome único
-    instance_name = req.name.lower().replace(" ", "_").replace("-", "_")
+    instance_name = build_instance_name(req.name, tenant_id)
+
+    # Checar duplicata em qualquer tenant antes de tocar no Evolution
+    existing = await db.execute(
+        select(Channel).where(Channel.instance_name == instance_name)
+    )
+    if existing.scalars().first():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Já existe um canal com o nome '{req.name}'. Escolha outro nome.",
+        )
 
     try:
         result = await client.create_instance(instance_name)
+    except client.EvolutionAPIError as e:
+        # O Evolution recusou a criação — não gravar canal no banco.
+        logger.error("Evolution recusou criar instância %s: %s", instance_name, e)
+        raise HTTPException(
+            status_code=502,
+            detail=f"Evolution API recusou criar a instância: {e.body}",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao criar instância: {str(e)}")
+        logger.exception("Erro ao criar instância %s", instance_name)
+        raise HTTPException(status_code=502, detail=f"Erro ao criar instância: {str(e)}")
 
-    # Salvar como canal no banco
+    # Só chega aqui se o Evolution confirmou a criação
     channel = Channel(
         tenant_id=tenant_id,
         name=req.name,
@@ -56,65 +85,107 @@ async def create_instance(req: CreateInstanceRequest, db: AsyncSession = Depends
     await db.commit()
     await db.refresh(channel)
 
-    # Buscar QR code
-    qr = await client.get_qrcode(instance_name)
+    # QR code é acessório: o canal já existe, uma falha aqui não deve virar 500.
+    try:
+        qr = await client.get_qrcode(instance_name)
+    except Exception as e:
+        logger.warning("Falha ao buscar QR code de %s: %s", instance_name, e)
+        qr = None
 
     return {
         "channel_id": channel.id,
         "instance_name": instance_name,
         "purpose": req.purpose,
         "qrcode": qr,
+        "webhook_configured": result.get("webhook_configured", True) if isinstance(result, dict) else True,
     }
 
 
+async def _tenant_channels(db: AsyncSession, instance_name: str, tenant_id: int) -> list[Channel]:
+    """
+    Busca os canais do tenant para um instance_name.
+
+    Retorna lista (nunca scalar_one_or_none): duplicatas de instance_name já
+    derrubaram estes endpoints com MultipleResultsFound. Se aparecer mais de
+    um canal, logamos ERROR com os ids — defesa em profundidade, já que a
+    constraint UNIQUE deve impedir esse caso.
+    """
+    result = await db.execute(
+        select(Channel).where(
+            Channel.instance_name == instance_name,
+            Channel.tenant_id == tenant_id,
+        )
+    )
+    channels = list(result.scalars().all())
+    if len(channels) > 1:
+        logger.error(
+            "Canais duplicados para instance_name=%s tenant_id=%s: ids=%s",
+            instance_name, tenant_id, [c.id for c in channels],
+        )
+    return channels
+
+
 @router.get("/instances/{instance_name}/qrcode")
-async def get_qrcode(instance_name: str):
+async def get_qrcode(instance_name: str, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Retorna o QR code para conectar o WhatsApp."""
+    if not await _tenant_channels(db, instance_name, tenant_id):
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
     try:
-        qr = await client.get_qrcode(instance_name)
-        return qr
+        return await client.get_qrcode(instance_name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Falha ao buscar QR code de %s: %s", instance_name, e)
+        raise HTTPException(
+            status_code=502,
+            detail="Não foi possível obter o QR code no momento. Tente novamente.",
+        )
 
 
 @router.get("/instances/{instance_name}/status")
-async def get_status(instance_name: str, db: AsyncSession = Depends(get_db)):
+async def get_status(instance_name: str, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Verifica status de conexão da instância."""
+    channels = await _tenant_channels(db, instance_name, tenant_id)
+    if not channels:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
+    # Falha externa não vira 500: a tela de canais faz polling e um 500 aqui
+    # gera loop de erro no frontend.
     try:
         status = await client.get_instance_status(instance_name)
-
-        # Atualizar is_connected no banco
-        state = status.get("instance", {}).get("state", "close")
-        is_connected = state == "open"
-
-        result = await db.execute(
-            select(Channel).where(Channel.instance_name == instance_name)
-        )
-        channel = result.scalar_one_or_none()
-        if channel:
-            channel.is_connected = is_connected
-            await db.commit()
-
-        return {"instance_name": instance_name, "state": state, "is_connected": is_connected}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Falha ao consultar status de %s: %s", instance_name, e)
+        return {"instance_name": instance_name, "state": "unknown", "is_connected": False}
+
+    if not isinstance(status, dict):
+        logger.warning("Resposta inesperada de status para %s: %r", instance_name, status)
+        return {"instance_name": instance_name, "state": "unknown", "is_connected": False}
+
+    state = (status.get("instance") or {}).get("state", "close")
+    is_connected = state == "open"
+
+    for channel in channels:
+        channel.is_connected = is_connected
+    await db.commit()
+
+    return {"instance_name": instance_name, "state": state, "is_connected": is_connected}
 
 
 @router.delete("/instances/{instance_name}")
-async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)):
+async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Deleta a instância e remove o canal."""
     from sqlalchemy import text
 
+    channels = await _tenant_channels(db, instance_name, tenant_id)
+    if not channels:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
+    # Falha no Evolution é tolerada: o canal do banco deve sair de qualquer forma.
     try:
         await client.delete_instance(instance_name)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Falha ao deletar instância %s no Evolution: %s", instance_name, e)
 
-    result = await db.execute(
-        select(Channel).where(Channel.instance_name == instance_name)
-    )
-    channel = result.scalar_one_or_none()
-    if channel:
+    for channel in channels:
         ch_id = channel.id
         # 1) Desvincular contatos do canal (preserva contatos e mensagens)
         await db.execute(
@@ -129,28 +200,33 @@ async def delete_instance(instance_name: str, db: AsyncSession = Depends(get_db)
             )
         # 3) Deletar canal
         await db.delete(channel)
-        await db.commit()
+
+    await db.commit()
 
     return {"status": "deleted", "instance_name": instance_name}
 
 
 @router.post("/instances/{instance_name}/logout")
-async def logout_instance(instance_name: str, db: AsyncSession = Depends(get_db)):
+async def logout_instance(instance_name: str, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     """Desconecta o WhatsApp sem deletar a instância."""
+    channels = await _tenant_channels(db, instance_name, tenant_id)
+    if not channels:
+        raise HTTPException(status_code=404, detail="Canal não encontrado")
+
     try:
         await client.logout_instance(instance_name)
-
-        result = await db.execute(
-            select(Channel).where(Channel.instance_name == instance_name)
-        )
-        channel = result.scalar_one_or_none()
-        if channel:
-            channel.is_connected = False
-            await db.commit()
-
-        return {"status": "logged_out", "instance_name": instance_name}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.warning("Falha ao desconectar instância %s: %s", instance_name, e)
+        raise HTTPException(
+            status_code=502,
+            detail="Não foi possível desconectar o WhatsApp no momento. Tente novamente.",
+        )
+
+    for channel in channels:
+        channel.is_connected = False
+    await db.commit()
+
+    return {"status": "logged_out", "instance_name": instance_name}
 
 
 # ============================================================
