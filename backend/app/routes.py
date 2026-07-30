@@ -128,8 +128,14 @@ async def _trigger_chatbot_stage_change(
 
 @router.get("/channels")
 async def list_channels(db: AsyncSession = Depends(get_db), tenant_id: int = Depends(get_tenant_id)):
+    # Conectados primeiro: a página de conversas abre no primeiro da lista
+    # (conversations-provider.tsx), e antes disso caía sempre no menor id —
+    # abrindo em canal desconectado quando havia um conectado disponível.
+    # nullslast() é necessário: em DESC o Postgres coloca NULL primeiro.
     result = await db.execute(
-        select(Channel).where(Channel.is_active == True, Channel.tenant_id == tenant_id).order_by(Channel.id)
+        select(Channel)
+        .where(Channel.is_active == True, Channel.tenant_id == tenant_id)
+        .order_by(Channel.is_connected.desc().nullslast(), Channel.id)
     )
     channels = result.scalars().all()
     return [
