@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   Download, FileSpreadsheet, Users, MessageSquare, GitBranch, Bot,
-  Loader2, CheckCircle, Filter, Lock, Shuffle, AlertTriangle, Radio,
+  Loader2, CheckCircle, Filter, Lock, Shuffle, AlertTriangle, Radio, ArrowDown,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, Tooltip as RTooltip,
@@ -29,15 +29,37 @@ type Granularity = 'daily' | 'weekly' | 'monthly';
 
 interface Bucket { bucket: string; count: number }
 
+type StageOutcome = 'won' | 'lost' | 'open';
+
+interface AcquisitionFunnelRow {
+  source: string;
+  entered: number;
+  /** contagem por key de coluna do pipeline; 'outros' agrupa status órfãos */
+  stages: Record<string, number>;
+  won: number;
+  lost: number;
+  open: number;
+  win_rate: number;
+}
+
 interface Overview {
   period: { start: string; end: string; granularity: Granularity };
   leads_in: { total: number; series: Bucket[] };
+  /** Canal de aquisição (de onde o lead veio). */
+  leads_by_acquisition: { source: string; count: number }[];
+  /** Breakdown técnico: instância/canal em que o contato foi criado. */
   leads_by_channel: {
     channel_id: number | null;
     channel_type: string;
     channel_name: string;
     count: number;
   }[];
+  leads_by_program: { program: string; count: number }[];
+  funnel_by_acquisition: {
+    columns: { key: string; label: string; color: string; outcome: StageOutcome }[];
+    rows: AcquisitionFunnelRow[];
+    note: string;
+  };
   leads_by_user: { user_id: number | null; user_name: string; count: number }[];
   pipeline_snapshot: {
     columns: { key: string; label: string; color: string; count: number; deal_value_sum: number }[];
@@ -50,6 +72,8 @@ interface Overview {
     total: number;
     series: Bucket[];
     top_transitions: { from: string; to: string; count: number }[];
+    /** Ausente quando não houve nenhuma movimentação registrada no período. */
+    by_acquisition?: { source: string; movements: number }[];
   };
   messages: {
     inbound: number;
@@ -124,6 +148,49 @@ const CHANNEL_COLORS: Record<string, string> = {
   whatsapp: '#25D366',
   instagram: '#E1306C',
   desconhecido: '#94a3b8',
+};
+
+/* Cores por canal de aquisição. As chaves espelham os valores que o backend
+   deriva em `_contact_acquisition_sq`; qualquer outro valor (utm de campanha
+   solta) cai no fallback. */
+const ACQUISITION_COLORS: Record<string, string> = {
+  instagram: '#E1306C',
+  facebook: '#1877F2',
+  'meta ads': '#1877F2',
+  manychat: '#00A6FF',
+  'landing page': '#8B5CF6',
+  'whatsapp direto': '#25D366',
+  direto: '#25D366',
+  desconhecido: '#94a3b8',
+};
+
+function acquisitionColor(source: string): string {
+  return ACQUISITION_COLORS[source] ?? 'var(--primary)';
+}
+
+const PROGRAM_LABELS: Record<string, string> = {
+  highschool: 'High School',
+  camp: 'Camp',
+};
+
+/* Origens que não são informação de aquisição de verdade: são o fallback de
+   quem entrou sem UTM e sem landing page. Um tenant só com essas origens não
+   tem o que analisar aqui, e o card diz isso em vez de simular um insight. */
+function isFallbackSource(source: string): boolean {
+  return source === 'desconhecido' || / direto$/.test(source);
+}
+
+/** Intensidade da célula do heatmap. Raiz quadrada para que valores baixos
+    ainda apareçam quando existe um outlier dominando o máximo. */
+function heatAlpha(count: number, max: number): number {
+  if (count <= 0 || max <= 0) return 0;
+  return 0.06 + Math.sqrt(count / max) * 0.34;
+}
+
+const OUTCOME_LABELS: Record<StageOutcome, string> = {
+  won: 'Ganho',
+  lost: 'Perda',
+  open: 'Em aberto',
 };
 
 /* ── Exports (mantidos da versão anterior) ────────────────── */
@@ -216,6 +283,11 @@ export function RelatoriosContent() {
   const [data, setData] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  /* Aquisição = de onde o lead veio; instância = por qual canal/número ele
+     entrou. São perguntas diferentes e o mesmo card serve as duas. */
+  const [channelView, setChannelView] = useState<'acquisition' | 'instance'>('acquisition');
+  const [acqSort, setAcqSort] = useState<'win_rate' | 'entered'>('win_rate');
 
   // Exports
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -330,6 +402,67 @@ export function RelatoriosContent() {
       byType.set(c.channel_type, entry);
     });
     return Array.from(byType.values()).sort((a, b) => b.count - a.count);
+  }, [data]);
+
+  /* ── Canal de aquisição ──────────────────────────────────── */
+
+  const acquisitionBars = useMemo(
+    () =>
+      (data?.leads_by_acquisition ?? []).map((a) => ({
+        ...a,
+        color: acquisitionColor(a.source),
+      })),
+    [data],
+  );
+
+  /* Todas as origens do período são fallback => o tenant não tem rastreio de
+     aquisição. O card avisa em vez de exibir uma barra única sem significado. */
+  const acquisitionUntracked = useMemo(
+    () => acquisitionBars.length > 0 && acquisitionBars.every((a) => isFallbackSource(a.source)),
+    [acquisitionBars],
+  );
+
+  const programRows = useMemo(
+    () => (data?.leads_by_program ?? []).filter((p) => p.program !== 'nenhum' && p.count > 0),
+    [data],
+  );
+
+  /* Colunas da matriz: as do pipeline, mais 'outros' só quando alguma linha
+     tem status órfão — senão a tabela ganha uma coluna sempre vazia. */
+  const acqColumns = useMemo(() => {
+    const cols = data?.funnel_by_acquisition?.columns ?? [];
+    const rows = data?.funnel_by_acquisition?.rows ?? [];
+    const hasOthers = rows.some((r) => (r.stages?.outros ?? 0) > 0);
+    return hasOthers
+      ? [...cols, { key: 'outros', label: 'Outros', color: '#94a3b8', outcome: 'open' as StageOutcome }]
+      : cols;
+  }, [data]);
+
+  const acqRows = useMemo(() => {
+    const rows = [...(data?.funnel_by_acquisition?.rows ?? [])];
+    rows.sort((a, b) =>
+      acqSort === 'entered'
+        ? b.entered - a.entered || b.win_rate - a.win_rate
+        : b.win_rate - a.win_rate || b.entered - a.entered,
+    );
+    return rows;
+  }, [data, acqSort]);
+
+  /* Máximo global da matriz — a intensidade compara células entre si, não
+     dentro da linha, para que um canal grande não pareça igual a um pequeno. */
+  const acqCellMax = useMemo(
+    () =>
+      acqRows.reduce(
+        (max, r) => acqColumns.reduce((m, c) => Math.max(m, r.stages?.[c.key] ?? 0), max),
+        0,
+      ),
+    [acqRows, acqColumns],
+  );
+
+  const movementsBySource = useMemo(() => {
+    const map = new Map<string, number>();
+    (data?.stage_movements.by_acquisition ?? []).forEach((m) => map.set(m.source, m.movements));
+    return map;
   }, [data]);
 
   const userBars = useMemo(
@@ -575,45 +708,111 @@ export function RelatoriosContent() {
           )}
         </Card>
 
-        {/* ── 3. Canal de origem | Responsável ────────────── */}
+        {/* ── 3. Canal de aquisição | Responsável ─────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card className="p-5">
-            <h2 className="text-[15px] font-semibold text-foreground mb-1">Leads por canal de origem</h2>
+            <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
+              <h2 className="text-[15px] font-semibold text-foreground">
+                {channelView === 'acquisition' ? 'Leads por canal de aquisição' : 'Leads por instância'}
+              </h2>
+              <div className="flex gap-1">
+                {([
+                  ['acquisition', 'Aquisição'],
+                  ['instance', 'Instância'],
+                ] as const).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setChannelView(id)}
+                    className={`px-2.5 py-1 rounded-md text-[12px] font-medium transition-colors ${
+                      channelView === id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-[12px] text-muted-foreground mb-4">
-              Canal em que o contato foi criado — não necessariamente onde é atendido hoje.
+              {channelView === 'acquisition'
+                ? 'De onde o lead veio: UTM da landing page, origem registrada na criação e, na falta das duas, o canal de entrada.'
+                : 'Instância/número em que o contato foi criado — não necessariamente onde é atendido hoje.'}
             </p>
+
             {loading ? (
               <Skeleton className="h-[200px] w-full" />
-            ) : channelBars.length === 0 ? (
+            ) : channelView === 'instance' ? (
+              channelBars.length === 0 ? (
+                <EmptyBlock message="Nenhum lead novo neste período." />
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(160, channelBars.length * 56)}>
+                  <BarChart data={channelBars} layout="vertical" margin={{ left: 8, right: 16 }}>
+                    <XAxis type="number" hide allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="type"
+                      axisLine={false}
+                      tickLine={false}
+                      width={90}
+                      tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+                    />
+                    <RTooltip
+                      cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
+                      contentStyle={chartTooltipStyle.contentStyle}
+                      labelStyle={chartTooltipStyle.labelStyle}
+                      formatter={(value: number, _n, item) => [
+                        `${value} — ${(item?.payload?.names ?? []).join(', ')}`,
+                        'Leads',
+                      ]}
+                    />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
+                      {channelBars.map((c) => (
+                        <Cell key={c.type} fill={CHANNEL_COLORS[c.type] ?? 'var(--primary)'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )
+            ) : acquisitionBars.length === 0 ? (
               <EmptyBlock message="Nenhum lead novo neste período." />
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(160, channelBars.length * 56)}>
-                <BarChart data={channelBars} layout="vertical" margin={{ left: 8, right: 16 }}>
-                  <XAxis type="number" hide allowDecimals={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="type"
-                    axisLine={false}
-                    tickLine={false}
-                    width={90}
-                    tick={{ fontSize: 12, fill: 'var(--foreground)' }}
-                  />
-                  <RTooltip
-                    cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
-                    contentStyle={chartTooltipStyle.contentStyle}
-                    labelStyle={chartTooltipStyle.labelStyle}
-                    formatter={(value: number, _n, item) => [
-                      `${value} — ${(item?.payload?.names ?? []).join(', ')}`,
-                      'Leads',
-                    ]}
-                  />
-                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
-                    {channelBars.map((c) => (
-                      <Cell key={c.type} fill={CHANNEL_COLORS[c.type] ?? 'var(--primary)'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <>
+                {acquisitionUntracked && (
+                  <div className="mb-3 flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <p className="text-[12px] leading-relaxed text-muted-foreground">
+                      Nenhum lead deste período traz origem rastreada — não há UTM de campanha
+                      nem registro de landing page. O que aparece abaixo é só o canal de entrada.
+                    </p>
+                  </div>
+                )}
+                <ResponsiveContainer width="100%" height={Math.max(160, acquisitionBars.length * 44)}>
+                  <BarChart data={acquisitionBars} layout="vertical" margin={{ left: 8, right: 16 }}>
+                    <XAxis type="number" hide allowDecimals={false} />
+                    <YAxis
+                      type="category"
+                      dataKey="source"
+                      axisLine={false}
+                      tickLine={false}
+                      width={110}
+                      tick={{ fontSize: 12, fill: 'var(--foreground)' }}
+                    />
+                    <RTooltip
+                      cursor={{ fill: 'var(--muted)', opacity: 0.4 }}
+                      contentStyle={chartTooltipStyle.contentStyle}
+                      labelStyle={chartTooltipStyle.labelStyle}
+                      formatter={(value: number) => [value, 'Leads']}
+                    />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={20}>
+                      {acquisitionBars.map((a) => (
+                        <Cell key={a.source} fill={a.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </>
             )}
           </Card>
 
@@ -654,6 +853,181 @@ export function RelatoriosContent() {
             )}
           </Card>
         </div>
+
+        {/* ── 3b. Programa (só quando o tenant usa LPs de programa) ── */}
+        {!loading && programRows.length > 0 && (
+          <Card className="p-5">
+            <h2 className="text-[15px] font-semibold text-foreground mb-1">Leads por programa</h2>
+            <p className="text-[12px] text-muted-foreground mb-3">
+              Programa da landing page que originou o lead. É uma dimensão separada do canal
+              de aquisição — um lead de High School pode ter vindo por qualquer canal.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {programRows.map((p) => (
+                <div
+                  key={p.program}
+                  className="flex items-baseline gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2"
+                >
+                  <span className="text-[13px] text-foreground">
+                    {PROGRAM_LABELS[p.program] ?? p.program}
+                  </span>
+                  <span className="text-[15px] font-semibold tabular-nums text-foreground">
+                    {p.count.toLocaleString('pt-BR')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* ── 3c. Funil por canal de aquisição (matriz) ───── */}
+        <Card className="p-5">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <h2 className="text-[15px] font-semibold text-foreground">Funil por canal de aquisição</h2>
+            <Badge variant="secondary">Etapa atual (snapshot)</Badge>
+          </div>
+          <p className="text-[12px] text-muted-foreground mb-4">
+            Leads que <strong className="font-medium text-foreground">entraram no período</strong>,
+            cruzados com a etapa em que estão <strong className="font-medium text-foreground">hoje</strong>.
+            Não é o caminho percorrido: um lead aparece só na etapa atual dele.
+          </p>
+
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-9 w-full" />)}
+            </div>
+          ) : acqColumns.length === 0 ? (
+            <EmptyBlock message="Nenhuma etapa configurada no pipeline deste tenant." />
+          ) : acqRows.length === 0 ? (
+            <EmptyBlock message="Nenhum lead novo neste período." />
+          ) : (
+            <>
+              {acquisitionUntracked && (
+                <div className="mb-3 flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    Este tenant ainda não rastreia origem de aquisição, então a tabela tem uma
+                    linha só. A distribuição por etapa continua válida; a comparação entre
+                    canais, não.
+                  </p>
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-[13px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="sticky left-0 z-10 bg-card px-2 py-2 text-left font-medium text-muted-foreground">
+                        Canal
+                      </th>
+                      <SortableTh
+                        label="Entrada"
+                        active={acqSort === 'entered'}
+                        onClick={() => setAcqSort('entered')}
+                      />
+                      {acqColumns.map((c) => (
+                        <th
+                          key={c.key}
+                          className="px-2 py-2 text-center font-medium text-muted-foreground"
+                        >
+                          <span className="flex items-center justify-center gap-1.5">
+                            <span
+                              className="inline-block h-2 w-2 shrink-0 rounded-full"
+                              style={{ backgroundColor: c.color }}
+                            />
+                            <span className="max-w-[110px] truncate" title={c.label}>{c.label}</span>
+                          </span>
+                          <span className="mt-0.5 block text-[10px] font-normal uppercase tracking-wide opacity-70">
+                            {OUTCOME_LABELS[c.outcome]}
+                          </span>
+                        </th>
+                      ))}
+                      {movementsBySource.size > 0 && (
+                        <th className="px-2 py-2 text-right font-medium text-muted-foreground">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help underline decoration-dotted">Movim.</span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              Mudanças de etapa registradas no período. Cobertura parcial: só o que
+                              foi movido manualmente no CRM.
+                            </TooltipContent>
+                          </Tooltip>
+                        </th>
+                      )}
+                      <SortableTh
+                        label="Conversão"
+                        active={acqSort === 'win_rate'}
+                        onClick={() => setAcqSort('win_rate')}
+                      />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {acqRows.map((r) => (
+                      <tr key={r.source} className="border-b border-border/60 last:border-0">
+                        <td className="sticky left-0 z-10 bg-card px-2 py-2">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: acquisitionColor(r.source) }}
+                            />
+                            <span className="truncate text-foreground" title={r.source}>{r.source}</span>
+                          </span>
+                        </td>
+                        <td className="px-2 py-2 text-right font-semibold tabular-nums text-foreground">
+                          {r.entered.toLocaleString('pt-BR')}
+                        </td>
+                        {acqColumns.map((c) => {
+                          const n = r.stages?.[c.key] ?? 0;
+                          return (
+                            <td key={c.key} className="px-1 py-1 text-center">
+                              <span
+                                className={`block rounded-md py-1.5 tabular-nums ${
+                                  n > 0 ? 'text-foreground' : 'text-muted-foreground/50'
+                                }`}
+                                style={
+                                  n > 0
+                                    ? {
+                                        backgroundColor: `color-mix(in srgb, ${c.color} ${
+                                          heatAlpha(n, acqCellMax) * 100
+                                        }%, transparent)`,
+                                      }
+                                    : undefined
+                                }
+                              >
+                                {n > 0 ? n.toLocaleString('pt-BR') : '—'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                        {movementsBySource.size > 0 && (
+                          <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                            {(movementsBySource.get(r.source) ?? 0).toLocaleString('pt-BR')}
+                          </td>
+                        )}
+                        <td className="px-2 py-2 text-right">
+                          <span className="block font-semibold tabular-nums text-foreground">
+                            {(r.win_rate * 100).toFixed(1).replace('.', ',')}%
+                          </span>
+                          <span className="block text-[11px] tabular-nums text-muted-foreground">
+                            {r.won} ganho{r.won === 1 ? '' : 's'} · {r.lost} perdido
+                            {r.lost === 1 ? '' : 's'} · {r.open} aberto{r.open === 1 ? '' : 's'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                Ganho e perda são inferidos do nome de cada etapa do pipeline — o sistema não tem
+                um campo próprio para isso. Se alguma etapa estiver classificada errado acima,
+                renomeá-la corrige a conta.
+              </p>
+            </>
+          )}
+        </Card>
 
         {/* ── 4. Funil (snapshot) ─────────────────────────── */}
         <Card className="p-5">
@@ -962,6 +1336,33 @@ function KpiCard({
         {sub && <p className="mt-2 text-[11px] text-muted-foreground">{sub}</p>}
       </Card>
     </motion.div>
+  );
+}
+
+/** Cabeçalho de coluna clicável da matriz de aquisição. */
+function SortableTh({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <th className="px-2 py-2 text-right font-medium text-muted-foreground">
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className={`inline-flex items-center gap-1 transition-colors hover:text-foreground ${
+          active ? 'text-foreground' : ''
+        }`}
+      >
+        {label}
+        <ArrowDown className={`h-3 w-3 ${active ? 'opacity-100' : 'opacity-0'}`} />
+      </button>
+    </th>
   );
 }
 
