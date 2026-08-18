@@ -1,6 +1,6 @@
 # EduFlow × Evolution API — Suporte a Grupos WhatsApp
 
-> **Última atualização:** 01 de Abril de 2026  
+> **Última atualização:** 18 de Agosto de 2026  
 > **Responsável técnico:** Álefe Lins  
 > **Plataforma:** EduFlow Hub — portal.eduflowia.com
 
@@ -17,6 +17,7 @@
 7. [Banco de Dados](#7-banco-de-dados)
 8. [Exibição no Frontend](#8-exibição-no-frontend)
 9. [Correções Aplicadas](#9-correções-aplicadas)
+9.1. [Envio de Mensagem para Grupo](#91-envio-de-mensagem-para-grupo)
 10. [Limitações e Considerações](#10-limitações-e-considerações)
 11. [Comandos Úteis](#11-comandos-úteis)
 12. [Checklist](#12-checklist)
@@ -34,11 +35,11 @@ O EduFlow suporta recebimento e exibição de mensagens de **grupos WhatsApp** v
 - ✅ Identificar quem enviou cada mensagem dentro do grupo
 - ✅ Suporte a texto, imagens, áudios, vídeos e documentos
 - ✅ Grupos aparecem separados de contatos individuais
+- ✅ Enviar mensagem para grupo pela plataforma (ver [9.1](#91-envio-de-mensagem-para-grupo))
 
 ### O que não funciona (por design)
 
 - ❌ Agente de IA respondendo em grupos (desativado intencionalmente)
-- ❌ Envio de mensagens para grupos pela plataforma (não implementado)
 - ❌ Listagem de membros do grupo na UI
 
 ---
@@ -409,6 +410,49 @@ ALTER TABLE contacts ALTER COLUMN wa_id TYPE VARCHAR(100);
 **Causa:** Backend usava `pushName` (nome do participante) como nome do contato.
 
 **Correção:** Buscar nome real do grupo via `GET /group/findGroupInfos/{instance}?groupJid={jid}` e usar o campo `subject`.
+
+---
+
+## 9.1. Envio de Mensagem para Grupo
+
+> Documentado em 18/08/2026. Até então este documento registrava o envio para
+> grupos como "não implementado" — o suporte existia na Evolution e passou a ser
+> usado pela notificação de webhook.
+
+O envio para grupo usa o **mesmo** `send_text` do envio para pessoa. Não há
+endpoint separado: a Evolution decide pelo formato do destinatário, então basta
+passar o JID do grupo (`{id}@g.us`) no lugar do número.
+
+```python
+from app.evolution.client import send_text
+
+await send_text("teste_de_pipe", "120363407291306248@g.us", "🔔 Novo lead")
+```
+
+`send_text` normaliza o destinatário removendo `+`, `-` e espaços, o que não
+afeta um JID de grupo. A Evolution responde com `key.id` e `status: PENDING`, e
+em seguida devolve um evento `send.message` com `fromMe: true` no webhook de
+entrada — é esse eco que confirma que a mensagem saiu de fato.
+
+### Quem usa isso hoje
+
+A notificação de lead do **webhook de LP externa**
+(`webhook_routes.receive_external_lead`): quando o webhook tem
+`notify_group_jid` configurado, o grupo é avisado assim que o lead entra.
+
+Três decisões de design desse uso, que valem para qualquer envio novo a grupo:
+
+1. **Pós-commit e dentro de `try/except`.** O lead já está salvo quando a
+   mensagem é disparada. Falha no envio é logada (`[WEBHOOK_NOTIFY_FAIL]`) e não
+   derruba o cadastro do lead nem a resposta para a landing page.
+2. **Não grava em `messages`.** O aviso é interno, não é conversa com o lead —
+   escrever na timeline poluiria a aba Conversas com mensagens que ninguém
+   respondeu. O eco `send.message` da Evolution também não é persistido, pelo
+   comportamento já descrito em [Mensagens enviadas pelo número conectado](#mensagens-enviadas-pelo-número-conectado).
+3. **O grupo é escolhido na UI**, populado por `GET /api/webhooks/groups/{channel_id}`,
+   que proxia o `fetchAllGroups` da instância do canal. Instância desconectada
+   responde **409** — a Evolution só conhece os grupos com a sessão aberta — e a
+   UI cai para um campo de texto livre onde se cola o JID.
 
 ---
 
