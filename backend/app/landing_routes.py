@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from app.database import get_db
@@ -308,7 +308,24 @@ async def get_public_landing_page(slug: str, db: AsyncSession = Depends(get_db))
 
 
 @public_router.post("/{slug}/submit")
-async def submit_form(slug: str, data: dict, db: AsyncSession = Depends(get_db)):
+async def submit_form(slug: str, data: dict, request: Request, db: AsyncSession = Depends(get_db)):
+    # TEMP: remover quando o form antigo for desativado (rastreia submissões sem form_version)
+    # Rastreio temporário: identificar de onde vêm submits do formulário ANTIGO
+    # (sem form_version no extra). Quando o extra já traz form_version, não logamos nada.
+    referer = request.headers.get("referer", "desconhecido")
+    origin = request.headers.get("origin", "desconhecido")
+    ua = request.headers.get("user-agent", "")[:120]
+    _extra_in = data.get("extra") or {}
+    if "form_version" not in _extra_in:
+        telefone = data.get("phone", "")
+        logger.warning(
+            f"[LP_FORM_ANTIGO] slug={slug} referer={referer} origin={origin} "
+            f"ua={ua} phone_final4={telefone[-4:] if telefone else '????'}"
+        )
+        # Grava a URL de origem junto do extra → aparece direto no card do lead no CRM.
+        _extra_in["url_origem_form"] = referer
+        data["extra"] = _extra_in
+
     result = await db.execute(
         select(LandingPage).where(LandingPage.slug == slug, LandingPage.is_active == True)
     )
