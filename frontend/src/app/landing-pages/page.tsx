@@ -28,7 +28,23 @@ interface LandingPage {
   tag?: string;
   pipeline_stage?: string;
   whatsapp_message?: string;
+  notify_group_jid?: string | null;
+  notify_template?: string | null;
+  notify_rules?: NotifyRule[];
   created_at: string;
+}
+
+// Roteamento do aviso por origem do lead: a mesma LP atende mais de um
+// programa (CAMP e High School dividem a do GV) e cada um tem seu grupo.
+interface NotifyRule {
+  origem: string;
+  group_jid: string;
+  template: string | null;
+}
+
+interface Group {
+  jid: string;
+  name: string;
 }
 
 interface Channel {
@@ -238,6 +254,12 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
   const [lpTag, setLpTag] = useState('');
   const [pipelineStage, setPipelineStage] = useState('');
   const [whatsappMessage, setWhatsappMessage] = useState('');
+  const [notifyRules, setNotifyRules] = useState<NotifyRule[]>([]);
+  const [notifyGroupJid, setNotifyGroupJid] = useState('');
+  const [notifyTemplate, setNotifyTemplate] = useState('');
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
   const [kanbanColumns, setKanbanColumns] = useState<{key: string; label: string}[]>([]);
   const [config, setConfig] = useState<LPConfig>(getDefaultConfig());
 
@@ -282,12 +304,43 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
     setTimeout(() => setCopied(''), 2000);
   };
 
+  // Os grupos vêm da instância do canal da LP; trocar o canal invalida a lista.
+  // O 409 (instância desconectada) não é erro de tela: o campo cai para texto
+  // livre, para quem já sabe o JID.
+  const loadGroups = async (id: number) => {
+    if (!id) { setGroups([]); setGroupsError(null); return; }
+    setLoadingGroups(true);
+    setGroupsError(null);
+    try {
+      const res = await api.get(`/webhooks/groups/${id}`);
+      setGroups(res.data);
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setGroups([]);
+      setGroupsError(detail || 'Conecte o canal para listar os grupos');
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    if (editorMode === 'editor' && channelId) loadGroups(channelId);
+  }, [editorMode, channelId]);
+
+  const addRule = () => setNotifyRules(prev => [...prev, { origem: '', group_jid: '', template: null }]);
+  const removeRule = (index: number) => setNotifyRules(prev => prev.filter((_, i) => i !== index));
+  const updateRule = (index: number, field: 'origem' | 'group_jid', value: string) =>
+    setNotifyRules(prev => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+
   const openCreate = () => {
     setEditingPage(null);
     setTitle('');
     setLpTag('');
     setPipelineStage('');
     setWhatsappMessage('');
+    setNotifyRules([]);
+    setNotifyGroupJid('');
+    setNotifyTemplate('');
     if (channels.length > 0) setChannelId(channels[0].id);
     setConfig(getDefaultConfig());
     setActiveTab('sections');
@@ -302,6 +355,9 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
     setLpTag(page.tag || '');
     setPipelineStage(page.pipeline_stage || '');
     setWhatsappMessage(page.whatsapp_message || '');
+    setNotifyRules(page.notify_rules || []);
+    setNotifyGroupJid(page.notify_group_jid || '');
+    setNotifyTemplate(page.notify_template || '');
     setChannelId(page.channel_id);
 
     const saved = page.config || {};
@@ -338,8 +394,33 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
       toast.error('Preencha título, slug e canal');
       return;
     }
+
+    // Origem é a chave do roteamento: duplicada, a segunda regra nunca seria
+    // alcançada e o lead iria calado para o grupo errado.
+    const rules = notifyRules
+      .map(r => ({ ...r, origem: r.origem.trim().toLowerCase(), group_jid: r.group_jid.trim() }))
+      .filter(r => r.origem || r.group_jid);
+    const incompleta = rules.find(r => !r.origem || !r.group_jid);
+    if (incompleta) {
+      toast.error('Toda regra precisa de origem e grupo');
+      return;
+    }
+    const duplicada = rules.find((r, i) => rules.findIndex(o => o.origem === r.origem) !== i);
+    if (duplicada) {
+      toast.error(`Origem repetida nas regras: "${duplicada.origem}"`);
+      return;
+    }
+
     setSaving(true);
-    const payload = { title, slug, template: 'custom', channel_id: channelId, config, tag: lpTag || null, pipeline_stage: pipelineStage || null, whatsapp_message: whatsappMessage || null };
+    const payload = {
+      title, slug, template: 'custom', channel_id: channelId, config,
+      tag: lpTag || null,
+      pipeline_stage: pipelineStage || null,
+      whatsapp_message: whatsappMessage || null,
+      notify_group_jid: notifyGroupJid.trim() || null,
+      notify_template: notifyTemplate.trim() || null,
+      notify_rules: rules.map(r => ({ origem: r.origem, group_jid: r.group_jid, template: r.template || null })),
+    };
     try {
       if (editingPage) {
         await api.put(`/landing-pages/${editingPage.id}`, payload);
@@ -671,6 +752,105 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
                   />
                   <p className="text-xs text-gray-400 mt-1">Use <strong>{'{nome}'}</strong> para personalizar com o nome do lead.</p>
                 </div>
+
+                {/* ── Notificação em grupo ─────────────────────────── */}
+                <div className="pt-5 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700">Notificação em grupo</h3>
+                  <p className="text-xs text-gray-400 mt-1 mb-4">
+                    Avisa o time num grupo do WhatsApp quando o lead entra. Precedência:
+                    regra da origem → grupo padrão → não notifica.
+                  </p>
+
+                  {groupsError && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-3">
+                      {groupsError} — enquanto isso, cole o JID do grupo à mão.
+                    </p>
+                  )}
+
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">Regras por origem</label>
+                  <div className="space-y-2">
+                    {notifyRules.map((rule, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <div className="w-1/3">
+                          <input
+                            value={rule.origem}
+                            onChange={(e) => updateRule(i, 'origem', e.target.value)}
+                            placeholder="highschool"
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <GroupPicker
+                            value={rule.group_jid}
+                            onChange={(v) => updateRule(i, 'group_jid', v)}
+                            groups={groups}
+                            loading={loadingGroups}
+                            error={groupsError}
+                            emptyLabel="Escolha o grupo"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeRule(i)}
+                          aria-label={`Remover regra ${rule.origem || i + 1}`}
+                          title="Remover regra"
+                          className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {notifyRules.length === 0 && (
+                    <p className="text-xs text-gray-300">Nenhuma regra: todos os leads vão para o grupo padrão abaixo.</p>
+                  )}
+                  <button
+                    onClick={addRule}
+                    className="mt-2 w-full py-2 border border-dashed border-gray-200 rounded-xl text-xs text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />Adicionar regra
+                  </button>
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    A origem é o valor do campo <strong>origem</strong> do formulário — ex:{' '}
+                    <code className="bg-gray-100 px-1 rounded">highschool</code>,{' '}
+                    <code className="bg-gray-100 px-1 rounded">camp</code>. Não diferencia maiúsculas.
+                  </p>
+
+                  <div className="mt-5">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Grupo padrão (demais origens)</label>
+                    <GroupPicker
+                      value={notifyGroupJid}
+                      onChange={setNotifyGroupJid}
+                      groups={groups}
+                      loading={loadingGroups}
+                      error={groupsError}
+                      emptyLabel="Não avisar nenhum grupo"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Usado quando nenhuma regra casa com a origem do lead.</p>
+                  </div>
+
+                  <div className="mt-5">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Mensagem do aviso</label>
+                    <textarea
+                      value={notifyTemplate}
+                      onChange={(e) => setNotifyTemplate(e.target.value)}
+                      placeholder={'🚨 Novo lead — {origem}\nNome: {name}\n📞 {phone}\n{extras}'}
+                      rows={5}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary resize-none"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Fixos: <code className="bg-gray-100 px-1 rounded">{'{name}'}</code>{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{phone}'}</code>{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{course}'}</code>{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{email}'}</code>{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{origem}'}</code>. Qualquer campo do
+                      formulário também vale como placeholder — ex:{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{nome_atleta}'}</code>. E{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{extras}'}</code> lista todos os campos
+                      extras automaticamente, um por linha, omitindo os vazios. Em branco, usa a mensagem
+                      padrão do sistema.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -758,6 +938,50 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
       </div>
       <ConfirmModal open={confirmModal.open} title={confirmModal.title} message={confirmModal.message} confirmLabel="Remover" onConfirm={confirmModal.onConfirm} onCancel={() => setConfirmModal(prev => ({ ...prev, open: false }))} />
     </>
+  );
+}
+
+// Seletor de grupo: select quando a instância do canal está conectada, campo
+// de texto quando não está (a Evolution só lista grupos com a sessão aberta).
+function GroupPicker({
+  value, onChange, groups, loading, error, emptyLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  groups: Group[];
+  loading: boolean;
+  error: string | null;
+  emptyLabel: string;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-400">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />Carregando grupos...
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="120363000000000000@g.us"
+        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary font-mono"
+      />
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary bg-white"
+    >
+      <option value="">{emptyLabel}</option>
+      {/* Grupo salvo que sumiu da lista (a instância saiu do grupo): entra como
+          opção para o save não apagar a configuração em silêncio. */}
+      {value && !groups.some(g => g.jid === value) && <option value={value}>{value} (grupo atual)</option>}
+      {groups.map(g => <option key={g.jid} value={g.jid}>{g.name}</option>)}
+    </select>
   );
 }
 

@@ -84,16 +84,6 @@ async def _limit_payload(request: Request) -> None:
 
 
 # ── Helpers ────────────────────────────────────────────────
-DEFAULT_NOTIFY_TEMPLATE = (
-    "🔔 *Novo lead*\n"
-    "👤 {name}\n"
-    "📱 {phone}\n"
-    "🎓 {course}\n"
-    "✉️ {email}\n"
-    "🔗 Origem: {origem}"
-)
-
-
 def _slugify(value: str) -> str:
     """
     Slug do nome do webhook. Vai para notes."origem" e é o que o relatório de
@@ -102,20 +92,6 @@ def _slugify(value: str) -> str:
     base = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode()
     base = re.sub(r"[^a-zA-Z0-9]+", "_", base).strip("_").lower()
     return base or "webhook"
-
-
-def _render_notify(template: Optional[str], ctx: dict) -> str:
-    """
-    Preenche os placeholders do template da notificação.
-
-    replace() em vez de str.format(): o template é escrito pelo cliente na UI e
-    qualquer chave desconhecida (ou uma chave solta) derrubaria o format() —
-    e aí o lead entraria sem aviso nenhum no grupo.
-    """
-    text = template or DEFAULT_NOTIFY_TEMPLATE
-    for key, value in ctx.items():
-        text = text.replace("{" + key + "}", str(value or ""))
-    return text
 
 
 async def _validate_pipeline_stage(
@@ -544,30 +520,25 @@ async def receive_external_lead(
     except Exception as e:
         logger.error(f"[WEBHOOK_LEAD] erro ao enviar boas-vindas webhook={webhook.id}: {e}")
 
-    # Notificar o grupo comercial. Pós-commit e em try/except: o lead já está
-    # salvo e uma falha no grupo não pode derrubar a resposta para a LP.
-    # Não grava em messages de propósito — é aviso interno, não conversa.
+    # Notificar o grupo comercial. Pós-commit: o lead já está salvo e o helper
+    # não levanta, então falha no aviso não derruba a resposta para a LP.
+    # O helper é o mesmo usado pelas landing pages internas — um só formato de
+    # mensagem para as duas origens de lead.
     if webhook.notify_group_jid:
-        try:
-            from app.evolution.client import send_text
-            texto = _render_notify(
-                webhook.notify_template,
-                {
-                    "name": data.name,
-                    "phone": phone,
-                    "course": data.course or "",
-                    "email": data.email or "",
-                    "origem": origem,
-                },
-            )
-            await send_text(channel.instance_name, webhook.notify_group_jid, texto)
-            logger.info(
-                f"[WEBHOOK_NOTIFY_OK] webhook={webhook.id} grupo={webhook.notify_group_jid}"
-            )
-        except Exception as e:
-            logger.error(
-                f"[WEBHOOK_NOTIFY_FAIL] webhook={webhook.id} "
-                f"grupo={webhook.notify_group_jid}: {e}"
-            )
+        from app.notify_group import notify_lead_to_group
+        await notify_lead_to_group(
+            db,
+            channel_id=webhook.channel_id,
+            group_jid=webhook.notify_group_jid,
+            template=webhook.notify_template,
+            lead_data={
+                "name": data.name,
+                "phone": phone,
+                "course": data.course or "",
+                "email": data.email or "",
+                "origem": origem,
+                "extra": extras,
+            },
+        )
 
     return JSONResponse({"status": "ok", "message": "Lead recebido com sucesso"})
