@@ -27,10 +27,12 @@ import {
   Hash,
   Users,
   Target,
+  Trash2,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import AppShell from "@/components/app-shell";
 import ActivityTimeline from '@/components/ActivityTimeline';
+import ConfirmModal from '@/components/ConfirmModal';
 import { ConversationsProvider, useConversations } from '@/components/conversations/conversations-provider';
 import { MemoryPanel } from '@/components/ai-lab/memory-panel';
 import { useAuth } from '@/contexts/auth-context';
@@ -66,7 +68,7 @@ function ConversationsContent() {
     showCRM, setShowCRM, showStatusMenu, setShowStatusMenu, showTagMenu, setShowTagMenu,
     allTags, newTagName, setNewTagName, newTagColor, setNewTagColor,
     editingNotes, setEditingNotes, notesValue, setNotesValue, togglingAI, teamUsers, showAssignMenu, setShowAssignMenu,
-    toggleAI, updateLeadStatus, saveNotes, addTag, removeTag, createTag, assignContact,
+    toggleAI, updateLeadStatus, saveNotes, addTag, removeTag, createTag, deleteTag, assignContact,
     handleSend, handleKeyPress, onEmojiClick, handleFileUpload, startRecording, stopRecording, cancelRecording,
     isRecording, recordingTime, showEmojiPicker, setShowEmojiPicker, showAttachMenu, setShowAttachMenu,
     showScrollDown, setShowScrollDown,
@@ -89,6 +91,12 @@ function ConversationsContent() {
   };
 
   const [showCRMMobile, setShowCRMMobile] = useState(false);
+
+  // Exclusão de tag do sistema (≠ remover tag do contato) — sempre com confirmação.
+  const [tagToDelete, setTagToDelete] = useState<{ id: number; name: string } | null>(null);
+  const tagUsageCount = tagToDelete
+    ? contacts.filter(c => c.tags?.some(t => t.id === tagToDelete.id)).length
+    : 0;
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001/api';
 
@@ -271,16 +279,25 @@ function ConversationsContent() {
                         const tc = getTagColorConfig(tag.color);
                         const isActive = tagFilter.includes(tag.id);
                         return (
-                          <button
-                            key={tag.id}
-                            onClick={() => setTagFilter(prev => isActive ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium transition-all ${
-                              isActive ? `${tc.bg} ${tc.text}` : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
-                            }`}
-                          >
-                            <Hash className="w-2.5 h-2.5" />
-                            {tag.name}
-                          </button>
+                          <div key={tag.id} className="group relative flex items-center">
+                            <button
+                              onClick={() => setTagFilter(prev => isActive ? prev.filter(id => id !== tag.id) : [...prev, tag.id])}
+                              className={`flex items-center gap-1 pl-2 pr-6 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                isActive ? `${tc.bg} ${tc.text}` : 'bg-[#202c33] text-[#8696a0] hover:bg-[#2a3942]'
+                              }`}
+                            >
+                              <Hash className="w-2.5 h-2.5" />
+                              {tag.name}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setTagToDelete({ id: tag.id, name: tag.name }); }}
+                              aria-label={`Excluir tag ${tag.name}`}
+                              title="Excluir tag"
+                              className="absolute right-1.5 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity text-[#8696a0] hover:text-[#f15c6d]"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -945,9 +962,19 @@ function ConversationsContent() {
                             {allTags.filter(t => !selectedContact.tags.find(ct => ct.id === t.id)).map(tag => {
                               const tc = getTagColorConfig(tag.color);
                               return (
-                                <button key={tag.id} onClick={() => { addTag(tag.id); setShowTagMenu(false); }} className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium ${tc.bg} ${tc.text} hover:opacity-80 transition-opacity`}>
-                                  {tag.name}
-                                </button>
+                                <div key={tag.id} className="group relative">
+                                  <button onClick={() => { addTag(tag.id); setShowTagMenu(false); }} className={`w-full text-left pl-2.5 pr-8 py-1.5 rounded-lg text-[11px] font-medium ${tc.bg} ${tc.text} hover:opacity-80 transition-opacity`}>
+                                    {tag.name}
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); setTagToDelete({ id: tag.id, name: tag.name }); }}
+                                    aria-label={`Excluir tag ${tag.name}`}
+                                    title="Excluir tag"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity text-[#8696a0] hover:text-[#f15c6d]"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               );
                             })}
 
@@ -1338,6 +1365,19 @@ function ConversationsContent() {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          open={tagToDelete !== null}
+          title="Excluir tag"
+          message={`Excluir a tag '${tagToDelete?.name ?? ''}'? Ela será removida de ${tagUsageCount} contato(s). Essa ação não pode ser desfeita.`}
+          confirmLabel="Excluir"
+          variant="danger"
+          onConfirm={() => {
+            if (tagToDelete) deleteTag(tagToDelete.id);
+            setTagToDelete(null);
+          }}
+          onCancel={() => setTagToDelete(null)}
+        />
 
       </div>
     </AppShell>

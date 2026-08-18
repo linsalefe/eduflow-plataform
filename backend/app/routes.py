@@ -1215,9 +1215,19 @@ async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db), tenant_id:
     tag = result.scalar_one_or_none()
     if not tag:
         raise HTTPException(status_code=404, detail="Tag não encontrada")
+
+    # contact_tags.tag_id NÃO tem ondelete=CASCADE — sem remover os vínculos
+    # antes, deletar uma tag em uso viola a FK e retorna 500.
+    from app.models import contact_tags
+    count_result = await db.execute(
+        select(func.count()).select_from(contact_tags).where(contact_tags.c.tag_id == tag_id)
+    )
+    unlinked_contacts = count_result.scalar() or 0
+
+    await db.execute(delete(contact_tags).where(contact_tags.c.tag_id == tag_id))
     await db.delete(tag)
     await db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "unlinked_contacts": unlinked_contacts}
 
 
 @router.get("/channels/{channel_id}/templates")

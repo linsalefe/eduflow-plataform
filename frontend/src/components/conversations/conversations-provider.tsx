@@ -127,6 +127,7 @@ interface ConversationsContextType {
   addTag: (tagId: number) => Promise<void>;
   removeTag: (tagId: number) => Promise<void>;
   createTag: () => Promise<void>;
+  deleteTag: (tagId: number) => Promise<void>;
   assignContact: (userId: number | null) => Promise<void>;
 
   // Chat handlers
@@ -616,6 +617,31 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     } catch (err) { toast.error('Erro ao remover tag'); }
   };
 
+  // Exclui a tag do sistema inteiro (≠ removeTag, que só desvincula do contato).
+  const deleteTag = async (tagId: number) => {
+    try {
+      const res = await api.delete(`/tags/${tagId}`);
+      const unlinked = res.data?.unlinked_contacts ?? 0;
+      setAllTags(prev => prev.filter(t => t.id !== tagId));
+      setContacts(prev => prev.map(c =>
+        c.tags?.some(t => t.id === tagId)
+          ? { ...c, tags: c.tags.filter(t => t.id !== tagId) }
+          : c
+      ));
+      setSelectedContact(prev =>
+        prev && prev.tags?.some(t => t.id === tagId)
+          ? { ...prev, tags: prev.tags.filter(t => t.id !== tagId) }
+          : prev
+      );
+      setTagFilter(prev => prev.filter(id => id !== tagId));
+      toast.success(
+        unlinked > 0
+          ? `Tag excluída (removida de ${unlinked} contato${unlinked > 1 ? 's' : ''})`
+          : 'Tag excluída'
+      );
+    } catch (err) { toast.error('Erro ao excluir tag'); }
+  };
+
   const createTag = async () => {
     if (!newTagName.trim()) return;
     try {
@@ -968,7 +994,7 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     showCRM, setShowCRM, showStatusMenu, setShowStatusMenu, showTagMenu, setShowTagMenu,
     allTags, newTagName, setNewTagName, newTagColor, setNewTagColor,
     editingNotes, setEditingNotes, notesValue, setNotesValue, togglingAI, teamUsers, showAssignMenu, setShowAssignMenu,
-    toggleAI, updateLeadStatus, saveNotes, addTag, removeTag, createTag, assignContact,
+    toggleAI, updateLeadStatus, saveNotes, addTag, removeTag, createTag, deleteTag, assignContact,
     handleSend, handleKeyPress, onEmojiClick, handleFileUpload, startRecording, stopRecording, cancelRecording,
     isRecording, recordingTime, showEmojiPicker, setShowEmojiPicker, showAttachMenu, setShowAttachMenu,
     showScrollDown, setShowScrollDown,
