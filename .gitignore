@@ -23,3 +23,14 @@ Thumbs.db
 
 google-credentials.json
 backend/venv/
+
+# Artefatos de runtime do backend — gerados pela aplicação, não versionar.
+# backend/media/ sozinho passa de 3 GB em produção.
+backend/media/
+backend/logs/
+backend/uploads/
+
+# Dumps de banco: carregam dados de produção (contatos, mensagens, telefones).
+*.dump
+*.backup
+backend/scripts_manual/backup_dump_*.sql
