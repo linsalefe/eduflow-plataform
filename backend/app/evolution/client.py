@@ -107,6 +107,27 @@ async def get_instance_status(instance_name: str) -> dict:
         return _check(res)
 
 
+async def fetch_all_groups(instance_name: str, get_participants: bool = False) -> list:
+    """
+    Lista os grupos em que a instância é participante.
+
+    getParticipants=false de propósito: a lista de membros não é usada em lugar
+    nenhum e, em instâncias com muitos grupos, é a parte cara da resposta.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        res = await client.get(
+            f"{EVOLUTION_API_URL}/group/fetchAllGroups/{instance_name}",
+            headers=HEADERS,
+            params={"getParticipants": "true" if get_participants else "false"},
+        )
+        data = _check(res)
+        # A Evolution responde a lista crua em algumas versões e {"groups": [...]}
+        # em outras. Normaliza para lista sempre.
+        if isinstance(data, dict):
+            return data.get("groups") or []
+        return data or []
+
+
 async def get_qrcode(instance_name: str) -> dict:
     """Busca o QR code da instância."""
     async with httpx.AsyncClient(timeout=15) as client:

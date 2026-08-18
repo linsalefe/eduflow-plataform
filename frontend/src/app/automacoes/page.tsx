@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Zap, Plus, Trash2, ToggleLeft, ToggleRight,
   Loader2, ChevronDown, ChevronUp, Clock,
-  CheckCircle, Pencil, X, Copy, Link
+  CheckCircle, Pencil, X, Copy, Link, Bell, GitBranch
 } from 'lucide-react';
 import AppShell from '@/components/app-shell';
 import { useAuth } from '@/contexts/auth-context';
@@ -76,8 +76,18 @@ interface Webhook {
   channel_id: number;
   channel_name: string;
   welcome_message: string;
+  pipeline_id: number | null;
+  pipeline_name: string;
+  pipeline_stage: string | null;
+  notify_group_jid: string | null;
+  notify_template: string | null;
   is_active: boolean;
   url: string;
+}
+
+interface Group {
+  jid: string;
+  name: string;
 }
 
 const emptyStep = (): Step => ({ step_order: 1, delay_minutes: 60, delay_unit: 'hours', message: '' });
@@ -118,6 +128,13 @@ export function AutomacoesContent() {
   const [wMessage, setWMessage] = useState('')
   const [wChannelId, setWChannelId] = useState<number>(0);
   const [channels, setChannels] = useState<any[]>([]);
+  const [wPipelineId, setWPipelineId] = useState<number | null>(null);
+  const [wStage, setWStage] = useState('');
+  const [wGroupJid, setWGroupJid] = useState('');
+  const [wTemplate, setWTemplate] = useState('');
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
 
   const [mounted, setMounted] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -183,6 +200,33 @@ export function AutomacoesContent() {
       setPipelines(res.data);
     } catch {}
   };
+
+  // Os grupos vêm da instância do canal escolhido, então trocar o canal
+  // invalida a lista. O 409 do backend (instância desconectada) não é erro de
+  // tela: o campo cai para texto livre, para quem já sabe o JID do grupo.
+  const loadGroups = async (channelId: number) => {
+    if (!channelId) {
+      setGroups([]);
+      setGroupsError(null);
+      return;
+    }
+    setLoadingGroups(true);
+    setGroupsError(null);
+    try {
+      const res = await api.get(`/webhooks/groups/${channelId}`);
+      setGroups(res.data);
+    } catch (err) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setGroups([]);
+      setGroupsError(detail || 'Conecte o canal para listar os grupos');
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showWebhookModal && wChannelId) loadGroups(wChannelId);
+  }, [showWebhookModal, wChannelId]);
 
   // ── Fluxos ─────────────────────────────────────────────
 
@@ -305,11 +349,20 @@ export function AutomacoesContent() {
 
   // ── Webhooks ───────────────────────────────────────────
 
+  // Etapas do pipeline escolhido no form do webhook. Vazio = nenhum pipeline
+  // selecionado, e aí o backend mantém o fallback (default do canal/tenant).
+  const wStageOptions = pipelines.find(p => p.id === wPipelineId)?.columns || [];
+
   const openCreateWebhook = () => {
     setEditWebhook(null);
     setWName('');
     setWMessage('');
     if (channels.length > 0) setWChannelId(channels[0].id);
+    const defaultP = pipelines.find(p => p.is_default);
+    setWPipelineId(defaultP?.id ?? null);
+    setWStage(defaultP?.columns?.[0]?.key || '');
+    setWGroupJid('');
+    setWTemplate('');
     setShowWebhookModal(true);
   };
 
@@ -318,7 +371,19 @@ export function AutomacoesContent() {
     setWName(w.name);
     setWMessage(w.welcome_message);
     setWChannelId(w.channel_id);
+    setWPipelineId(w.pipeline_id ?? null);
+    setWStage(w.pipeline_stage || '');
+    setWGroupJid(w.notify_group_jid || '');
+    setWTemplate(w.notify_template || '');
     setShowWebhookModal(true);
+  };
+
+  // Trocar o pipeline invalida a etapa: cai na primeira coluna do novo funil.
+  const changeWebhookPipeline = (value: string) => {
+    const pid = value ? Number(value) : null;
+    setWPipelineId(pid);
+    const p = pipelines.find(pl => pl.id === pid);
+    setWStage(p?.columns?.[0]?.key || '');
   };
 
   const handleSaveWebhook = async () => {
@@ -326,11 +391,20 @@ export function AutomacoesContent() {
     if (!wMessage.trim()) return toast.error('Escreva a mensagem de boas-vindas');
     setSavingWebhook(true);
     try {
+      const payload = {
+        name: wName,
+        channel_id: wChannelId,
+        welcome_message: wMessage,
+        pipeline_id: wPipelineId,
+        pipeline_stage: wPipelineId ? wStage || null : null,
+        notify_group_jid: wGroupJid.trim() || null,
+        notify_template: wTemplate.trim() || null,
+      };
       if (editWebhook) {
-        await api.put(`/webhooks/${editWebhook.id}`, { name: wName, welcome_message: wMessage, is_active: editWebhook.is_active });
+        await api.put(`/webhooks/${editWebhook.id}`, { ...payload, is_active: editWebhook.is_active });
         toast.success('Webhook atualizado');
       } else {
-        await api.post('/webhooks', { name: wName, channel_id: wChannelId, welcome_message: wMessage });
+        await api.post('/webhooks', payload);
         toast.success('Webhook criado');
       }
       setShowWebhookModal(false);
@@ -589,6 +663,17 @@ export function AutomacoesContent() {
                           <div className="flex items-center gap-2">
                             <p className="text-[14px] font-semibold text-foreground">{w.name}</p>
                             <span className="text-[11px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md">{w.channel_name}</span>
+                            {w.pipeline_name && (
+                              <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 bg-primary/5 text-primary rounded-md" title={`Lead entra no funil ${w.pipeline_name}`}>
+                                <GitBranch className="w-3 h-3" />
+                                {w.pipeline_name}
+                              </span>
+                            )}
+                            {w.notify_group_jid && (
+                              <span title="Notifica um grupo do WhatsApp quando o lead entra">
+                                <Bell className="w-3.5 h-3.5 text-amber-500" />
+                              </span>
+                            )}
                             {w.is_active && (
                               <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
@@ -726,29 +811,84 @@ export function AutomacoesContent() {
       {/* ── MODAL WEBHOOK ─────────────────────────────────── */}
       {showWebhookModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowWebhookModal(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="text-[15px] font-semibold text-foreground">{editWebhook ? 'Editar webhook' : 'Novo webhook'}</h2>
               <button onClick={() => setShowWebhookModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-4 h-4" /></button>
             </div>
-            <div className="px-6 py-5 space-y-5">
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Nome</label>
                 <input type="text" value={wName} onChange={e => setWName(e.target.value)} placeholder="Ex: Formulário Site Principal" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all" />
               </div>
-              {!editWebhook && (
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Canal WhatsApp</label>
-                  <select value={wChannelId} onChange={e => setWChannelId(Number(e.target.value))} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all serviçor-pointer">
-                    {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Canal WhatsApp</label>
+                <select value={wChannelId} onChange={e => setWChannelId(Number(e.target.value))} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all">
+                  {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Mensagem de boas-vindas</label>
                 <textarea value={wMessage} onChange={e => setWMessage(e.target.value)} placeholder={`Oi {nome}, vi que você se interessou! 👋`} rows={4} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
                 <p className="text-[11px] text-gray-400 mt-1">Use <code className="bg-gray-200 px-1 rounded">{'{nome}'}</code> para o nome do lead</p>
               </div>
+
+              {/* Destino do lead */}
+              <div>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Funil de destino</label>
+                <select value={wPipelineId ?? ''} onChange={e => changeWebhookPipeline(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all cursor-pointer">
+                  <option value="">Padrão do canal</option>
+                  {pipelines.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.is_default ? ' (Principal)' : ''}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">Sem escolha, o lead entra no funil padrão do canal.</p>
+              </div>
+
+              {wPipelineId && wStageOptions.length > 0 && (
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Etapa inicial</label>
+                  <select value={wStage} onChange={e => setWStage(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all cursor-pointer">
+                    {wStageOptions.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Notificação em grupo */}
+              <div>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Avisar no grupo</label>
+                {loadingGroups ? (
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-400">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />Carregando grupos do canal...
+                  </div>
+                ) : groupsError ? (
+                  <>
+                    <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 mb-2">{groupsError}</p>
+                    <input type="text" value={wGroupJid} onChange={e => setWGroupJid(e.target.value)} placeholder="120363000000000000@g.us" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all font-mono" />
+                    <p className="text-[11px] text-gray-400 mt-1">Cole o JID do grupo enquanto o canal estiver desconectado.</p>
+                  </>
+                ) : (
+                  <select value={wGroupJid} onChange={e => setWGroupJid(e.target.value)} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-primary focus:bg-white transition-all cursor-pointer">
+                    <option value="">Não avisar nenhum grupo</option>
+                    {/* Grupo já salvo que sumiu da lista (instância saiu do grupo):
+                        entra como opção para o save não apagar a config em silêncio. */}
+                    {wGroupJid && !groups.some(g => g.jid === wGroupJid) && (
+                      <option value={wGroupJid}>{wGroupJid} (grupo atual)</option>
+                    )}
+                    {groups.map(g => <option key={g.jid} value={g.jid}>{g.name}</option>)}
+                  </select>
+                )}
+              </div>
+
+              {wGroupJid && (
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Mensagem do aviso</label>
+                  <textarea value={wTemplate} onChange={e => setWTemplate(e.target.value)} placeholder={'🔔 Novo lead: {name} — {phone}'} rows={4} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Disponíveis: <code className="bg-gray-200 px-1 rounded">{'{name}'}</code> <code className="bg-gray-200 px-1 rounded">{'{phone}'}</code> <code className="bg-gray-200 px-1 rounded">{'{course}'}</code> <code className="bg-gray-200 px-1 rounded">{'{email}'}</code> <code className="bg-gray-200 px-1 rounded">{'{origem}'}</code>. Em branco, usa a mensagem padrão com todos eles.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button onClick={() => setShowWebhookModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-[13px] font-medium text-gray-500 hover:bg-gray-50 transition-colors">Cancelar</button>
