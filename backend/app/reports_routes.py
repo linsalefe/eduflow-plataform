@@ -92,6 +92,11 @@ _ORIGEM_SEM_ORIGEM = ("direto",)
 # Valores de notes."origem" que são programa, não canal.
 _ORIGEM_PROGRAMAS = ("highschool", "camp")
 
+# notes."source" gravado por webhook_routes.receive_external_lead. Cada webhook
+# vira uma linha própria no relatório, sem precisar entrar em whitelist: o nome
+# do webhook é escolhido pelo cliente e a lista mudaria a cada webhook novo.
+WEBHOOK_SOURCE = "webhook_externo"
+
 ACQ_UNKNOWN = "desconhecido"
 ACQ_LANDING = "landing page"
 PROGRAM_NONE = "nenhum"
@@ -224,6 +229,11 @@ def _contact_acquisition_sq(tenant_id: int):
     utm_medium = func.coalesce(fs.c.utm_medium, "")
 
     source_expr = case(
+        # Lead de webhook de LP externa é bucket próprio, nomeado pelo webhook
+        # que o recebeu (notes."origem" = slug do nome). Vem antes do UTM de
+        # propósito: se a mesma pessoa já tinha preenchido uma LP, o utm_source
+        # daquela submissão não pode reivindicar o lead que entrou pelo webhook.
+        (and_(src_key == WEBHOOK_SOURCE, origem != ""), origem),
         (utm.in_(("ig", "instagram")), "instagram"),
         (utm == "meta_ads", "meta ads"),
         (utm == "manychat", "manychat"),

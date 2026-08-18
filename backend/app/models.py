@@ -609,6 +609,12 @@ class WebhookConfig(Base):
     welcome_message = Column(Text, nullable=False)
     is_active = Column(Boolean, default=True)
     token = Column(String(32), nullable=False)
+    # Destino do lead. NULL = fallback antigo (default do canal, depois do tenant).
+    pipeline_id = Column(Integer, ForeignKey("pipelines.id"), nullable=True)
+    pipeline_stage = Column(String(50), nullable=True)
+    # Notificação em grupo do WhatsApp quando o lead entra. NULL = não notifica.
+    notify_group_jid = Column(String(100), nullable=True)
+    notify_template = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
 
