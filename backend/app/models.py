@@ -290,6 +290,12 @@ class LandingPage(Base):
     tag = Column(String(100), nullable=True)
     pipeline_stage = Column(String(50), nullable=True)
     whatsapp_message = Column(Text, nullable=True)
+    # Notificação de lead em grupo. notify_rules roteia por origem (CAMP vs
+    # High School dividem a mesma LP); notify_group_jid é o fallback "tudo num
+    # grupo só". Ver app/notify_group.resolve_group_target.
+    notify_group_jid = Column(String(100), nullable=True)
+    notify_template = Column(Text, nullable=True)
+    notify_rules = Column(JSON, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

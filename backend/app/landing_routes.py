@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from app.database import get_db
+from app.notify_group import notify_lead_to_group, resolve_group_target
 from app.models import LandingPage, FormSubmission, Contact, Channel, Tenant
 from app.auth import get_current_user, get_tenant_id
 import json
@@ -25,6 +26,50 @@ from app.phone_utils import (
 
 
 router = APIRouter(prefix="/api/landing-pages", tags=["Landing Pages"])
+
+
+def _clean_notify_rules(raw):
+    """
+    Normaliza e valida as regras de roteamento por origem.
+
+    A origem é gravada em minúsculas e sem espaços porque é assim que
+    resolve_group_target compara com o campo do formulário — normalizar só na
+    leitura deixaria a regra salva parecendo diferente da que casa.
+    """
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise HTTPException(status_code=400, detail="notify_rules deve ser uma lista")
+
+    regras, vistas = [], set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=400, detail="Cada regra deve ser um objeto")
+        origem = str(item.get("origem") or "").strip().lower()
+        group_jid = str(item.get("group_jid") or "").strip()
+        if not origem or not group_jid:
+            raise HTTPException(
+                status_code=400, detail="Cada regra precisa de origem e grupo"
+            )
+        if origem in vistas:
+            raise HTTPException(
+                status_code=400, detail=f"Origem duplicada nas regras: '{origem}'"
+            )
+        vistas.add(origem)
+        regras.append({
+            "origem": origem,
+            "group_jid": group_jid,
+            "template": item.get("template") or None,
+        })
+    return regras or None
+
+
+def _notify_fields(page):
+    return {
+        "notify_group_jid": page.notify_group_jid,
+        "notify_template": page.notify_template,
+        "notify_rules": page.notify_rules or [],
+    }
 
 @router.post("/upload")
 async def upload_image(file: UploadFile = File(...), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
@@ -62,6 +107,7 @@ async def list_landing_pages(channel_id: int = None, db: AsyncSession = Depends(
             "tag": p.tag,
             "pipeline_stage": p.pipeline_stage,
             "whatsapp_message": p.whatsapp_message,
+            **_notify_fields(p),
             "created_at": str(p.created_at),
         }
         for p in pages
@@ -83,6 +129,9 @@ async def create_landing_page(data: dict, db: AsyncSession = Depends(get_db), us
         template=data.get("template", "curso"),
         config=json.dumps(data.get("config", {})),
         is_active=data.get("is_active", True),
+        notify_group_jid=(data.get("notify_group_jid") or None),
+        notify_template=(data.get("notify_template") or None),
+        notify_rules=_clean_notify_rules(data.get("notify_rules")),
     )
     db.add(page)
     await db.commit()
@@ -107,6 +156,7 @@ async def get_landing_page(page_id: int, db: AsyncSession = Depends(get_db), use
         "tag": page.tag,
         "pipeline_stage": page.pipeline_stage,
         "whatsapp_message": page.whatsapp_message,
+        **_notify_fields(page),
         "created_at": str(page.created_at),
     }
 
@@ -134,6 +184,12 @@ async def update_landing_page(page_id: int, data: dict, db: AsyncSession = Depen
         page.pipeline_stage = data["pipeline_stage"]
     if "whatsapp_message" in data:
         page.whatsapp_message = data["whatsapp_message"]
+    if "notify_group_jid" in data:
+        page.notify_group_jid = data["notify_group_jid"] or None
+    if "notify_template" in data:
+        page.notify_template = data["notify_template"] or None
+    if "notify_rules" in data:
+        page.notify_rules = _clean_notify_rules(data["notify_rules"])
 
     await db.commit()
     return {"message": "Landing page atualizada"}
@@ -483,6 +539,34 @@ async def submit_form(slug: str, data: dict, request: Request, db: AsyncSession 
         except Exception as e:
             logger.exception(f"[LP_SUBMIT_MSG_ERROR] erro send/persist WhatsApp: {e}")
     await db.commit()
+
+    # === Avisar o grupo comercial ===
+    # Pós-commit e via helper que não levanta: o lead já está gravado e uma
+    # falha no aviso não pode devolver erro para o formulário da LP.
+    # O destino é resolvido pela origem porque a LP do GV é uma só para CAMP e
+    # High School — cada programa tem seu grupo comercial.
+    _extra_notify = data.get("extra", {}) or {}
+    _group_jid, _group_template = resolve_group_target(
+        page.notify_rules,
+        page.notify_group_jid,
+        page.notify_template,
+        _extra_notify.get("origem"),
+    )
+    if _group_jid:
+        await notify_lead_to_group(
+            db,
+            channel_id=page.channel_id,
+            group_jid=_group_jid,
+            template=_group_template,
+            lead_data={
+                "name": data.get("name", ""),
+                "phone": phone_clean,
+                "course": data.get("course", "") or "",
+                "email": data.get("email", "") or "",
+                "origem": _extra_notify.get("origem", "") or "",
+                "extra": _extra_notify,
+            },
+        )
 
     # HOTFIX-3: dispara fluxos do chatbot com trigger 'stage_change' (gatilho
     # "Mudança de estágio do funil"). Roda em background com sessão fresca —

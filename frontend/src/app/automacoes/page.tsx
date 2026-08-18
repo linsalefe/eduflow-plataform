@@ -883,9 +883,9 @@ export function AutomacoesContent() {
               {wGroupJid && (
                 <div>
                   <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Mensagem do aviso</label>
-                  <textarea value={wTemplate} onChange={e => setWTemplate(e.target.value)} placeholder={'🔔 Novo lead: {name} — {phone}'} rows={4} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
+                  <textarea value={wTemplate} onChange={e => setWTemplate(e.target.value)} placeholder={'🚨 Novo lead — {origem}\nNome: {name}\n📞 {phone}\n{extras}'} rows={5} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Disponíveis: <code className="bg-gray-200 px-1 rounded">{'{name}'}</code> <code className="bg-gray-200 px-1 rounded">{'{phone}'}</code> <code className="bg-gray-200 px-1 rounded">{'{course}'}</code> <code className="bg-gray-200 px-1 rounded">{'{email}'}</code> <code className="bg-gray-200 px-1 rounded">{'{origem}'}</code>. Em branco, usa a mensagem padrão com todos eles.
+                    Fixos: <code className="bg-gray-200 px-1 rounded">{'{name}'}</code> <code className="bg-gray-200 px-1 rounded">{'{phone}'}</code> <code className="bg-gray-200 px-1 rounded">{'{course}'}</code> <code className="bg-gray-200 px-1 rounded">{'{email}'}</code> <code className="bg-gray-200 px-1 rounded">{'{origem}'}</code>. Qualquer campo extra enviado no payload também vale como placeholder — ex: <code className="bg-gray-200 px-1 rounded">{'{nome_atleta}'}</code>. E <code className="bg-gray-200 px-1 rounded">{'{extras}'}</code> lista todos os campos extras automaticamente, um por linha, omitindo os vazios. Em branco, usa a mensagem padrão do sistema.
                   </p>
                 </div>
               )}
