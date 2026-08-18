@@ -139,12 +139,20 @@ export function PipelineContent() {
 
   const handleSave = async () => {
     if (!activePipeline) return;
+
+    // Remove chaves "fantasma": status que a config guardada aponta mas que
+    // nao existem mais nas colunas atuais da pipeline (colunas renomeadas/removidas).
+    // Sem isso o backend rejeita o save com 422.
+    const validKeys = new Set((activePipeline.columns || []).map((c) => c.key));
+    const from_statuses = config.from_statuses.filter((s) => validKeys.has(s));
+    const to_status = validKeys.has(config.to_status) ? config.to_status : '';
+
     if (config.enabled) {
-      if (config.from_statuses.length === 0) {
+      if (from_statuses.length === 0) {
         toast.error('Selecione pelo menos uma coluna de origem');
         return;
       }
-      if (!config.to_status) {
+      if (!to_status) {
         toast.error('Selecione a coluna de destino');
         return;
       }
@@ -152,11 +160,13 @@ export function PipelineContent() {
     setSaving(true);
     try {
       const cooldown_seconds = cdValue * cdFactor;
+      const cleanConfig = { ...config, from_statuses, to_status, cooldown_seconds };
       const res = await api.patch('/tenant/reopen-config', {
         pipeline_id: activePipeline.id,
-        config: { ...config, cooldown_seconds },
+        config: cleanConfig,
       });
       setAllConfigs(res.data.reopen_config || {});
+      setConfig(cleanConfig);
       toast.success('Configuracao salva');
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erro ao salvar');
