@@ -32,6 +32,10 @@ EXTRAS_HIDDEN_KEYS = {"form_version", "url_origem_form", "source", "origem"}
 # Placeholders fixos, sempre disponíveis mesmo quando o lead não trouxe o campo.
 FIXED_KEYS = ("name", "phone", "course", "email", "origem")
 
+# Derivado de "phone" no render, não vem do lead: o número sem o "+", para o
+# template que precisa do valor cru (colar em planilha, montar link próprio).
+PHONE_RAW_KEY = "phone_raw"
+
 MAX_EXTRA_LINES = 40
 
 
@@ -52,6 +56,30 @@ def _stringify(value: Any) -> str:
         except (TypeError, ValueError):
             return str(value)
     return str(value)
+
+
+def phone_clicavel(phone: Any) -> str:
+    """
+    Telefone com "+" na frente — é o que faz o WhatsApp tornar o número clicável.
+
+    APRESENTAÇÃO, e só isso: o app só reconhece o número como internacional (e
+    portanto vira link para abrir a conversa) quando ele aparece com "+". O
+    telefone chega aqui já normalizado por app/phone_utils.py (DDI 55, sem
+    máscara, sem "+"), e nada disso muda o dado gravado — o "+" nasce e morre na
+    mensagem do grupo. Não replicar regra de telefone aqui: normalização é
+    responsabilidade exclusiva de phone_utils.
+
+    Idempotente: número que já venha com "+" não ganha um segundo.
+    """
+    texto = _stringify(phone).strip()
+    if not texto:
+        return ""
+    return texto if texto.startswith("+") else "+" + texto
+
+
+def phone_raw(phone: Any) -> str:
+    """O mesmo telefone sem o "+", para quem precisa do número cru no template."""
+    return _stringify(phone).strip().lstrip("+")
 
 
 def build_extras_block(extras: Optional[dict]) -> str:
@@ -85,12 +113,18 @@ def render_template(template: Optional[str], lead_data: dict) -> str:
     entraria sem aviso nenhum no grupo. Com replace, placeholder desconhecido
     fica literal, o que é visível e não custa a mensagem.
 
-    Disponíveis: os fixos, qualquer chave dos extras ({nome_atleta}) e {extras}.
+    Disponíveis: os fixos, {phone_raw}, qualquer chave dos extras ({nome_atleta})
+    e {extras}.
     """
     text = template or DEFAULT_TEMPLATE
     extras = lead_data.get("extra") or {}
 
     valores = {k: lead_data.get(k, "") for k in FIXED_KEYS}
+    # {phone} sai com "+" para o WhatsApp renderizar como link clicável — foi o
+    # pedido do comercial, que copiava o número na mão. Quem quiser o número cru
+    # no template usa {phone_raw}.
+    valores["phone"] = phone_clicavel(valores.get("phone"))
+    valores[PHONE_RAW_KEY] = phone_raw(lead_data.get("phone", ""))
     # Extras entram depois, mas sem sobrescrever um fixo de mesmo nome: "name"
     # do formulário não pode roubar o lugar do nome do lead.
     for key, value in extras.items():
