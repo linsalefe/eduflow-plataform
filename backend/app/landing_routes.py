@@ -340,21 +340,39 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
     )
 
     # Status dos contatos vindos de LPs.
-    # O filtro de tenant vai nos dois lados: no Contact e na subquery de
-    # telefones — sem ele, um telefone de outro tenant traria o contato daqui
-    # (e vice-versa) para dentro do funil.
-    contacts_from_lp = await db.execute(
-        select(
-            Contact.lead_status,
-            func.count(Contact.id).label("total")
-        ).where(
-            Contact.tenant_id == tenant_id,
-            Contact.wa_id.in_(
-                select(distinct(FormSubmission.phone))
-                .where(FormSubmission.tenant_id == tenant_id)
-            )
-        ).group_by(Contact.lead_status)
+    #
+    # O telefone da submissão vem mascarado do formulário ("+55 (17) 99244-7356")
+    # e o Contact guarda o wa_id normalizado ("5517992447356"), então comparar
+    # os dois campos direto em SQL nunca casa — era por isso que o funil vinha
+    # vazio. A normalização roda em Python com os MESMOS helpers do resto do
+    # fluxo (clean/variants), em vez de reescrever a regra do nono dígito em
+    # SQL: é justamente essa divergência que app/phone_utils.py existe pra
+    # evitar. O volume permite — são as submissões de um tenant só.
+    #
+    # O filtro de tenant continua nos dois lados (telefones e Contact): sem ele,
+    # um telefone repetido em outro tenant traria o contato de lá pro funil daqui.
+    phones_result = await db.execute(
+        select(distinct(FormSubmission.phone)).where(FormSubmission.tenant_id == tenant_id)
     )
+    wa_id_candidates = set()
+    for (phone,) in phones_result.all():
+        if not phone or "@" in phone:  # JID de grupo não é telefone de lead
+            continue
+        wa_id_candidates.add(phone)  # mantém o match exato que já existia
+        wa_id_candidates.update(_phone_variants_br(_clean_phone_br(phone)))
+
+    funnel = {}
+    if wa_id_candidates:
+        contacts_from_lp = await db.execute(
+            select(
+                Contact.lead_status,
+                func.count(Contact.id).label("total")
+            ).where(
+                Contact.tenant_id == tenant_id,
+                Contact.wa_id.in_(wa_id_candidates),
+            ).group_by(Contact.lead_status)
+        )
+        funnel = {r[0]: r[1] for r in contacts_from_lp.all()}
 
     return {
         "total_leads": total_leads.scalar() or 0,
@@ -362,7 +380,7 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
         "by_campaign": [{"campaign": r[0] or "sem campanha", "total": r[1]} for r in leads_by_campaign.all()],
         "by_page": [{"title": r[0], "slug": r[1], "total": r[2]} for r in leads_by_page.all()],
         "by_day": [{"day": str(r[0])[:10], "total": r[1]} for r in leads_by_day.all()],
-        "funnel": {r[0]: r[1] for r in contacts_from_lp.all()},
+        "funnel": funnel,
     }
 
 # === Rota Pública (sem auth) ===
