@@ -38,17 +38,31 @@ import app.voice_ai.models  # noqa: E402,F401  (registra ai_calls no metadata)
 from app.landing_routes import router as landing_router  # noqa: E402
 
 
-# tenant -> (user_id, nº de submissões, landing pages)
+# O id do usuário é igual ao do tenant no seed, então o mesmo número serve de
+# tenant e de "sub" no token.
 TENANT_A, TENANT_B, TENANT_VAZIO = 1, 4, 7
 
-# (tenant, slug, utm_source, utm_campaign, telefone)
+# (tenant, slug, utm_source, utm_campaign, telefone_da_submissao, wa_id_do_contato, lead_status)
+#
+# O telefone da submissão vai MASCARADO de propósito: é assim que o formulário
+# grava ("+55 (11) 99000-0001") enquanto o Contact guarda o wa_id normalizado.
+# wa_id None = submissão sem contato correspondente (não entra no funil).
 SEED = [
-    (TENANT_A, "curso-a", "google", "camp-a", "5511900000001"),
-    (TENANT_A, "curso-a", "google", "camp-a", "5511900000002"),
-    (TENANT_A, "curso-a", "meta", "camp-a", "5511900000003"),
-    (TENANT_B, "curso-b", "google", "camp-b", "5511900000004"),
-    (TENANT_B, "curso-b", "tiktok", "camp-b", "5511900000005"),
+    # casa depois de normalizar a máscara
+    (TENANT_A, "curso-a", "google", "camp-a", "+55 (11) 99000-0001", "5511990000001", "novo"),
+    # contato legado SEM o nono dígito: só casa pela variante BR
+    (TENANT_A, "curso-a", "google", "camp-a", "+55 (11) 99000-0002", "551190000002", "ganho"),
+    # lead que nunca virou contato
+    (TENANT_A, "curso-a", "meta", "camp-a", "+55 (11) 99000-0003", None, None),
+    # MESMO telefone da primeira submissão do tenant A, contato próprio do B:
+    # cada tenant só pode enxergar o seu.
+    (TENANT_B, "curso-b", "google", "camp-b", "+55 (11) 99000-0001", "5511990000001", "qualificado"),
+    (TENANT_B, "curso-b", "tiktok", "camp-b", "+55 (11) 99000-0004", "5511990000004", "novo"),
 ]
+
+# funil esperado por tenant, derivado do SEED acima
+FUNIL_A = {"novo": 1, "ganho": 1}
+FUNIL_B = {"qualificado": 1, "novo": 1}
 
 
 async def _seed(engine):
@@ -82,17 +96,18 @@ async def _seed(engine):
         await db.flush()
 
         ontem = datetime.now() - timedelta(days=1)
-        for tid, slug, source, campaign, phone in SEED:
+        for tid, slug, source, campaign, phone, wa_id, status in SEED:
             db.add(FormSubmission(
                 tenant_id=tid, landing_page_id=pages[slug].id, channel_id=tid,
                 name=f"Lead {phone}", phone=phone, course="Curso",
                 utm_source=source, utm_medium="cpc", utm_campaign=campaign,
                 created_at=ontem,
             ))
-            db.add(Contact(
-                tenant_id=tid, wa_id=phone, name=f"Lead {phone}",
-                lead_status="novo", channel_id=tid,
-            ))
+            if wa_id:
+                db.add(Contact(
+                    tenant_id=tid, wa_id=wa_id, name=f"Lead {phone}",
+                    lead_status=status, channel_id=tid,
+                ))
         await db.commit()
         return {slug: p.id for slug, p in pages.items()}
 
@@ -145,7 +160,7 @@ def test_roi_do_tenant_a_conta_so_o_que_e_dele(client):
     assert {r["campaign"]: r["total"] for r in roi["by_campaign"]} == {"camp-a": 3}
     assert [(r["slug"], r["total"]) for r in roi["by_page"]] == [("curso-a", 3)]
     assert sum(r["total"] for r in roi["by_day"]) == 3
-    assert roi["funnel"] == {"novo": 3}
+    assert roi["funnel"] == FUNIL_A
 
 
 def test_roi_do_tenant_b_conta_so_o_que_e_dele(client):
@@ -155,7 +170,7 @@ def test_roi_do_tenant_b_conta_so_o_que_e_dele(client):
     assert {r["campaign"]: r["total"] for r in roi["by_campaign"]} == {"camp-b": 2}
     assert [(r["slug"], r["total"]) for r in roi["by_page"]] == [("curso-b", 2)]
     assert sum(r["total"] for r in roi["by_day"]) == 2
-    assert roi["funnel"] == {"novo": 2}
+    assert roi["funnel"] == FUNIL_B
 
 
 def test_tenants_nao_veem_os_mesmos_numeros(client):
@@ -166,7 +181,9 @@ def test_tenants_nao_veem_os_mesmos_numeros(client):
     for roi in (a, b):
         assert sum(r["total"] for r in roi["by_source"]) == roi["total_leads"]
         assert sum(r["total"] for r in roi["by_page"]) == roi["total_leads"]
-        assert sum(roi["funnel"].values()) == roi["total_leads"]
+        # o funil conta contatos, não submissões: é <= total_leads porque nem
+        # todo lead virou contato (ver SEED).
+        assert 0 < sum(roi["funnel"].values()) <= roi["total_leads"]
     assert {r["campaign"] for r in a["by_campaign"]}.isdisjoint(
         {r["campaign"] for r in b["by_campaign"]}
     )
@@ -182,6 +199,43 @@ def test_tenant_sem_landing_page_recebe_zeros(client):
         "by_day": [],
         "funnel": {},
     }
+
+
+def test_funnel_casa_telefone_mascarado_com_wa_id_normalizado(client):
+    """A submissão grava '+55 (11) 99000-0001' e o contato '5511990000001'.
+
+    Comparando os campos crus em SQL isso nunca casa — era a causa do funil
+    voltar {} em produção.
+    """
+    funnel = _roi(client, TENANT_A)["funnel"]
+    assert funnel.get("novo") == 1
+
+
+def test_funnel_casa_contato_sem_o_nono_digito(client):
+    """Contato legado gravado sem o 9 ('551190000002') tem de casar com a
+    submissão de '+55 (11) 99000-0002' pela variante BR do phone_utils."""
+    funnel = _roi(client, TENANT_A)["funnel"]
+    assert funnel.get("ganho") == 1
+
+
+def test_funnel_ignora_submissao_sem_contato(client):
+    """O tenant A tem 3 submissões, mas só 2 viraram contato."""
+    roi = _roi(client, TENANT_A)
+    assert roi["total_leads"] == 3
+    assert sum(roi["funnel"].values()) == 2
+
+
+def test_funnel_nao_puxa_contato_de_outro_tenant_com_o_mesmo_telefone(client):
+    """'+55 (11) 99000-0001' aparece nos dois tenants, com contatos distintos.
+
+    Sem o filtro de tenant dos dois lados, o contato 'qualificado' do B cairia
+    no funil do A (e vice-versa) — a normalização em Python amplia o conjunto de
+    telefones, então esse isolamento importa ainda mais que antes.
+    """
+    a, b = _roi(client, TENANT_A)["funnel"], _roi(client, TENANT_B)["funnel"]
+    assert "qualificado" not in a          # status que só existe no tenant B
+    assert "ganho" not in b                # status que só existe no tenant A
+    assert a == FUNIL_A and b == FUNIL_B
 
 
 def test_stats_da_lp_nao_conta_submissao_de_outro_tenant(client):
