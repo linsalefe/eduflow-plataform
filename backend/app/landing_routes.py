@@ -264,7 +264,10 @@ async def list_submissions(page_id: int, db: AsyncSession = Depends(get_db), use
 @router.get("/{page_id}/stats")
 async def landing_page_stats(page_id: int, db: AsyncSession = Depends(get_db), user=Depends(get_current_user), tenant_id: int = Depends(get_tenant_id)):
     total = await db.execute(
-        select(func.count(FormSubmission.id)).where(FormSubmission.landing_page_id == page_id)
+        select(func.count(FormSubmission.id)).where(
+            FormSubmission.landing_page_id == page_id,
+            FormSubmission.tenant_id == tenant_id,
+        )
     )
     return {"total_submissions": total.scalar() or 0}
 
@@ -282,7 +285,11 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
         select(
             FormSubmission.utm_source,
             func.count(FormSubmission.id).label("total")
-        ).where(FormSubmission.utm_source != None, FormSubmission.utm_source != "")
+        ).where(
+            FormSubmission.tenant_id == tenant_id,
+            FormSubmission.utm_source != None,
+            FormSubmission.utm_source != "",
+        )
         .group_by(FormSubmission.utm_source)
         .order_by(func.count(FormSubmission.id).desc())
     )
@@ -292,7 +299,11 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
         select(
             FormSubmission.utm_campaign,
             func.count(FormSubmission.id).label("total")
-        ).where(FormSubmission.utm_campaign != None, FormSubmission.utm_campaign != "")
+        ).where(
+            FormSubmission.tenant_id == tenant_id,
+            FormSubmission.utm_campaign != None,
+            FormSubmission.utm_campaign != "",
+        )
         .group_by(FormSubmission.utm_campaign)
         .order_by(func.count(FormSubmission.id).desc())
     )
@@ -304,6 +315,10 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
             LandingPage.slug,
             func.count(FormSubmission.id).label("total")
         ).join(LandingPage, FormSubmission.landing_page_id == LandingPage.id)
+        .where(
+            FormSubmission.tenant_id == tenant_id,
+            LandingPage.tenant_id == tenant_id,
+        )
         .group_by(LandingPage.title, LandingPage.slug)
         .order_by(func.count(FormSubmission.id).desc())
     )
@@ -316,20 +331,27 @@ async def dashboard_roi(db: AsyncSession = Depends(get_db), user=Depends(get_cur
         select(
             day_trunc.label("day"),
             func.count(FormSubmission.id).label("total")
-        ).where(FormSubmission.created_at >= thirty_days_ago)
+        ).where(
+            FormSubmission.tenant_id == tenant_id,
+            FormSubmission.created_at >= thirty_days_ago,
+        )
         .group_by(day_trunc)
         .order_by(day_trunc)
     )
 
-    # Status dos contatos vindos de LPs
-    from sqlalchemy import exists
+    # Status dos contatos vindos de LPs.
+    # O filtro de tenant vai nos dois lados: no Contact e na subquery de
+    # telefones — sem ele, um telefone de outro tenant traria o contato daqui
+    # (e vice-versa) para dentro do funil.
     contacts_from_lp = await db.execute(
         select(
             Contact.lead_status,
             func.count(Contact.id).label("total")
         ).where(
+            Contact.tenant_id == tenant_id,
             Contact.wa_id.in_(
                 select(distinct(FormSubmission.phone))
+                .where(FormSubmission.tenant_id == tenant_id)
             )
         ).group_by(Contact.lead_status)
     )
