@@ -842,8 +842,11 @@ const [activeTab, setActiveTab] = useState<'sections' | 'form' | 'visual' | 'crm
                       <code className="bg-gray-100 px-1 rounded">{'{phone}'}</code>{' '}
                       <code className="bg-gray-100 px-1 rounded">{'{course}'}</code>{' '}
                       <code className="bg-gray-100 px-1 rounded">{'{email}'}</code>{' '}
-                      <code className="bg-gray-100 px-1 rounded">{'{origem}'}</code>. Qualquer campo do
-                      formulário também vale como placeholder — ex:{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{origem}'}</code>. O{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{phone}'}</code> sai com &quot;+&quot; para o
+                      WhatsApp mostrar o número como link clicável — use{' '}
+                      <code className="bg-gray-100 px-1 rounded">{'{phone_raw}'}</code> para o número sem o
+                      &quot;+&quot;. Qualquer campo do formulário também vale como placeholder — ex:{' '}
                       <code className="bg-gray-100 px-1 rounded">{'{nome_atleta}'}</code>. E{' '}
                       <code className="bg-gray-100 px-1 rounded">{'{extras}'}</code> lista todos os campos
                       extras automaticamente, um por linha, omitindo os vazios. Em branco, usa a mensagem
