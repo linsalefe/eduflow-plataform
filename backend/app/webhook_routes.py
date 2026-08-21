@@ -225,7 +225,10 @@ async def list_channel_groups(
 class WebhookCreate(BaseModel):
     name: str
     channel_id: int
-    welcome_message: str
+    # Opcional: vazio/ausente = nenhuma mensagem automática para o lead. Tem
+    # cliente (agência, time comercial próprio) que quer só o lead no funil e
+    # o aviso no grupo, sem disparo no WhatsApp do lead.
+    welcome_message: Optional[str] = None
     pipeline_id: Optional[int] = None
     pipeline_stage: Optional[str] = None
     notify_group_jid: Optional[str] = None
@@ -253,7 +256,9 @@ async def create_webhook(
         tenant_id=tenant_id,
         channel_id=data.channel_id,
         name=data.name,
-        welcome_message=data.welcome_message,
+        # A coluna é NOT NULL: guarda "" em vez de NULL para não exigir
+        # migração. "" e NULL têm o mesmo efeito no handler — não envia nada.
+        welcome_message=(data.welcome_message or ""),
         pipeline_id=data.pipeline_id,
         pipeline_stage=stage,
         notify_group_jid=(data.notify_group_jid or None),
@@ -328,8 +333,10 @@ async def update_webhook(
 
     if data.name is not None:
         webhook.name = data.name
-    if data.welcome_message is not None:
-        webhook.welcome_message = data.welcome_message
+    # "welcome_message" in fields (e não "is not None"): mandar null/"" é como a
+    # UI desliga o disparo automático, e isso precisa gravar.
+    if "welcome_message" in fields:
+        webhook.welcome_message = data.welcome_message or ""
     if data.is_active is not None:
         webhook.is_active = data.is_active
     if "notify_group_jid" in fields:
@@ -512,13 +519,20 @@ async def receive_external_lead(
 
     await db.commit()
 
-    # Disparar mensagem de boas-vindas
-    try:
-        from app.evolution.client import send_text
-        message = webhook.welcome_message.replace("{nome}", data.name)
-        await send_text(channel.instance_name, phone, message)
-    except Exception as e:
-        logger.error(f"[WEBHOOK_LEAD] erro ao enviar boas-vindas webhook={webhook.id}: {e}")
+    # Disparar mensagem de boas-vindas — só quando o webhook tem uma. Vazio ou
+    # NULL é configuração válida (webhook sem disparo automático para o lead) e
+    # não pode virar mensagem em branco no WhatsApp nem erro no log.
+    if (webhook.welcome_message or "").strip():
+        try:
+            from app.evolution.client import send_text
+            message = webhook.welcome_message.replace("{nome}", data.name)
+            await send_text(channel.instance_name, phone, message)
+        except Exception as e:
+            logger.error(f"[WEBHOOK_LEAD] erro ao enviar boas-vindas webhook={webhook.id}: {e}")
+    else:
+        logger.info(
+            f"[WEBHOOK_LEAD] sem mensagem de boas-vindas webhook={webhook.id} — nada enviado ao lead"
+        )
 
     # Notificar o grupo comercial. Pós-commit: o lead já está salvo e o helper
     # não levanta, então falha no aviso não derruba a resposta para a LP.
