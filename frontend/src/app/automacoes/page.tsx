@@ -75,7 +75,7 @@ interface Webhook {
   name: string;
   channel_id: number;
   channel_name: string;
-  welcome_message: string;
+  welcome_message: string | null;
   pipeline_id: number | null;
   pipeline_name: string;
   pipeline_stage: string | null;
@@ -369,7 +369,7 @@ export function AutomacoesContent() {
   const openEditWebhook = (w: Webhook) => {
     setEditWebhook(w);
     setWName(w.name);
-    setWMessage(w.welcome_message);
+    setWMessage(w.welcome_message || '');
     setWChannelId(w.channel_id);
     setWPipelineId(w.pipeline_id ?? null);
     setWStage(w.pipeline_stage || '');
@@ -388,13 +388,12 @@ export function AutomacoesContent() {
 
   const handleSaveWebhook = async () => {
     if (!wName.trim()) return toast.error('Dê um nome ao webhook');
-    if (!wMessage.trim()) return toast.error('Escreva a mensagem de boas-vindas');
     setSavingWebhook(true);
     try {
       const payload = {
         name: wName,
         channel_id: wChannelId,
-        welcome_message: wMessage,
+        welcome_message: wMessage.trim() || null,
         pipeline_id: wPipelineId,
         pipeline_stage: wPipelineId ? wStage || null : null,
         notify_group_jid: wGroupJid.trim() || null,
@@ -691,7 +690,11 @@ export function AutomacoesContent() {
                       {/* Mensagem */}
                       <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
                         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Mensagem de boas-vindas</p>
-                        <p className="text-[13px] text-gray-700 whitespace-pre-wrap">{w.welcome_message}</p>
+                        {w.welcome_message?.trim() ? (
+                          <p className="text-[13px] text-gray-700 whitespace-pre-wrap">{w.welcome_message}</p>
+                        ) : (
+                          <p className="text-[13px] text-gray-400 italic">Sem disparo automático — o lead não recebe mensagem</p>
+                        )}
                       </div>
 
                       {/* URL */}
@@ -828,9 +831,11 @@ export function AutomacoesContent() {
                 </select>
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Mensagem de boas-vindas</label>
-                <textarea value={wMessage} onChange={e => setWMessage(e.target.value)} placeholder={`Oi {nome}, vi que você se interessou! 👋`} rows={4} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
-                <p className="text-[11px] text-gray-400 mt-1">Use <code className="bg-gray-200 px-1 rounded">{'{nome}'}</code> para o nome do lead</p>
+                <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
+                  Mensagem de boas-vindas <span className="text-gray-300 normal-case tracking-normal font-normal">(opcional)</span>
+                </label>
+                <textarea value={wMessage} onChange={e => setWMessage(e.target.value)} placeholder={`Opcional — deixe vazio para não enviar mensagem automática ao lead`} rows={4} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary focus:bg-white transition-all resize-none" />
+                <p className="text-[11px] text-gray-400 mt-1">Use <code className="bg-gray-200 px-1 rounded">{'{nome}'}</code> para o nome do lead. Vazio = o lead entra no funil sem receber nada no WhatsApp.</p>
               </div>
 
               {/* Destino do lead */}
