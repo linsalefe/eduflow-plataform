@@ -11,10 +11,24 @@ import logging
 logger = logging.getLogger("eduflow.lp_submit")
 
 from fastapi import UploadFile, File
+import asyncio
 import os, uuid, pathlib
 
 UPLOAD_DIR = pathlib.Path("uploads/lp")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        v = int(os.getenv(name, default))
+        return v if v >= 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
+# Segundos entre o submit da LP e o disparo do workflow stage_change.
+# Dá tempo do lead clicar no botão de WhatsApp e mandar a mensagem dele primeiro.
+LP_TRIGGER_DELAY_SECONDS = _env_int("LP_TRIGGER_DELAY_SECONDS", 30)
 
 
 # Lógica de telefone BR centralizada em app/phone_utils.py (evita divergência
@@ -612,7 +626,6 @@ async def submit_form(slug: str, data: dict, request: Request, db: AsyncSession 
     # "Mudança de estágio do funil"). Roda em background com sessão fresca —
     # não bloqueia a resposta HTTP. Não dispara se o stage não mudou (idempotente).
     if (stage_from_for_trigger or "") != (target_stage or ""):
-        import asyncio
         from app.routes import _trigger_chatbot_stage_change
         asyncio.create_task(
             _trigger_chatbot_stage_change(
@@ -620,11 +633,13 @@ async def submit_form(slug: str, data: dict, request: Request, db: AsyncSession 
                 contact_id=contact.id,
                 stage_from=stage_from_for_trigger,
                 stage_to=target_stage,
+                delay_seconds=LP_TRIGGER_DELAY_SECONDS,
             )
         )
         logger.info(
             f"[LP_SUBMIT_TRIGGER] tenant={page.tenant_id} contact_id={contact.id} "
-            f"stage_from={stage_from_for_trigger} -> stage_to={target_stage}"
+            f"stage_from={stage_from_for_trigger} -> stage_to={target_stage} "
+            f"delay={LP_TRIGGER_DELAY_SECONDS}s"
         )
 
     # === VOICE AI: Disparar ligação automática para o lead ===

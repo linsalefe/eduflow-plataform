@@ -97,14 +97,28 @@ async def _trigger_chatbot_stage_change(
     contact_id: int,
     stage_from: str | None,
     stage_to: str | None,
+    delay_seconds: int = 0,
 ) -> None:
     """
     Dispara fluxos do chatbot com trigger 'stage_change' em background.
     Sessão fresca de DB, não compartilha com a request original.
+
+    delay_seconds: espera antes de disparar. Usado no submit da landing page —
+    o lead ainda leva 10-30s pra clicar no botão de WhatsApp e mandar a
+    mensagem dele; sem a espera a nossa boas-vindas chega antes e parece bot.
+    O sleep acontece FORA do `async with`, pra não segurar conexão do pool.
+    Drag manual no Kanban não passa o parâmetro: continua imediato.
     """
     from app.database import async_session
     from app.chatbot.engine import start_flow_by_event
     try:
+        if delay_seconds > 0:
+            logger.info(
+                "[STAGE_CHANGE_TRIGGER] aguardando %ss antes de disparar "
+                "(tenant=%s, contact=%s, %s -> %s)",
+                delay_seconds, tenant_id, contact_id, stage_from, stage_to,
+            )
+            await asyncio.sleep(delay_seconds)
         async with async_session() as db:
             await start_flow_by_event(
                 db,
