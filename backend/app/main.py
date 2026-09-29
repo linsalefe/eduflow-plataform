@@ -218,7 +218,7 @@ app = FastAPI(title="EduFlow API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://portal.eduflowia.com", "http://localhost:3000", "https://gv-sports-education.netlify.app", "https://eduflowia.com", "https://www.eduflowia.com", "https://gv-sports-ig.netlify.app", "https://gv-manychat.netlify.app", "https://gv-highschool.netlify.app", "https://gv-camp.netlify.app", "https://gv-rafa.netlify.app"],
+    allow_origins=["https://portal.eduflowia.com", "http://localhost:3000", "https://gv-sports-education.netlify.app", "https://eduflowia.com", "https://www.eduflowia.com", "https://gv-sports-ig.netlify.app", "https://gv-manychat.netlify.app", "https://gv-highschool.netlify.app", "https://gv-camp.netlify.app", "https://gv-sports-rafa.netlify.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
